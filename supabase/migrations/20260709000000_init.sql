@@ -477,6 +477,10 @@ create table if not exists payments (
   member_id           uuid references members(id) on delete set null,
   package_id          uuid references packages(id) on delete set null, -- ชำระค่าสมาชิก
   amount              numeric(10,2) not null,
+  method              payment_method not null default 'online_qr',
+  reference_module    text,
+  reference_id        uuid,
+  promptpay_qr_payload text,
   slip_image_url      text,
   slip_hash           text,                            -- ตรวจสลิปซ้ำ
   sender_name         text,

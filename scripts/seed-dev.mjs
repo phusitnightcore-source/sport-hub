@@ -75,4 +75,143 @@ const { error: profileErr } = await supabase.from("profiles").upsert({
 if (profileErr) throw profileErr;
 console.log("profile พร้อม (role: venue_admin)");
 
-console.log(`\nLogin ทดสอบได้ที่ /login\n  email:    ${ADMIN_EMAIL}\n  password: ${ADMIN_PASSWORD}`);
+// 4) ตั้ง promptpay_id ให้ tenant (จำเป็นต่อการสร้าง QR หน้าโอนเงิน)
+await supabase
+  .from("tenants")
+  .update({ promptpay_id: "0800000000" })
+  .eq("id", tenant.id);
+
+// 5) สาขา + สนาม + ช่วง Peak (idempotent: หาแล้วค่อยสร้าง)
+let { data: branch } = await supabase
+  .from("branches")
+  .select("id, name")
+  .eq("tenant_id", tenant.id)
+  .eq("name", "สาขาหลัก")
+  .maybeSingle();
+if (!branch) {
+  const { data, error } = await supabase
+    .from("branches")
+    .insert({
+      tenant_id: tenant.id,
+      name: "สาขาหลัก",
+      address: "123 ถ.นครสวรรค์ ต.ตลาด อ.เมือง มหาสารคาม",
+      open_time: "08:00",
+      close_time: "22:00",
+    })
+    .select("id, name")
+    .single();
+  if (error) throw error;
+  branch = data;
+  console.log("สร้าง branch:", branch.name);
+} else {
+  console.log("branch มีอยู่แล้ว:", branch.name);
+}
+
+let { data: court } = await supabase
+  .from("courts")
+  .select("id, name")
+  .eq("tenant_id", tenant.id)
+  .eq("name", "แบดมินตัน คอร์ท 1")
+  .maybeSingle();
+if (!court) {
+  const { data, error } = await supabase
+    .from("courts")
+    .insert({
+      tenant_id: tenant.id,
+      branch_id: branch.id,
+      name: "แบดมินตัน คอร์ท 1",
+      type: "แบดมินตัน",
+      price_standard: 150,
+      price_peak: 220,
+      open_time: "08:00",
+      close_time: "22:00",
+      free_cancel_hours: 24,
+      cancel_fee_percent: 50,
+    })
+    .select("id, name")
+    .single();
+  if (error) throw error;
+  court = data;
+  console.log("สร้าง court:", court.name);
+
+  // Peak: จันทร์-ศุกร์ 17:00-21:00 + เสาร์-อาทิตย์ทั้งวัน
+  const windows = [
+    ...[1, 2, 3, 4, 5].map((d) => ({
+      court_id: court.id,
+      tenant_id: tenant.id,
+      day_of_week: d,
+      start_time: "17:00",
+      end_time: "21:00",
+    })),
+    ...[0, 6].map((d) => ({
+      court_id: court.id,
+      tenant_id: tenant.id,
+      day_of_week: d,
+      start_time: "08:00",
+      end_time: "22:00",
+    })),
+  ];
+  const { error: peakErr } = await supabase
+    .from("court_peak_windows")
+    .insert(windows);
+  if (peakErr) throw peakErr;
+  console.log("สร้าง peak windows 7 วัน");
+} else {
+  console.log("court มีอยู่แล้ว:", court.name);
+}
+
+// 6) Subscription trial ให้ tenant เดโม่ (จำเป็นหลังมี plan gating)
+const { data: existingSub } = await supabase
+  .from("subscriptions")
+  .select("id")
+  .eq("tenant_id", tenant.id)
+  .maybeSingle();
+if (!existingSub) {
+  const { error } = await supabase.from("subscriptions").insert({
+    tenant_id: tenant.id,
+    plan: "growth",
+    status: "trial",
+    trial_start: new Date().toISOString(),
+    trial_end: new Date(Date.now() + 14 * 86_400_000).toISOString(),
+  });
+  if (error) throw error;
+  console.log("สร้าง subscription trial ให้ tenant เดโม่");
+} else {
+  console.log("subscription มีอยู่แล้ว");
+}
+
+// 7) Super Admin ของทีม SportHub
+const SUPER_EMAIL = "super@sporthub.dev";
+const SUPER_PASSWORD = "SportHub-Super1234!";
+let superId;
+const { data: superCreated, error: superErr } =
+  await supabase.auth.admin.createUser({
+    email: SUPER_EMAIL,
+    password: SUPER_PASSWORD,
+    email_confirm: true,
+  });
+if (superErr) {
+  if (!/already/i.test(superErr.message) && superErr.code !== "email_exists")
+    throw superErr;
+  const { data: list } = await supabase.auth.admin.listUsers();
+  superId = list.users.find((u) => u.email === SUPER_EMAIL)?.id;
+  console.log("super admin auth user มีอยู่แล้ว");
+} else {
+  superId = superCreated.user.id;
+  console.log("สร้าง super admin:", SUPER_EMAIL);
+}
+const { error: superProfileErr } = await supabase.from("profiles").upsert({
+  id: superId,
+  tenant_id: null, // super_admin ไม่ผูก tenant
+  role: "super_admin",
+  full_name: "SportHub Super Admin",
+  email: SUPER_EMAIL,
+});
+if (superProfileErr) throw superProfileErr;
+console.log("super admin profile พร้อม");
+
+console.log(`\nหน้าจองลูกค้า: /book/${tenant.id}`);
+console.log(`หน้าสมัครสนามใหม่: /signup`);
+console.log(`Login ทดสอบได้ที่ /login`);
+console.log(`  venue admin: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+console.log(`  super admin: ${SUPER_EMAIL} / ${SUPER_PASSWORD}`);

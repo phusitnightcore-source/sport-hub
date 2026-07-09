@@ -80,6 +80,15 @@
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-md);
   }
+
+  /* ---- ลาย hatch เฉียงสำหรับ slot "ถูกบล็อก" (DESIGN_SYSTEM ข้อ 6) ---- */
+  .slot-hatch {
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgb(var(--ink-soft) / 0.2) 0 2px,
+      transparent 2px 8px
+    );
+  }
 }
 
 /* =============================================================================

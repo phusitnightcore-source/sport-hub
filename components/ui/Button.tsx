@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 type ButtonProps = React.ComponentPropsWithRef<"button"> & {
-  variant?: "primary" | "secondary" | "danger";
+  variant?: "primary" | "secondary" | "danger" | "ghost";
   size?: "sm" | "md" | "lg";
 };
 
@@ -12,6 +12,7 @@ const variantClasses: Record<NonNullable<ButtonProps["variant"]>, string> = {
     "bg-brand text-white shadow-sm hover:bg-brand-dark hover:-translate-y-px",
   secondary: "bg-surface text-ink shadow-sm hover:shadow-md hover:-translate-y-px",
   danger: "bg-danger text-white shadow-sm hover:-translate-y-px",
+  ghost: "bg-transparent text-ink hover:bg-surface",
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps["size"]>, string> = {
