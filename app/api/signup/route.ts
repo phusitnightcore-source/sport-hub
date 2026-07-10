@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { apiOk, apiError } from "@/lib/api";
 import { logAudit } from "@/lib/audit";
+import { rateLimit } from "@/lib/ratelimit";
 
 // Onboarding สนามใหม่ (§4) — field ครบตามตาราง + PDPA consent (§6.2: timestamp + IP)
 const bodySchema = z.object({
@@ -21,6 +22,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const limited = rateLimit(request, "signup", 5, 60_000);
+  if (limited) return limited;
+
   let json: unknown;
   try {
     json = await request.json();

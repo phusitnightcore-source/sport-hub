@@ -93,18 +93,28 @@ export function daysUntil(dateStr: string): number {
   );
 }
 
-/** แพลนที่ active จริงของ subscription (trial ใช้ฟีเจอร์ Growth เต็ม — §4) */
+/**
+ * แพลนที่ active จริงของ subscription — เช็คหมดอายุแบบ real-time (ไม่รอ cron)
+ * trial ใช้ฟีเจอร์ Growth เต็ม (§4) / grace ใช้แพลนเดิมได้จนหมด grace_period_end (§11.2)
+ * ทั้ง trial และ grace ที่เลยกำหนดแล้ว → ตัดเป็น free ทันทีเพื่อกันเข้าถึงฟีเจอร์จ่ายเงินฟรี
+ */
 export function effectivePlan(sub: {
   plan: PlanType;
   status: Database["public"]["Enums"]["subscription_status"];
   trial_end: string | null;
+  grace_period_end?: string | null;
 }): PlanType {
+  const now = Date.now();
   if (sub.status === "trial") {
     const stillInTrial =
-      !sub.trial_end || new Date(sub.trial_end).getTime() > Date.now();
+      !sub.trial_end || new Date(sub.trial_end).getTime() > now;
     return stillInTrial ? "growth" : "free";
   }
   if (sub.status === "suspended" || sub.status === "cancelled") return "free";
-  // active / grace ใช้แพลนที่จ่ายไว้ (grace ยังใช้ได้จนหมด 3 วัน — §11.2)
-  return sub.plan;
+  if (sub.status === "grace") {
+    const stillInGrace =
+      !!sub.grace_period_end && new Date(sub.grace_period_end).getTime() > now;
+    return stillInGrace ? sub.plan : "free";
+  }
+  return sub.plan; // active
 }

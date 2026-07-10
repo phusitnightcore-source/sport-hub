@@ -7,6 +7,7 @@ import { promptpayPayload } from "@/lib/promptpay";
 import { toSatang, satangToBahtString, formatBahtFromDb, formatBaht } from "@/lib/money";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { PlanActions } from "./PlanActions";
+import { CancelAccountPanel } from "./CancelAccountPanel";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -25,8 +26,13 @@ export default async function SubscriptionPage() {
   if (ctx.role !== "venue_admin") redirect("/dashboard");
 
   const supabase = await createClient();
-  const [{ data: sub }, { data: invoices }] = await Promise.all([
+  const [{ data: sub }, { data: tenant }, { data: invoices }] = await Promise.all([
     supabase.from("subscriptions").select("*").eq("tenant_id", ctx.tenantId).single(),
+    supabase
+      .from("tenants")
+      .select("status, hard_delete_after")
+      .eq("id", ctx.tenantId)
+      .single(),
     supabase
       .from("subscription_invoices")
       .select("id, invoice_number, plan_name, total_amount, amount_before_vat, vat_7, due_date, payment_status, paid_at, billing_period_start, billing_period_end")
@@ -198,6 +204,12 @@ export default async function SubscriptionPage() {
           </table>
         </div>
       )}
+
+      {/* Offboarding (§32) */}
+      <CancelAccountPanel
+        pendingDelete={tenant?.status === "cancelled_pending_delete"}
+        hardDeleteAfter={tenant?.hard_delete_after ?? null}
+      />
     </main>
   );
 }

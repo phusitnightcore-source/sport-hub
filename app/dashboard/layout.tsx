@@ -13,6 +13,9 @@ import {
   CalendarClock,
   LayoutGrid,
   ScanLine,
+  BarChart3,
+  Bell,
+  ScrollText,
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 
@@ -29,6 +32,9 @@ const NAV_ITEMS = [
   { href: "/dashboard/branches", label: "สาขา", icon: Building },
   { href: "/dashboard/staff", label: "พนักงาน", icon: UserCog },
   { href: "/dashboard/coupons", label: "ส่วนลด", icon: Ticket },
+  { href: "/dashboard/reports", label: "รายงาน", icon: BarChart3 },
+  { href: "/dashboard/notifications", label: "แจ้งเตือน", icon: Bell },
+  { href: "/dashboard/audit", label: "Audit Log", icon: ScrollText },
   { href: "/dashboard/subscription", label: "แพลน", icon: CreditCard },
 ];
 

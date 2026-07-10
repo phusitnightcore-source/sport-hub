@@ -8,6 +8,7 @@ const DAY_MS = 24 * 60 * 60_000;
 //  2. Grace Period หมด → Downgrade เป็น Free
 //  3. แจ้งเตือนก่อนหมด Trial 3 วัน (in-app; LINE/Email ต่อคิว Module 8)
 //  4. Downgrade ที่ตั้งเวลาไว้ (§11.4) ถึงกำหนด → เปลี่ยนแพลนจริง
+//  5. Hard delete tenant ที่ยกเลิกเกิน 30 วัน (§32, PDPA §6.4) รวมไฟล์ใน storage
 export async function GET(request: Request) {
   const secret = request.headers.get("authorization")?.replace("Bearer ", "");
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
@@ -16,7 +17,13 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   const nowIso = new Date().toISOString();
-  const result = { trialExpired: 0, graceExpired: 0, reminders: 0, downgrades: 0 };
+  const result = {
+    trialExpired: 0,
+    graceExpired: 0,
+    reminders: 0,
+    downgrades: 0,
+    hardDeleted: 0,
+  };
 
   // 1) Trial หมดอายุ
   const { data: expiredTrials } = await admin
@@ -107,6 +114,36 @@ export async function GET(request: Request) {
       .update({ plan: change.to_plan, status: "active" })
       .eq("id", sub.id);
     result.downgrades += 1;
+  }
+
+  // 5) Hard delete tenant ที่พ้นกำหนด 30 วันหลังยกเลิก (§32)
+  //    ลบไฟล์ storage ทุก bucket (path ขึ้นต้น tenant_id) แล้วลบ tenant (cascade ทั้ง DB)
+  const { data: dueTenants } = await admin
+    .from("tenants")
+    .select("id, name")
+    .eq("status", "cancelled_pending_delete")
+    .lt("hard_delete_after", nowIso);
+  const BUCKETS = [
+    "logos",
+    "branch-images",
+    "court-images",
+    "member-profiles",
+    "slips",
+    "receipts",
+    "documents",
+  ];
+  for (const t of dueTenants ?? []) {
+    for (const bucket of BUCKETS) {
+      const { data: files } = await admin.storage.from(bucket).list(t.id, { limit: 1000 });
+      if (files && files.length > 0) {
+        await admin.storage
+          .from(bucket)
+          .remove(files.map((f) => `${t.id}/${f.name}`));
+      }
+    }
+    await admin.from("tenants").delete().eq("id", t.id);
+    result.hardDeleted += 1;
+    console.log(`hard-deleted tenant ${t.id} (${t.name})`);
   }
 
   return apiOk(result);

@@ -88,6 +88,82 @@ export async function requestFreeze(reason: string) {
   return { success: true, autoApprove };
 }
 
+// PDPA §6.5 Right to Object — opt-out/opt-in รับ Broadcast ด้วยตัวเอง
+export async function toggleBroadcastOptOut() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Unauthorized" };
+
+  const { data: member } = await supabase
+    .from("members")
+    .select("id, tenant_id, broadcast_opt_out")
+    .eq("profile_id", user.id)
+    .single();
+  if (!member) return { success: false, error: "ไม่พบข้อมูลสมาชิก" };
+
+  const next = !member.broadcast_opt_out;
+  await supabase
+    .from("members")
+    .update({ broadcast_opt_out: next })
+    .eq("id", member.id);
+
+  await logAudit({
+    tenantId: member.tenant_id,
+    actorId: user.id,
+    actorRole: "member",
+    action: next ? "broadcast_opt_out" : "broadcast_opt_in",
+    module: "pdpa",
+    referenceId: member.id,
+  });
+  revalidatePath("/me");
+  return { success: true, optOut: next };
+}
+
+// PDPA §6.5 Right to Erasure — สมาชิกกด "ขอลบบัญชี" → แจ้ง Admin สนามยืนยัน
+// (Admin ต้องดำเนินการภายใน 30 วันตามกฎหมาย — flow ฝั่ง admin ผ่าน notification)
+export async function requestErasure() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Unauthorized" };
+
+  const { data: member } = await supabase
+    .from("members")
+    .select("id, tenant_id, first_name, last_name, member_number")
+    .eq("profile_id", user.id)
+    .single();
+  if (!member) return { success: false, error: "ไม่พบข้อมูลสมาชิก" };
+
+  // แจ้งเตือน admin ผ่าน service role (member insert notification เองไม่ได้ตาม RLS)
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const admin = createAdminClient();
+  await admin.from("notifications").insert({
+    tenant_id: member.tenant_id,
+    recipient_type: "admin",
+    type: "system",
+    channel: "in_app",
+    title: "คำขอลบบัญชีสมาชิก (PDPA)",
+    body: `${member.first_name} ${member.last_name ?? ""} (${member.member_number}) ขอลบบัญชีและข้อมูลทั้งหมด — ต้องดำเนินการภายใน 30 วัน`,
+    reference_id: member.id,
+    reference_type: "member",
+    status: "sent",
+    sent_at: new Date().toISOString(),
+  });
+
+  await logAudit({
+    tenantId: member.tenant_id,
+    actorId: user.id,
+    actorRole: "member",
+    action: "request_erasure",
+    module: "pdpa",
+    referenceId: member.id,
+  });
+  return { success: true };
+}
+
 // สมาชิก Unfreeze เอง (§8.1) — คืน Active + ยืดวันหมดอายุตามจำนวนวันที่ freeze
 export async function unfreezeMember() {
   const supabase = await createClient();

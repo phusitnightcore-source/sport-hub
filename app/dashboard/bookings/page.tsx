@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarDays } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -38,6 +39,11 @@ export default async function BookingsPage({
         <h1 className="font-display text-display-md font-semibold text-ink">
           การจอง
         </h1>
+        <Link href="/dashboard/bookings/new">
+          <Button size="sm" variant="secondary">
+            + จองให้ลูกค้า
+          </Button>
+        </Link>
         {/* เปลี่ยนวันด้วย GET form — ไม่ต้องมี client JS */}
         <form method="get" className="flex items-center gap-2">
           <input

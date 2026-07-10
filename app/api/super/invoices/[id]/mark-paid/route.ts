@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/audit";
 import { toSatang } from "@/lib/money";
 import type { PlanType } from "@/lib/plans";
 
+// Fallback สำหรับ invoice เก่าที่ยังไม่มีคอลัมน์ plan (structured)
 function planFromInvoiceName(planName: string): PlanType | null {
   if (planName.startsWith("Growth")) return "growth";
   if (planName.startsWith("Pro")) return "pro";
@@ -35,11 +36,13 @@ export async function POST(
     .eq("id", id)
     .single();
   if (!invoice) return apiError("NOT_FOUND", "ไม่พบ Invoice", 404);
-  if (invoice.payment_status === "paid") {
-    return apiError("VALIDATION_ERROR", "Invoice นี้ชำระแล้ว", 400);
+  // idempotent + กันยืนยันสถานะอื่นที่ไม่ใช่ pending
+  if (invoice.payment_status !== "pending") {
+    return apiError("VALIDATION_ERROR", "Invoice นี้ไม่อยู่ในสถานะรอชำระ", 400);
   }
 
-  const plan = planFromInvoiceName(invoice.plan_name);
+  // ใช้คอลัมน์ plan ที่เก็บไว้ตอนออก Invoice (ไม่เดาจากชื่อ) — fallback เฉพาะ row เก่า
+  const plan: PlanType | null = invoice.plan ?? planFromInvoiceName(invoice.plan_name);
   if (!plan) {
     return apiError("VALIDATION_ERROR", "ไม่รู้จักแพลนใน Invoice", 400);
   }

@@ -1132,7 +1132,11 @@ export type Database = {
           booking_id: string | null
           id: string
           member_id: string | null
+          method: Database["public"]["Enums"]["payment_method"]
           package_id: string | null
+          promptpay_qr_payload: string | null
+          reference_id: string | null
+          reference_module: string | null
           refund_confirmed_at: string | null
           refund_confirmed_by: string | null
           refund_evidence_url: string | null
@@ -1153,7 +1157,11 @@ export type Database = {
           booking_id?: string | null
           id?: string
           member_id?: string | null
+          method?: Database["public"]["Enums"]["payment_method"]
           package_id?: string | null
+          promptpay_qr_payload?: string | null
+          reference_id?: string | null
+          reference_module?: string | null
           refund_confirmed_at?: string | null
           refund_confirmed_by?: string | null
           refund_evidence_url?: string | null
@@ -1174,7 +1182,11 @@ export type Database = {
           booking_id?: string | null
           id?: string
           member_id?: string | null
+          method?: Database["public"]["Enums"]["payment_method"]
           package_id?: string | null
+          promptpay_qr_payload?: string | null
+          reference_id?: string | null
+          reference_module?: string | null
           refund_confirmed_at?: string | null
           refund_confirmed_by?: string | null
           refund_evidence_url?: string | null
@@ -1482,6 +1494,7 @@ export type Database = {
           payment_method: string | null
           payment_status: string
           pdf_url: string | null
+          plan: Database["public"]["Enums"]["plan_type"] | null
           plan_name: string
           tenant_id: string
           total_amount: number
@@ -1500,6 +1513,7 @@ export type Database = {
           payment_method?: string | null
           payment_status?: string
           pdf_url?: string | null
+          plan?: Database["public"]["Enums"]["plan_type"] | null
           plan_name: string
           tenant_id: string
           total_amount: number
@@ -1518,6 +1532,7 @@ export type Database = {
           payment_method?: string | null
           payment_status?: string
           pdf_url?: string | null
+          plan?: Database["public"]["Enums"]["plan_type"] | null
           plan_name?: string
           tenant_id?: string
           total_amount?: number

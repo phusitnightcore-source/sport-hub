@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { toSatang, satangToBahtString } from "@/lib/money";
+import { requireOnlinePayment } from "@/lib/subscription";
 import { redirect } from "next/navigation";
 
 export async function createRenewalPayment(packageId: string, couponCode?: string) {
@@ -21,6 +22,14 @@ export async function createRenewalPayment(packageId: string, couponCode?: strin
     .single();
 
   if (!member) return { success: false, error: "ไม่พบข้อมูลสมาชิก" };
+
+  // Gate: ต่ออายุออนไลน์ต้องเป็นแพลนที่รับชำระออนไลน์ (Growth+) — §5
+  const gate = await requireOnlinePayment(
+    admin,
+    member.tenant_id,
+    "สนามนี้ยังไม่เปิดต่ออายุออนไลน์ กรุณาต่ออายุที่เคาน์เตอร์",
+  );
+  if (!gate.ok) return { success: false, error: gate.reason };
 
   // Get package and tenant info
   const { data: pkg } = await admin

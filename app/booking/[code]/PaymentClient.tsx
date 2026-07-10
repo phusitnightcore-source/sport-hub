@@ -74,6 +74,26 @@ export function PaymentClient({ booking, payment, qrDataUrl }: Props) {
     };
   }, [booking.status, booking.code, router]);
 
+  const [cancelMode, setCancelMode] = useState(false);
+  const [cancelMsg, setCancelMsg] = useState<string | null>(null);
+
+  async function handleCancel() {
+    setSubmitting(true);
+    setError(null);
+    const res = await fetch(`/api/bookings/${booking.code}/cancel`, {
+      method: "POST",
+    });
+    const json = await res.json();
+    if (!json.success) {
+      setError(json.error?.message ?? "ยกเลิกไม่สำเร็จ");
+      setSubmitting(false);
+      setCancelMode(false);
+      return;
+    }
+    setCancelMsg(json.data.message);
+    router.refresh();
+  }
+
   async function handleSlipSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -263,6 +283,53 @@ export function PaymentClient({ booking, payment, qrDataUrl }: Props) {
             <p className="text-body-sm text-ink-soft">
               สนามจะโอนเงินคืนภายใน 24 ชั่วโมง กรุณาติดต่อสนามหากไม่ได้รับ
             </p>
+          )}
+        </div>
+      )}
+
+      {/* ปุ่มยกเลิกการจอง — แสดงเฉพาะสถานะที่ยกเลิกได้ (§7.1) */}
+      {["pending_payment", "awaiting_verification", "confirmed"].includes(
+        booking.status,
+      ) && (
+        <div className="card-floating flex flex-col gap-3 p-6">
+          {cancelMsg ? (
+            <p className="text-body-sm text-ink">{cancelMsg}</p>
+          ) : cancelMode ? (
+            <>
+              <p className="text-body-sm text-ink">
+                ยืนยันยกเลิกการจองนี้? หากเลยช่วงยกเลิกฟรีของสนาม
+                ระบบจะหักค่าธรรมเนียมตามนโยบายและคืนเงินส่วนที่เหลือภายใน 24 ชั่วโมง
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={handleCancel}
+                  disabled={submitting}
+                  className="flex-1"
+                >
+                  {submitting ? "กำลังยกเลิก..." : "ยืนยันยกเลิกการจอง"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCancelMode(false)}
+                  disabled={submitting}
+                  className="flex-1"
+                >
+                  กลับ
+                </Button>
+              </div>
+            </>
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setCancelMode(true)}
+              className="self-center text-danger"
+            >
+              ต้องการยกเลิกการจอง?
+            </Button>
           )}
         </div>
       )}

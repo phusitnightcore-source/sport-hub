@@ -1,0 +1,155 @@
+"use server";
+
+import { z } from "zod";
+import { revalidatePath } from "next/cache";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getStaffContext } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
+import { bangkokToday, bangkokNowTime } from "@/lib/api";
+import { buildSlots, toMinutes } from "@/lib/booking/slots";
+import { satangToBahtString } from "@/lib/money";
+
+const schema = z.object({
+  courtId: z.string().uuid(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/),
+  userName: z.string().trim().min(2).max(100),
+  userPhone: z.string().regex(/^0\d{8,9}$/),
+  method: z.enum(["walk_in_cash", "walk_in_transfer"]),
+  note: z.string().trim().max(500).optional(),
+});
+
+// Staff จองให้ลูกค้า walk-in/โทรจอง (§7.2) — รับเงินหน้าร้าน → confirmed ทันที
+// mutate ด้วย service role หลังเช็คสิทธิ์ (staff insert booking ตาม RLS ได้เฉพาะ
+// สาขาตัวเอง แต่ walk-in ต้องเช็ค block/ราคา peak เหมือน flow ลูกค้า จึงรวมที่นี่)
+export async function createWalkInBooking(input: z.input<typeof schema>) {
+  const ctx = await getStaffContext();
+  if (!ctx) return { error: "ไม่มีสิทธิ์เข้าถึง" };
+
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const d = parsed.data;
+
+  const admin = createAdminClient();
+  const { data: court } = await admin
+    .from("courts")
+    .select(
+      "id, tenant_id, branch_id, name, status, open_time, close_time, price_standard, price_peak",
+    )
+    .eq("id", d.courtId)
+    .eq("tenant_id", ctx.tenantId)
+    .single();
+  if (!court || court.status !== "open") return { error: "ไม่พบสนามหรือสนามปิด" };
+
+  // staff เฉพาะสาขา — จองได้เฉพาะสนามในสาขาที่ตัวเองดูแล (venue_admin ทุกสาขา)
+  if (ctx.role === "staff") {
+    const { data: staffRow } = await admin
+      .from("staff")
+      .select("multi_branch_access, staff_branches(branch_id)")
+      .eq("profile_id", ctx.userId)
+      .single();
+    const allowed =
+      staffRow?.multi_branch_access ||
+      (staffRow?.staff_branches ?? []).some((b) => b.branch_id === court.branch_id);
+    if (!allowed) return { error: "ไม่มีสิทธิ์จองสนามสาขานี้" };
+  }
+
+  const today = bangkokToday();
+  if (d.date < today) return { error: "จองย้อนหลังไม่ได้" };
+
+  // เช็คความว่าง + คิดราคาจากแหล่งเดียวกับ flow ลูกค้า
+  const [{ data: peaks }, { data: active }, { data: blocks }] = await Promise.all([
+    admin
+      .from("court_peak_windows")
+      .select("day_of_week, start_time, end_time")
+      .eq("court_id", court.id),
+    admin
+      .from("bookings")
+      .select("start_time, end_time")
+      .eq("court_id", court.id)
+      .eq("booking_date", d.date)
+      .in("status", ["pending_payment", "awaiting_verification", "confirmed", "awaiting_refund"]),
+    admin
+      .from("block_schedules")
+      .select("start_time, end_time")
+      .eq("court_id", court.id)
+      .eq("block_date", d.date),
+  ]);
+  const slots = buildSlots({
+    court,
+    peakWindows: peaks ?? [],
+    bookings: active ?? [],
+    blocks: blocks ?? [],
+    date: d.date,
+    today,
+    nowTime: bangkokNowTime(),
+  });
+  const startM = toMinutes(d.startTime);
+  const endM = toMinutes(d.endTime);
+  const chosen = slots.filter(
+    (s) => toMinutes(s.start) >= startM && toMinutes(s.end) <= endM,
+  );
+  if (endM <= startM || chosen.length !== (endM - startM) / 60) {
+    return { error: "ช่วงเวลาไม่ถูกต้อง" };
+  }
+  // walk-in ให้จอง slot "past" ของวันนี้ได้ (ลูกค้าเล่นอยู่แล้ว) แต่ห้ามชน booked/blocked
+  if (chosen.some((s) => s.status === "booked" || s.status === "blocked")) {
+    return { error: "ช่วงเวลานี้ถูกจองหรือถูกบล็อกแล้ว" };
+  }
+
+  const totalSatang = chosen.reduce((sum, s) => sum + s.priceSatang, 0);
+  const anyPeak = chosen.some((s) => s.isPeak);
+
+  const { data: booking, error } = await admin
+    .from("bookings")
+    .insert({
+      tenant_id: ctx.tenantId,
+      court_id: court.id,
+      branch_id: court.branch_id,
+      user_name: d.userName,
+      user_phone: d.userPhone,
+      booking_date: d.date,
+      start_time: d.startTime,
+      end_time: d.endTime,
+      price_per_hour: Number(satangToBahtString(Math.round(totalSatang / chosen.length))),
+      total_price: Number(satangToBahtString(totalSatang)),
+      price_type: anyPeak ? "peak" : "standard",
+      status: "confirmed", // รับเงินหน้าร้านแล้ว
+      payment_method: d.method,
+      created_by: ctx.staffId,
+      note: d.note ?? null,
+      policy_accepted_at: new Date().toISOString(),
+    })
+    .select("id, booking_code, total_price")
+    .single();
+  if (error) {
+    if (error.code === "23P01") return { error: "ช่วงเวลานี้ถูกจองตัดหน้าแล้ว" };
+    console.error("walk-in booking failed:", error);
+    return { error: "จองไม่สำเร็จ กรุณาลองใหม่" };
+  }
+
+  // บันทึกการรับเงิน (verified ทันที → trigger ออกใบเสร็จ §9.8)
+  await admin.from("payments").insert({
+    tenant_id: ctx.tenantId,
+    booking_id: booking.id,
+    amount: booking.total_price,
+    status: "verified",
+    verified_by: ctx.staffId,
+    verified_at: new Date().toISOString(),
+    sender_name: d.method === "walk_in_cash" ? "เงินสด (หน้าเคาน์เตอร์)" : "โอน (หน้าเคาน์เตอร์)",
+  });
+
+  await logAudit({
+    tenantId: ctx.tenantId,
+    actorId: ctx.userId,
+    actorRole: ctx.role,
+    action: "walk_in_booking",
+    module: "booking",
+    referenceId: booking.id,
+    after: { booking_code: booking.booking_code, total: booking.total_price, method: d.method },
+  });
+
+  revalidatePath("/dashboard/bookings");
+  return { success: true, bookingCode: booking.booking_code };
+}

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { apiOk, apiError } from "@/lib/api";
 import { logAudit } from "@/lib/audit";
+import { rateLimit } from "@/lib/ratelimit";
 
 const MAX_SLIP_BYTES = 10 * 1024 * 1024; // 10 MB — §28.2 PAYMENT_SLIP_TOO_LARGE
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -16,6 +17,8 @@ const fieldsSchema = z.object({
 
 // ลูกค้าแนบสลิป (§9.2 ขั้น 4-5) — service role อย่างจงใจ: guest upload ผ่าน RLS ไม่ได้
 export async function POST(request: Request) {
+  const limited = rateLimit(request, "payments", 10, 60_000);
+  if (limited) return limited;
   let form: FormData;
   try {
     form = await request.formData();

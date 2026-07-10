@@ -17,21 +17,32 @@ function allowedPrefix(role: UserRole): string {
   return ROLE_HOME[role];
 }
 
+// ห้ามเบราว์เซอร์ cache หน้าที่ผ่าน auth (รวม bfcache) — กันกด Back หลัง logout
+// แล้วเห็นหน้า/ข้อมูลของบัญชีก่อนหน้า Chrome/Firefox จะไม่เก็บ bfcache ถ้ามี no-store
+function noStore<T extends NextResponse>(res: T): T {
+  res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  res.headers.set("Pragma", "no-cache");
+  res.headers.set("Expires", "0");
+  return res;
+}
+
 export async function proxy(request: NextRequest) {
   const { supabase, user, supabaseResponse } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
   const isLogin = pathname.startsWith("/login");
+  // ทุก response ที่เกี่ยวกับพื้นที่ auth (protected หรือ /login) ห้าม cache
+  const sensitive = isProtected || isLogin;
 
   if (!user) {
     if (isProtected) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       url.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(url);
+      return noStore(NextResponse.redirect(url));
     }
-    return supabaseResponse;
+    return sensitive ? noStore(supabaseResponse) : supabaseResponse;
   }
 
   if (!isProtected && !isLogin) return supabaseResponse;
@@ -44,10 +55,10 @@ export async function proxy(request: NextRequest) {
 
   // มี auth user แต่ไม่มี profile — ไม่ควรเกิด แต่กันไว้: ส่งกลับ login
   if (!profile) {
-    if (isLogin) return supabaseResponse;
+    if (isLogin) return noStore(supabaseResponse);
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return noStore(NextResponse.redirect(url));
   }
 
   const home = allowedPrefix(profile.role as UserRole);
@@ -57,7 +68,7 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = home;
     url.search = "";
-    return NextResponse.redirect(url);
+    return noStore(NextResponse.redirect(url));
   }
 
   // เข้าพื้นที่ที่ไม่ใช่ของ role ตัวเอง → ส่งกลับพื้นที่ตัวเอง
@@ -65,10 +76,11 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = home;
     url.search = "";
-    return NextResponse.redirect(url);
+    return noStore(NextResponse.redirect(url));
   }
 
-  return supabaseResponse;
+  // หน้า protected ที่ role ถูกต้อง — ห้าม cache
+  return noStore(supabaseResponse);
 }
 
 export const config = {

@@ -24,6 +24,11 @@ export function bangkokToday(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 }
 
+/** วันที่ (UTC ISO date) อีก N วันข้างหน้า — helper สำหรับ server component (เลี่ยง Date.now ใน render) */
+export function isoDatePlusDays(days: number): string {
+  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+}
+
 /** เวลาปัจจุบันตามเขตเวลาไทย รูปแบบ HH:MM */
 export function bangkokNowTime(): string {
   return new Date().toLocaleTimeString("en-GB", {

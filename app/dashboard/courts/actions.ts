@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffContext } from "@/lib/auth";
+import { checkCourtQuota } from "@/lib/subscription";
 import { logAudit } from "@/lib/audit";
 
 const courtSchema = z.object({
@@ -41,6 +42,11 @@ export async function createCourt(data: CourtInput) {
   const d = parsed.data;
 
   const supabase = await createClient();
+
+  // Gate: เพดานจำนวนสนามตามแพลน (Free = 1 สนาม) — §5
+  const quota = await checkCourtQuota(supabase, ctx.tenantId);
+  if (!quota.ok) return { error: quota.reason };
+
   const { data: court, error } = await supabase
     .from("courts")
     .insert({

@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireOnlinePayment } from "@/lib/subscription";
 
 export async function submitApplication(data: {
   tenantId: string;
@@ -14,6 +15,14 @@ export async function submitApplication(data: {
   emergencyPhone: string;
 }) {
   const admin = createAdminClient();
+
+  // Gate: สมัครสมาชิกออนไลน์ต้องเป็นแพลนที่รับชำระออนไลน์ (Growth+) — §5
+  const gate = await requireOnlinePayment(
+    admin,
+    data.tenantId,
+    "สนามนี้ยังไม่เปิดรับสมัครสมาชิกออนไลน์ กรุณาสมัครที่เคาน์เตอร์",
+  );
+  if (!gate.ok) return { success: false, error: gate.reason };
 
   // 1. Get package and tenant info
   const { data: pkg } = await admin

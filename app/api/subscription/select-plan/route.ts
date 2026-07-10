@@ -195,6 +195,7 @@ export async function POST(request: Request) {
     .insert({
       tenant_id: ctx.tenantId,
       invoice_number: invoiceNumber,
+      plan: targetPlan, // structured — mark-paid ใช้อันนี้ ไม่ต้องเดาจากชื่อ
       plan_name: PLANS[targetPlan].name + (prorate ? " (Pro-rata upgrade)" : ""),
       billing_period_start: periodStart,
       billing_period_end: periodEnd,

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Prompt, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import { BfcacheGuard } from "@/components/auth/BfcacheGuard";
 
 const prompt = Prompt({
   variable: "--font-prompt",
@@ -26,7 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th" className={`${prompt.variable} ${plexMono.variable} h-full`}>
-      <body className="min-h-full font-body">{children}</body>
+      <body className="min-h-full font-body">
+        <BfcacheGuard />
+        {children}
+      </body>
     </html>
   );
 }

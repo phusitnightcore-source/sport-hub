@@ -4,7 +4,9 @@ import { apiOk, apiError, bangkokToday, bangkokNowTime } from "@/lib/api";
 import { buildSlots, toMinutes } from "@/lib/booking/slots";
 import { satangToBahtString, toSatang } from "@/lib/money";
 import { logAudit } from "@/lib/audit";
-import { PLANS, effectivePlan } from "@/lib/plans";
+import { PLANS } from "@/lib/plans";
+import { getEffectivePlan } from "@/lib/subscription";
+import { rateLimit } from "@/lib/ratelimit";
 
 const bodySchema = z.object({
   courtId: z.string().uuid(),
@@ -21,6 +23,8 @@ const bodySchema = z.object({
 // สร้างการจอง (guest) — ใช้ service role อย่างจงใจตามคอมเมนต์ใน schema:
 // guest ไม่มี session จึง insert ผ่าน RLS ไม่ได้ ต้อง validate ครบที่ API ชั้นนี้
 export async function POST(request: Request) {
+  const limited = rateLimit(request, "bookings", 15, 60_000);
+  if (limited) return limited;
   let json: unknown;
   try {
     json = await request.json();
@@ -116,13 +120,8 @@ export async function POST(request: Request) {
   }
 
   // Plan gating (§5): Free = ไม่มี Online Payment + จำกัด 30 จอง/เดือน
-  // ไม่มีแถว subscription (ข้อมูลเก่า) → ปฏิบัติเหมือน Free
-  const { data: sub } = await admin
-    .from("subscriptions")
-    .select("plan, status, trial_end")
-    .eq("tenant_id", court.tenant_id)
-    .maybeSingle();
-  const plan = sub ? effectivePlan(sub) : "free";
+  // ใช้ getEffectivePlan (แหล่งความจริงเดียว, เช็ค trial/grace real-time)
+  const plan = await getEffectivePlan(admin, court.tenant_id);
   if (!PLANS[plan].onlinePayment) {
     return apiError(
       "SUBSCRIPTION_INACTIVE",
