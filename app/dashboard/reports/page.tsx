@@ -104,6 +104,12 @@ export default async function ReportsPage() {
               CSV สมาชิก
             </Button>
           </a>
+          <a href={`/api/admin/reports/export?type=payments&month=${month}`}>
+            <Button size="sm" variant="secondary">
+              <Download aria-hidden className="h-4 w-4" />
+              CSV รายได้
+            </Button>
+          </a>
         </div>
       </div>
 

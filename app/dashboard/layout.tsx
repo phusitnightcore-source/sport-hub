@@ -14,16 +14,23 @@ import {
   LayoutGrid,
   ScanLine,
   BarChart3,
+  LineChart,
   Bell,
   ScrollText,
+  Image as ImageIcon,
+  Settings,
+  TicketCheck,
 } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { GlobalSearch } from "@/components/ui/GlobalSearch";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "ภาพรวม", icon: LayoutDashboard },
   { href: "/dashboard/bookings", label: "การจอง", icon: CalendarDays },
   { href: "/dashboard/schedule", label: "ตารางสนาม", icon: CalendarClock },
   { href: "/dashboard/checkin", label: "เช็คอิน", icon: ScanLine },
+  { href: "/dashboard/guest-passes", label: "บัตรชั่วคราว", icon: TicketCheck },
   { href: "/dashboard/payments", label: "ตรวจสลิป", icon: ReceiptText },
   { href: "/dashboard/refunds", label: "คืนเงิน", icon: RotateCcw },
   { href: "/dashboard/courts", label: "สนาม", icon: LayoutGrid },
@@ -33,8 +40,11 @@ const NAV_ITEMS = [
   { href: "/dashboard/staff", label: "พนักงาน", icon: UserCog },
   { href: "/dashboard/coupons", label: "ส่วนลด", icon: Ticket },
   { href: "/dashboard/reports", label: "รายงาน", icon: BarChart3 },
+  { href: "/dashboard/analytics", label: "วิเคราะห์", icon: LineChart },
+  { href: "/dashboard/media", label: "คลังสื่อ", icon: ImageIcon },
   { href: "/dashboard/notifications", label: "แจ้งเตือน", icon: Bell },
   { href: "/dashboard/audit", label: "Audit Log", icon: ScrollText },
+  { href: "/dashboard/settings", label: "ตั้งค่า", icon: Settings },
   { href: "/dashboard/subscription", label: "แพลน", icon: CreditCard },
 ];
 
@@ -80,8 +90,12 @@ export default async function DashboardLayout({
           <div className="md:hidden font-display text-lg font-bold text-brand">
             SportHub
           </div>
-          <div className="flex flex-1 items-center justify-end gap-4 text-body-sm text-ink-soft">
+          <div className="hidden flex-1 md:block">
+            <GlobalSearch />
+          </div>
+          <div className="flex items-center justify-end gap-3 text-body-sm text-ink-soft">
             {ctx?.tenantId && <ShareBookingLink tenantId={ctx.tenantId} />}
+            <ThemeToggle />
             <span className="hidden md:inline">Dashboard</span>
             <div className="md:hidden">
               <LogoutButton />

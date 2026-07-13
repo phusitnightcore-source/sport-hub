@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Users, LogOut } from "lucide-react";
+import { Users, LogOut, Radio } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { createClient } from "@/lib/supabase/client";
 import { checkoutMember } from "./actions";
 
 type Branch = { id: string; name: string; max_capacity: number };
@@ -18,14 +19,40 @@ type OpenCheckin = {
 
 // แผงแสดง Occupancy ปัจจุบันต่อสาขา + ปุ่มเช็คเอาท์ (§10.4)
 export function OccupancyPanel({
+  tenantId,
   branches,
   openCheckins,
 }: {
+  tenantId: string;
   branches: Branch[];
   openCheckins: OpenCheckin[];
 }) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
+
+  // Realtime (§10.3-10.4): subscribe ความเปลี่ยนแปลงของ checkins ใน tenant นี้
+  // แล้ว refresh ข้อมูลจาก server (RLS-safe) — occupancy อัปเดตภายใน ~1 วิ
+  // ต้องเปิด realtime publication ให้ตาราง checkins (ดู migration realtime)
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`occupancy-${tenantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "checkins",
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        () => router.refresh(),
+      )
+      .subscribe((status) => setLive(status === "SUBSCRIBED"));
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tenantId, router]);
 
   async function handleCheckout(id: string) {
     setBusyId(id);
@@ -36,9 +63,17 @@ export function OccupancyPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="font-display text-body-lg font-semibold text-ink">
-        คนในสนามตอนนี้
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-body-lg font-semibold text-ink">
+          คนในสนามตอนนี้
+        </h2>
+        {live && (
+          <span className="flex items-center gap-1.5 text-body-sm text-success">
+            <Radio aria-hidden className="h-4 w-4 animate-pulse" />
+            เรียลไทม์
+          </span>
+        )}
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
         {branches.map((branch) => {
           const inBranch = openCheckins.filter((c) => c.branch_id === branch.id);

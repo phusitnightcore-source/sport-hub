@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { UserCheck, User, Phone, StickyNote, Ticket } from "lucide-react";
 import { SlotGrid } from "@/components/ui/SlotGrid";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { formatBaht } from "@/lib/money";
 import { toMinutes, type Slot } from "@/lib/booking/slots";
 import { cn } from "@/lib/utils";
@@ -21,10 +23,11 @@ type Props = {
   courtId: string;
   minDate: string;
   maxDate: string;
+  member: { name: string; phone: string } | null;
   policy: Policy;
 };
 
-export function BookingClient({ courtId, minDate, maxDate, policy }: Props) {
+export function BookingClient({ courtId, minDate, maxDate, member, policy }: Props) {
   const router = useRouter();
   const [date, setDate] = useState(minDate);
   const [slots, setSlots] = useState<Slot[] | null>(null);
@@ -138,22 +141,26 @@ export function BookingClient({ courtId, minDate, maxDate, policy }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      {/* Badge: กำลังจองในนามสมาชิก */}
+      {member && (
+        <div className="flex items-center gap-2 rounded-sm bg-brand-soft px-4 py-3 text-body-sm text-brand-dark ring-1 ring-inset ring-brand/20">
+          <UserCheck aria-hidden className="h-5 w-5 shrink-0 text-brand" />
+          <span>
+            กำลังจองในนามสมาชิก{" "}
+            <span className="font-semibold">{member.name}</span> — กรอกข้อมูลให้แล้ว
+          </span>
+        </div>
+      )}
+
       {/* เลือกวันที่ */}
       <div className="card-floating p-6">
-        <label
-          htmlFor="booking-date"
-          className="mb-2 block text-body-sm font-medium text-ink"
-        >
-          วันที่จอง
-        </label>
-        <input
-          id="booking-date"
-          type="date"
+        <DatePicker
+          name="bookingDate"
+          label="วันที่จอง"
           value={date}
           min={minDate}
           max={maxDate}
-          onChange={(e) => changeDate(e.target.value)}
-          className="rounded-sm bg-surface px-4 py-2.5 text-body text-ink shadow-sm outline-none transition-shadow duration-fast focus:shadow-md focus:ring-2 focus:ring-brand"
+          onChange={changeDate}
         />
       </div>
 
@@ -187,7 +194,14 @@ export function BookingClient({ courtId, minDate, maxDate, policy }: Props) {
       {/* ข้อมูลผู้จอง */}
       <div className="card-floating flex flex-col gap-4 p-6">
         <h2 className="text-body font-medium text-ink">ข้อมูลผู้จอง</h2>
-        <Input label="ชื่อผู้จอง" name="userName" required minLength={2} />
+        <Input
+          label="ชื่อผู้จอง"
+          name="userName"
+          required
+          minLength={2}
+          icon={<User />}
+          defaultValue={member?.name}
+        />
         <Input
           label="เบอร์โทรศัพท์"
           name="userPhone"
@@ -195,14 +209,17 @@ export function BookingClient({ courtId, minDate, maxDate, policy }: Props) {
           required
           pattern="0[0-9]{8,9}"
           placeholder="08XXXXXXXX"
+          icon={<Phone />}
+          defaultValue={member?.phone}
         />
-        <Input label="หมายเหตุ (ถ้ามี)" name="note" />
+        <Input label="หมายเหตุ (ถ้ามี)" name="note" icon={<StickyNote />} />
         <Input
           label="โค้ดส่วนลด (ถ้ามี)"
           name="coupon"
           value={coupon}
           onChange={(e) => setCoupon(e.target.value.toUpperCase())}
           placeholder="เช่น NEW50"
+          icon={<Ticket />}
         />
       </div>
 

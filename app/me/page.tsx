@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CalendarSearch } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -42,6 +43,13 @@ export default async function MemberPage() {
       </div>
 
       <MemberCard member={member} tenantName={member.tenants?.name || "SportHub"} />
+
+      <Link href="/me/bookings">
+        <Button variant="secondary" className="w-full">
+          <CalendarSearch className="h-4 w-4" />
+          การจองของฉัน
+        </Button>
+      </Link>
 
       <div className="grid grid-cols-2 gap-4">
         <Link href="/me/renew">

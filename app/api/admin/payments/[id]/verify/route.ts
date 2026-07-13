@@ -3,6 +3,51 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { apiOk, apiError } from "@/lib/api";
 import { getStaffContext, hasPermission } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { dispatchNotification } from "@/lib/notify";
+
+type PaymentRow = {
+  id: string;
+  tenant_id: string;
+  booking_id: string | null;
+  member_id: string | null;
+};
+
+// แจ้งเตือนผลการตรวจสลิปไปยังสมาชิก (§14.1 Payment) — LINE หลัก → Email fallback → in-app
+// ทำงานได้แม้ยังไม่ใส่ API key (บันทึก in-app เป็นประวัติ) จึงไม่กระทบ flow หลัก
+async function notifyPaymentResult(
+  admin: ReturnType<typeof createAdminClient>,
+  payment: PaymentRow,
+  kind: "verified" | "rejected",
+  reason?: string,
+): Promise<void> {
+  if (!payment.member_id) return; // guest booking ไม่มีช่องทางติดต่อ — ข้าม
+  const { data: member } = await admin
+    .from("members")
+    .select("id, line_user_id, email")
+    .eq("id", payment.member_id)
+    .maybeSingle();
+  if (!member) return;
+
+  const title =
+    kind === "verified" ? "ยืนยันการชำระเงินแล้ว" : "สลิปถูกปฏิเสธ";
+  const body =
+    kind === "verified"
+      ? "สนามได้ตรวจสอบและยืนยันการชำระเงินของคุณเรียบร้อยแล้ว"
+      : `สลิปของคุณถูกปฏิเสธ${reason ? ` — เหตุผล: ${reason}` : ""} กรุณาติดต่อสนามหรือชำระใหม่อีกครั้ง`;
+
+  await dispatchNotification({
+    tenantId: payment.tenant_id,
+    recipientId: member.id,
+    recipientType: "member",
+    type: "payment",
+    title,
+    body,
+    referenceId: payment.id,
+    referenceType: "payment",
+    lineUserId: member.line_user_id,
+    email: member.email,
+  });
+}
 
 const bodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("approve") }),
@@ -133,6 +178,7 @@ export async function POST(
       before: { status: "awaiting_verification" },
       after: { status: "verified", booking_id: payment.booking_id },
     });
+    await notifyPaymentResult(admin, payment, "verified");
     return apiOk({ status: "verified" });
   }
 
@@ -171,5 +217,6 @@ export async function POST(
       refund_status: "awaiting_refund",
     },
   });
+  await notifyPaymentResult(admin, payment, "rejected", parsed.data.reason);
   return apiOk({ status: "rejected" });
 }

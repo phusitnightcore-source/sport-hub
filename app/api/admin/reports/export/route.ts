@@ -5,7 +5,7 @@ import { apiError, bangkokToday } from "@/lib/api";
 import { logAudit } from "@/lib/audit";
 
 const querySchema = z.object({
-  type: z.enum(["bookings", "members"]),
+  type: z.enum(["bookings", "members", "payments"]),
   month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
 });
 
@@ -67,6 +67,27 @@ export async function GET(request: Request) {
     }));
     csv = toCsv(rows, Object.keys(rows[0] ?? { ไม่มีข้อมูล: "" }));
     filename = `bookings-${month}.csv`;
+  } else if (parsed.data.type === "payments") {
+    // รายงานรายได้ (§15.1) — เฉพาะสลิปที่ยืนยันแล้วในเดือนที่เลือก
+    const { data } = await supabase
+      .from("payments")
+      .select(
+        "amount, status, method, booking_id, member_id, verified_at, submitted_at",
+      )
+      .eq("status", "verified")
+      .gte("verified_at", monthStartIso)
+      .lt("verified_at", nextMonth.toISOString())
+      .order("verified_at");
+    const rows = (data ?? []).map((p) => ({
+      วันที่ยืนยัน: p.verified_at,
+      จำนวนเงิน: p.amount,
+      ประเภท: p.booking_id ? "ค่าจอง" : p.member_id ? "ค่าสมาชิก" : "อื่นๆ",
+      ช่องทาง: p.method,
+      สถานะ: p.status,
+      วันที่ส่งสลิป: p.submitted_at,
+    }));
+    csv = toCsv(rows, Object.keys(rows[0] ?? { ไม่มีข้อมูล: "" }));
+    filename = `payments-${month}.csv`;
   } else {
     const { data } = await supabase
       .from("members")

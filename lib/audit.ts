@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { captureException } from "@/lib/logger";
 import type { Database } from "@/lib/supabase/types";
 import type { Json } from "@/lib/supabase/types";
 
@@ -33,6 +34,6 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
     });
   } catch (e) {
     // audit ล้มเหลวต้องไม่ทำให้ flow หลักพัง — log ไว้พอ
-    console.error("audit_logs insert failed:", e);
+    captureException("audit_logs.insert", e);
   }
 }

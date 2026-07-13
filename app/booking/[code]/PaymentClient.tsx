@@ -31,6 +31,8 @@ type Props = {
     refundStatus: string | null;
   } | null;
   qrDataUrl: string | null;
+  /** true = QR ที่สนามอัปโหลดเอง (static ไม่มียอดในตัว ต้องกรอกยอดเอง) */
+  qrIsUploaded?: boolean;
 };
 
 function useCountdown(deadline: string | null) {
@@ -50,7 +52,7 @@ function useCountdown(deadline: string | null) {
   return { text: `${mm}:${ss}`, expired: left <= 0 };
 }
 
-export function PaymentClient({ booking, payment, qrDataUrl }: Props) {
+export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Props) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -157,13 +159,24 @@ export function PaymentClient({ booking, payment, qrDataUrl }: Props) {
               สแกน QR PromptPay เพื่อชำระเงิน
             </h2>
             {qrDataUrl ? (
-              <img
-                src={qrDataUrl}
-                alt={`QR PromptPay ยอด ${booking.totalPrice} บาท`}
-                width={280}
-                height={280}
-                className="rounded-sm"
-              />
+              <>
+                <img
+                  src={qrDataUrl}
+                  alt={`QR PromptPay ยอด ${booking.totalPrice} บาท`}
+                  width={280}
+                  height={280}
+                  className="rounded-sm"
+                />
+                {qrIsUploaded && (
+                  <p className="rounded-sm bg-warning/10 px-3 py-2 text-center text-body-sm text-warning">
+                    QR นี้ไม่ได้ระบุยอด — กรุณากรอกยอด{" "}
+                    <span className="font-semibold">
+                      ฿{formatBahtFromDb(booking.totalPrice)}
+                    </span>{" "}
+                    ในแอปธนาคารเอง
+                  </p>
+                )}
+              </>
             ) : (
               <p className="text-body-sm text-danger">
                 สนามยังไม่ได้ตั้งค่า PromptPay กรุณาติดต่อสนามโดยตรง

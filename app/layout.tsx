@@ -26,7 +26,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th" className={`${prompt.variable} ${plexMono.variable} h-full`}>
+    <html
+      lang="th"
+      suppressHydrationWarning
+      className={`${prompt.variable} ${plexMono.variable} h-full`}
+    >
+      <head>
+        {/* no-FOUC: ตั้ง data-theme ก่อน paint จาก localStorage / prefers-color-scheme */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full font-body">
         <BfcacheGuard />
         {children}

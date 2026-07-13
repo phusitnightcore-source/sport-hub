@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { ArrowLeft } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { bangkokToday } from "@/lib/api";
 import { BookingClient } from "./BookingClient";
 
@@ -34,6 +35,27 @@ export default async function CourtBookingPage({
   max.setUTCDate(max.getUTCDate() + court.advance_booking_days);
   const maxDate = max.toISOString().slice(0, 10);
 
+  // prefill สำหรับสมาชิกที่ล็อกอินอยู่ (จองในนามสมาชิก)
+  let member: { name: string; phone: string } | null = null;
+  const session = await createClient();
+  const {
+    data: { user },
+  } = await session.auth.getUser();
+  if (user) {
+    const { data: m } = await admin
+      .from("members")
+      .select("first_name, last_name, phone")
+      .eq("profile_id", user.id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (m) {
+      member = {
+        name: `${m.first_name} ${m.last_name ?? ""}`.trim(),
+        phone: m.phone ?? "",
+      };
+    }
+  }
+
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <Link
@@ -54,6 +76,7 @@ export default async function CourtBookingPage({
         courtId={court.id}
         minDate={today}
         maxDate={maxDate}
+        member={member}
         policy={{
           freeCancelHours: court.free_cancel_hours,
           cancelFeePercent: court.cancel_fee_percent,

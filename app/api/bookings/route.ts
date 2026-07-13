@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { apiOk, apiError, bangkokToday, bangkokNowTime } from "@/lib/api";
 import { buildSlots, toMinutes } from "@/lib/booking/slots";
 import { satangToBahtString, toSatang } from "@/lib/money";
@@ -49,6 +50,29 @@ export async function POST(request: Request) {
     .single();
   if (!court || court.status !== "open") {
     return apiError("NOT_FOUND", "ไม่พบสนามหรือสนามปิดให้บริการ", 404);
+  }
+
+  // ถ้าผู้จองล็อกอินเป็นสมาชิกของสนามนี้ ผูก member_id ให้ประวัติจองของสมาชิก
+  // (guest ที่ไม่ล็อกอินยังจองได้ปกติ — member_id = null)
+  let bookerMemberId: string | null = null;
+  let bookerActorId: string | null = null;
+  try {
+    const session = await createClient();
+    const {
+      data: { user },
+    } = await session.auth.getUser();
+    if (user) {
+      bookerActorId = user.id;
+      const { data: member } = await admin
+        .from("members")
+        .select("id")
+        .eq("profile_id", user.id)
+        .eq("tenant_id", court.tenant_id)
+        .maybeSingle();
+      if (member) bookerMemberId = member.id;
+    }
+  } catch {
+    /* ไม่มี session = guest จองปกติ */
   }
 
   const today = bangkokToday();
@@ -236,6 +260,7 @@ export async function POST(request: Request) {
       tenant_id: court.tenant_id,
       court_id: court.id,
       branch_id: court.branch_id,
+      member_id: bookerMemberId,
       user_name: body.userName,
       user_phone: body.userPhone,
       booking_date: body.date,
@@ -288,7 +313,7 @@ export async function POST(request: Request) {
 
   await logAudit({
     tenantId: court.tenant_id,
-    actorId: null, // guest จองเอง
+    actorId: bookerActorId, // null = guest จองเอง
     actorRole: "member",
     action: "create",
     module: "booking",

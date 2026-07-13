@@ -35,7 +35,7 @@ export default async function BookingStatusPage({
       admin.from("courts").select("name, type").eq("id", booking.court_id).single(),
       admin
         .from("tenants")
-        .select("name, promptpay_id")
+        .select("name, promptpay_id, settings")
         .eq("id", booking.tenant_id)
         .single(),
       admin
@@ -47,12 +47,22 @@ export default async function BookingStatusPage({
         .maybeSingle(),
     ]);
 
-  // สร้าง QR เฉพาะตอนยังรอชำระ และ tenant ตั้ง promptpay_id แล้ว (§9.7)
+  // QR PromptPay (§9.7): ถ้าสนามอัปโหลดรูป QR เอง (static) ใช้รูปนั้น
+  // ไม่งั้นสร้าง QR แบบ dynamic จากเลขพร้อมเพย์ (ฝังยอดในตัว)
+  const settings = (tenant?.settings ?? {}) as { promptpay_qr?: unknown };
+  const uploadedQr =
+    typeof settings.promptpay_qr === "string" ? settings.promptpay_qr : null;
   let qrDataUrl: string | null = null;
+  let qrIsUploaded = false;
   const amountBaht = satangToBahtString(toSatang(booking.total_price));
-  if (booking.status === "pending_payment" && tenant?.promptpay_id) {
-    const payload = promptpayPayload(tenant.promptpay_id, amountBaht);
-    qrDataUrl = await QRCode.toDataURL(payload, { margin: 1, width: 280 });
+  if (booking.status === "pending_payment") {
+    if (uploadedQr) {
+      qrDataUrl = uploadedQr;
+      qrIsUploaded = true;
+    } else if (tenant?.promptpay_id) {
+      const payload = promptpayPayload(tenant.promptpay_id, amountBaht);
+      qrDataUrl = await QRCode.toDataURL(payload, { margin: 1, width: 280 });
+    }
   }
 
   return (
@@ -81,6 +91,7 @@ export default async function BookingStatusPage({
             : null
         }
         qrDataUrl={qrDataUrl}
+        qrIsUploaded={qrIsUploaded}
       />
     </main>
   );

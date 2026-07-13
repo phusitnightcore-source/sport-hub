@@ -46,6 +46,7 @@ export default async function CheckinPage() {
         <>
           <CheckinClient branches={(branches ?? []).map((b) => ({ id: b.id, name: b.name }))} />
           <OccupancyPanel
+            tenantId={ctx.tenantId}
             branches={branches ?? []}
             openCheckins={openCheckins ?? []}
           />

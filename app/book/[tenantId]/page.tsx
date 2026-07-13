@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { MapPin, Clock } from "lucide-react";
+import { MapPin, Clock, CalendarSearch } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatBahtFromDb } from "@/lib/money";
 import { ListRowCard, LeadingIcon } from "@/components/ui/ListRowCard";
@@ -42,6 +42,15 @@ export default async function VenuePage({
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
+      <div className="mb-4 flex justify-end">
+        <Link
+          href="/track"
+          className="inline-flex items-center gap-1.5 rounded-full bg-surface px-4 py-1.5 text-body-sm font-medium text-ink-soft shadow-sm ring-1 ring-inset ring-line transition-colors hover:text-brand"
+        >
+          <CalendarSearch aria-hidden className="h-4 w-4" />
+          เช็คการจองของฉัน
+        </Link>
+      </div>
       <header className="mb-8 text-center">
         <h1 className="font-display text-display-lg font-bold text-ink">
           {tenant.name}

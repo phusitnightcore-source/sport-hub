@@ -2,8 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { User, Phone, StickyNote, Banknote, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { createWalkInBooking } from "./actions";
 
 type CourtOpt = { id: string; label: string; openTime: string; closeTime: string };
@@ -19,9 +22,10 @@ function hourRange(open: string, close: string): string[] {
 export function WalkInForm({ courts }: { courts: CourtOpt[] }) {
   const router = useRouter();
   const [courtId, setCourtId] = useState(courts[0]?.id ?? "");
-  const [date, setDate] = useState(() =>
+  const [todayStr] = useState(() =>
     new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" }),
   );
+  const [date, setDate] = useState(todayStr);
   const [start, setStart] = useState("");
   const [hours, setHours] = useState(1);
   const [method, setMethod] = useState<"walk_in_cash" | "walk_in_transfer">("walk_in_cash");
@@ -85,58 +89,41 @@ export function WalkInForm({ courts }: { courts: CourtOpt[] }) {
 
   return (
     <form onSubmit={onSubmit} className="card-floating flex flex-col gap-4 p-6">
-      <div className="flex flex-col gap-2">
-        <label className="text-body-sm font-medium text-ink">สนาม</label>
-        <select
-          value={courtId}
-          onChange={(e) => { setCourtId(e.target.value); setStart(""); }}
-          className="rounded-sm bg-surface px-4 py-2.5 text-body text-ink shadow-sm outline-none focus:ring-2 focus:ring-brand"
-        >
-          {courts.map((c) => (
-            <option key={c.id} value={c.id}>{c.label}</option>
-          ))}
-        </select>
-      </div>
+      <Select
+        name="courtId"
+        label="สนาม"
+        value={courtId}
+        onChange={(v) => { setCourtId(v); setStart(""); }}
+        options={courts.map((c) => ({ value: c.id, label: c.label }))}
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="flex flex-col gap-2">
-          <label className="text-body-sm font-medium text-ink">วันที่</label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="rounded-sm bg-surface px-4 py-2.5 text-body text-ink shadow-sm outline-none focus:ring-2 focus:ring-brand"
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-body-sm font-medium text-ink">เวลาเริ่ม</label>
-          <select
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-            className="rounded-sm bg-surface px-4 py-2.5 text-body text-ink shadow-sm outline-none focus:ring-2 focus:ring-brand"
-          >
-            <option value="">-- เลือก --</option>
-            {startOptions.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-body-sm font-medium text-ink">จำนวนชั่วโมง</label>
-          <select
-            value={hours}
-            onChange={(e) => setHours(Number(e.target.value))}
-            className="rounded-sm bg-surface px-4 py-2.5 text-body text-ink shadow-sm outline-none focus:ring-2 focus:ring-brand"
-          >
-            {[1, 2, 3, 4].map((h) => (
-              <option key={h} value={h}>{h} ชั่วโมง</option>
-            ))}
-          </select>
-        </div>
+        <DatePicker
+          name="date"
+          label="วันที่"
+          value={date}
+          onChange={setDate}
+          min={todayStr}
+        />
+        <Select
+          name="startTime"
+          label="เวลาเริ่ม"
+          value={start}
+          onChange={setStart}
+          placeholder="เลือกเวลา"
+          options={startOptions.map((t) => ({ value: t, label: t }))}
+        />
+        <Select
+          name="hours"
+          label="จำนวนชั่วโมง"
+          value={String(hours)}
+          onChange={(v) => setHours(Number(v))}
+          options={[1, 2, 3, 4].map((h) => ({ value: String(h), label: `${h} ชั่วโมง` }))}
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Input label="ชื่อลูกค้า" name="userName" required minLength={2} />
+        <Input label="ชื่อลูกค้า" name="userName" required minLength={2} icon={<User />} />
         <Input
           label="เบอร์โทร"
           name="userPhone"
@@ -144,31 +131,36 @@ export function WalkInForm({ courts }: { courts: CourtOpt[] }) {
           required
           pattern="0[0-9]{8,9}"
           placeholder="08XXXXXXXX"
+          icon={<Phone />}
         />
       </div>
-      <Input label="หมายเหตุ (ถ้ามี)" name="note" />
+      <Input label="หมายเหตุ (ถ้ามี)" name="note" icon={<StickyNote />} />
 
       <div className="flex flex-col gap-2">
         <label className="text-body-sm font-medium text-ink">วิธีรับชำระ</label>
-        <div className="flex gap-4 text-body-sm text-ink">
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              checked={method === "walk_in_cash"}
-              onChange={() => setMethod("walk_in_cash")}
-              className="accent-brand"
-            />
-            เงินสด
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              checked={method === "walk_in_transfer"}
-              onChange={() => setMethod("walk_in_transfer")}
-              className="accent-brand"
-            />
-            โอนเงิน
-          </label>
+        <div className="grid grid-cols-2 gap-3">
+          {([
+            { key: "walk_in_cash", label: "เงินสด", icon: Banknote },
+            { key: "walk_in_transfer", label: "โอนเงิน", icon: Wallet },
+          ] as const).map((m) => {
+            const active = method === m.key;
+            return (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => setMethod(m.key)}
+                className={
+                  "flex items-center justify-center gap-2 rounded-sm px-4 py-2.5 text-body-sm font-medium shadow-sm transition-all duration-fast " +
+                  (active
+                    ? "bg-brand text-white ring-2 ring-brand"
+                    : "bg-surface text-ink ring-1 ring-inset ring-line hover:ring-brand/40")
+                }
+              >
+                <m.icon className="h-[18px] w-[18px]" />
+                {m.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
