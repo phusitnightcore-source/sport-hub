@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/Button";
+import { ConfirmButton } from "@/components/ui/ConfirmDialog";
 
 export function TenantStatusButton({
   tenantId,
@@ -12,10 +11,8 @@ export function TenantStatusButton({
   suspended: boolean;
 }) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
 
   async function toggle() {
-    setBusy(true);
     const res = await fetch(`/api/super/tenants/${tenantId}/status`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -23,17 +20,23 @@ export function TenantStatusButton({
     });
     await res.json();
     router.refresh();
-    setBusy(false);
   }
 
   return (
-    <Button
-      size="sm"
-      variant={suspended ? "primary" : "danger"}
-      onClick={toggle}
-      disabled={busy}
+    <ConfirmButton
+      onConfirm={toggle}
+      title={suspended ? "คืนสถานะสนามนี้?" : "ระงับสนามนี้?"}
+      message={
+        suspended
+          ? "สนามจะกลับมารับจอง/ใช้งานได้ตามปกติ"
+          : "สนามจะหยุดรับจองและถูกล็อกการใช้งานทันที"
+      }
+      confirmLabel={suspended ? "คืนสถานะ" : "ระงับ"}
+      tone={suspended ? "brand" : "danger"}
+      triggerVariant={suspended ? "primary" : "danger"}
+      triggerSize="sm"
     >
-      {busy ? "..." : suspended ? "คืนสถานะ" : "ระงับ"}
-    </Button>
+      {suspended ? "คืนสถานะ" : "ระงับ"}
+    </ConfirmButton>
   );
 }

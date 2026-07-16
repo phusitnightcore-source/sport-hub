@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffContext } from "@/lib/auth";
+import { getTenantEntitlements } from "@/lib/entitlements.server";
 import { apiError, bangkokToday } from "@/lib/api";
 import { logAudit } from "@/lib/audit";
 
@@ -38,6 +39,13 @@ export async function GET(request: Request) {
   nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
 
   const supabase = await createClient();
+
+  // Plan gating — Export เฉพาะแพลนที่มีสิทธิ์ (กันเรียก URL ตรงแม้ปุ่มถูกซ่อน)
+  const { entitlements } = await getTenantEntitlements(supabase, ctx.tenantId);
+  if (!entitlements.export_reports) {
+    return apiError("SUBSCRIPTION_INACTIVE", "แพลนนี้ยังไม่รองรับการ Export รายงาน", 402);
+  }
+
   let csv: string;
   let filename: string;
 

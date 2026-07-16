@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { Upload, Trash2, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { ConfirmSubmit } from "@/components/ui/ConfirmDialog";
 import { MEDIA_FOLDERS, type MediaFolderKey } from "./folders";
 import { uploadMedia, deleteMedia, type MediaState } from "./actions";
 
@@ -114,16 +115,17 @@ export function MediaClient({
               </p>
               <div className="flex items-center justify-between">
                 <span className="text-mono-sm text-ink-soft">{mb(f.size)}</span>
-                <form action={deleteMedia}>
-                  <input type="hidden" name="path" value={f.path} />
-                  <button
-                    type="submit"
-                    aria-label="ลบไฟล์"
-                    className="rounded-full p-1.5 text-ink-soft transition-colors hover:bg-danger/10 hover:text-danger"
-                  >
-                    <Trash2 aria-hidden className="h-4 w-4" />
-                  </button>
-                </form>
+                <ConfirmSubmit
+                  action={deleteMedia}
+                  hidden={{ path: f.path }}
+                  title="ลบไฟล์นี้?"
+                  message={f.name}
+                  confirmLabel="ลบ"
+                  ariaLabel="ลบไฟล์"
+                  triggerClassName="rounded-full p-1.5 text-ink-soft transition-colors hover:bg-danger/10 hover:text-danger"
+                >
+                  <Trash2 aria-hidden className="h-4 w-4" />
+                </ConfirmSubmit>
               </div>
             </div>
           ))}

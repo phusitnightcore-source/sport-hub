@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { getStaffContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getTenantEntitlements } from "@/lib/entitlements.server";
 import { CheckinClient } from "./CheckinClient";
 import { OccupancyPanel } from "./OccupancyPanel";
+import { KioskLinkPanel } from "./KioskLinkPanel";
 
 // Check-in (§10) — รองรับทั้ง venue_admin และ staff
 export default async function CheckinPage() {
@@ -12,10 +14,17 @@ export default async function CheckinPage() {
   const admin = createAdminClient();
   const { data: branches } = await admin
     .from("branches")
-    .select("id, name, max_capacity")
+    .select("id, name, max_capacity, kiosk_token")
     .eq("tenant_id", ctx.tenantId)
     .eq("status", "active")
     .order("created_at");
+
+  const { entitlements } = await getTenantEntitlements(admin, ctx.tenantId);
+  const kioskBranches = entitlements.kiosk_mode
+    ? (branches ?? [])
+        .filter((b) => b.kiosk_token)
+        .map((b) => ({ id: b.id, name: b.name, token: b.kiosk_token as string }))
+    : [];
 
   const { data: openCheckins } = await admin
     .from("checkins")
@@ -50,6 +59,7 @@ export default async function CheckinPage() {
             branches={branches ?? []}
             openCheckins={openCheckins ?? []}
           />
+          {kioskBranches.length > 0 && <KioskLinkPanel branches={kioskBranches} />}
         </>
       )}
     </div>

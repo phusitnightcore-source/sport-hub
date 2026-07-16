@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Download } from "lucide-react";
+import { Download, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffContext } from "@/lib/auth";
+import { getTenantEntitlements } from "@/lib/entitlements.server";
 import { bangkokToday, isoDatePlusDays } from "@/lib/api";
 import { toSatang, formatBaht } from "@/lib/money";
 import { StatCard } from "@/components/ui/StatCard";
@@ -13,6 +15,7 @@ export default async function ReportsPage() {
   if (!ctx) redirect("/login");
 
   const supabase = await createClient();
+  const { entitlements } = await getTenantEntitlements(supabase, ctx.tenantId);
   const today = bangkokToday();
   const month = today.slice(0, 7);
   const monthStartIso = new Date(`${month}-01T00:00:00+07:00`).toISOString();
@@ -91,26 +94,30 @@ export default async function ReportsPage() {
         <h1 className="font-display text-display-md font-semibold text-ink">
           รายงานเดือน {month}
         </h1>
-        <div className="flex gap-2">
-          <a href={`/api/admin/reports/export?type=bookings&month=${month}`}>
-            <Button size="sm" variant="secondary">
-              <Download aria-hidden className="h-4 w-4" />
-              CSV การจอง
-            </Button>
-          </a>
-          <a href={`/api/admin/reports/export?type=members&month=${month}`}>
-            <Button size="sm" variant="secondary">
-              <Download aria-hidden className="h-4 w-4" />
-              CSV สมาชิก
-            </Button>
-          </a>
-          <a href={`/api/admin/reports/export?type=payments&month=${month}`}>
-            <Button size="sm" variant="secondary">
-              <Download aria-hidden className="h-4 w-4" />
-              CSV รายได้
-            </Button>
-          </a>
-        </div>
+        {entitlements.export_reports ? (
+          <div className="flex flex-wrap gap-2">
+            {[
+              { type: "bookings", label: "CSV การจอง" },
+              { type: "members", label: "CSV สมาชิก" },
+              { type: "payments", label: "CSV รายได้" },
+            ].map((x) => (
+              <a key={x.type} href={`/api/admin/reports/export?type=${x.type}&month=${month}`}>
+                <Button size="sm" variant="secondary">
+                  <Download aria-hidden className="h-4 w-4" />
+                  {x.label}
+                </Button>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <Link
+            href="/dashboard/subscription"
+            className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-4 py-1.5 text-body-sm font-medium text-brand-dark"
+          >
+            <Lock className="h-4 w-4" />
+            Export CSV — อัปเกรดแพลน
+          </Link>
+        )}
       </div>
 
       <StatCard

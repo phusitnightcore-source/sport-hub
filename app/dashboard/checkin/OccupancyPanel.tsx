@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Users, LogOut, Radio } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { ConfirmButton } from "@/components/ui/ConfirmDialog";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { createClient } from "@/lib/supabase/client";
 import { checkoutMember } from "./actions";
@@ -108,15 +108,19 @@ export function OccupancyPanel({
                           })}
                         </p>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleCheckout(c.id)}
+                      <ConfirmButton
+                        onConfirm={() => handleCheckout(c.id)}
+                        title="เช็คเอาท์สมาชิกคนนี้?"
+                        message={`${c.members?.first_name ?? ""} ${c.members?.last_name ?? ""}`.trim()}
+                        confirmLabel="เช็คเอาท์"
+                        tone="brand"
+                        triggerVariant="secondary"
+                        triggerSize="sm"
                         disabled={busyId === c.id}
                       >
                         <LogOut aria-hidden className="h-4 w-4" />
                         เช็คเอาท์
-                      </Button>
+                      </ConfirmButton>
                     </li>
                   ))}
                 </ul>

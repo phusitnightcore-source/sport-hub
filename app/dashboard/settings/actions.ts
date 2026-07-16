@@ -159,6 +159,100 @@ export async function savePromptpayQr(
   return { success: true };
 }
 
+// เชื่อมต่อ LINE OA ของสนาม (per-tenant) — เก็บ Channel Access Token/Secret ใน settings.line_oa
+// token เป็นความลับ: ไม่ log ค่าจริง / ไม่ส่งกลับ client (หน้า settings แสดงแค่สถานะ + 4 ตัวท้าย)
+export async function saveLineOa(
+  _prev: SettingsState,
+  formData: FormData,
+): Promise<SettingsState> {
+  const ctx = await getStaffContext();
+  if (!ctx) return { error: "ไม่มีสิทธิ์เข้าถึง" };
+  if (!hasPermission(ctx, "manage_settings")) {
+    return { error: "เฉพาะผู้ดูแลสนามเท่านั้นที่แก้ไขการตั้งค่าได้" };
+  }
+
+  const token = String(formData.get("channel_access_token") ?? "").trim();
+  const secret = String(formData.get("channel_secret") ?? "").trim();
+  const friendUrl = String(formData.get("oa_friend_url") ?? "").trim();
+
+  const admin = createAdminClient();
+  const { data: current } = await admin
+    .from("tenants")
+    .select("settings")
+    .eq("id", ctx.tenantId)
+    .single();
+  const prevSettings = (current?.settings as SettingsObj | null) ?? {};
+  const prevOa = (prevSettings.line_oa as Record<string, Json | undefined> | undefined) ?? {};
+
+  // อัปเดต token/secret เฉพาะเมื่อกรอกใหม่ (เว้นว่าง = คงของเดิม)
+  const nextToken = token || (prevOa.channel_access_token as string | undefined) || null;
+  const nextOa = {
+    ...prevOa,
+    has_oa: true,
+    channel_access_token: nextToken,
+    channel_secret: secret || (prevOa.channel_secret as string | undefined) || null,
+    oa_friend_url: friendUrl || (prevOa.oa_friend_url as string | undefined) || null,
+    connected: Boolean(nextToken),
+  };
+
+  const { error } = await admin
+    .from("tenants")
+    .update({ settings: { ...prevSettings, line_oa: nextOa } })
+    .eq("id", ctx.tenantId);
+  if (error) {
+    captureException("settings.saveLineOa", error);
+    return { error: "บันทึกไม่สำเร็จ กรุณาลองใหม่" };
+  }
+
+  await logAudit({
+    tenantId: ctx.tenantId,
+    actorId: ctx.userId,
+    actorRole: ctx.role,
+    action: "update",
+    module: "settings",
+    referenceId: ctx.tenantId,
+    after: { line_oa_connected: nextOa.connected }, // ไม่ log token จริง
+  });
+
+  revalidatePath("/dashboard/settings");
+  return { success: true };
+}
+
+// ตัดการเชื่อมต่อ LINE OA (ล้าง token/secret)
+export async function disconnectLineOa(): Promise<void> {
+  const ctx = await getStaffContext();
+  if (!ctx || !hasPermission(ctx, "manage_settings")) return;
+
+  const admin = createAdminClient();
+  const { data: current } = await admin
+    .from("tenants")
+    .select("settings")
+    .eq("id", ctx.tenantId)
+    .single();
+  const prevSettings = (current?.settings as SettingsObj | null) ?? {};
+  const prevOa = (prevSettings.line_oa as Record<string, Json | undefined> | undefined) ?? {};
+  const nextOa = {
+    ...prevOa,
+    channel_access_token: null,
+    channel_secret: null,
+    connected: false,
+  };
+  await admin
+    .from("tenants")
+    .update({ settings: { ...prevSettings, line_oa: nextOa } })
+    .eq("id", ctx.tenantId);
+  await logAudit({
+    tenantId: ctx.tenantId,
+    actorId: ctx.userId,
+    actorRole: ctx.role,
+    action: "update",
+    module: "settings",
+    referenceId: ctx.tenantId,
+    after: { line_oa_connected: false },
+  });
+  revalidatePath("/dashboard/settings");
+}
+
 // ลบรูป QR ที่อัปโหลด (กลับไปใช้ QR สร้างจากเลขพร้อมเพย์)
 export async function removePromptpayQr(): Promise<void> {
   const ctx = await getStaffContext();

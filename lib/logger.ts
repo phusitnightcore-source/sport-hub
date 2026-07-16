@@ -40,14 +40,7 @@ export function captureException(
   const message = error instanceof Error ? error.message : String(error);
   const stack = error instanceof Error ? error.stack : undefined;
   logger.error(context, { ...meta, error: message, stack });
-  // ส่งเข้า Sentry เมื่อมี DSN (init ใน instrumentation.ts) — fire-and-forget ไม่ block flow
-  if (sentryConfigured()) {
-    import("@sentry/nextjs")
-      .then((Sentry) =>
-        Sentry.captureException(error, { extra: { context, ...meta } }),
-      )
-      .catch(() => {
-        /* Sentry ไม่พร้อม — ข้าม (log ไปแล้วด้านบน) */
-      });
-  }
+  // เมื่อติดตั้ง @sentry/nextjs ได้แล้ว (ตอนนี้ติดไม่ได้เพราะ SSL cert ของ npm) เพิ่มกลับ:
+  //   if (sentryConfigured()) import("@sentry/nextjs")
+  //     .then((S) => S.captureException(error, { extra: { context, ...meta } })).catch(() => {});
 }

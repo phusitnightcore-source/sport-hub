@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { ConfirmButton } from "@/components/ui/ConfirmDialog";
 
 // ปุ่มยืนยัน/ปฏิเสธสลิป — ปฏิเสธต้องระบุเหตุผลเสมอ (§9.4)
 export function VerifyActions({ paymentId }: { paymentId: string }) {
@@ -34,13 +35,18 @@ export function VerifyActions({ paymentId }: { paymentId: string }) {
     <div className="card-floating flex flex-col gap-4 p-6">
       {mode === "idle" ? (
         <div className="flex flex-wrap gap-3">
-          <Button
-            onClick={() => submit({ action: "approve" })}
+          <ConfirmButton
+            onConfirm={() => submit({ action: "approve" })}
+            title="ยืนยันสลิปนี้?"
+            message="ยืนยันแล้วการจอง/สมาชิกจะถูกยืนยันและออกใบเสร็จให้ทันที"
+            confirmLabel="ยืนยันสลิป"
+            tone="brand"
+            triggerVariant="primary"
+            triggerClassName="flex-1"
             disabled={busy}
-            className="flex-1"
           >
             {busy ? "กำลังบันทึก..." : "ยืนยันสลิป"}
-          </Button>
+          </ConfirmButton>
           <Button
             variant="danger"
             onClick={() => setMode("rejecting")}

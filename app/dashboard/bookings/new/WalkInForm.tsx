@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { DatePicker } from "@/components/ui/DatePicker";
-import { createWalkInBooking } from "./actions";
+import { createWalkInBooking, createRecurringWalkIn } from "./actions";
 
 type CourtOpt = { id: string; label: string; openTime: string; closeTime: string };
 
@@ -32,6 +32,9 @@ export function WalkInForm({ courts }: { courts: CourtOpt[] }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [repeat, setRepeat] = useState(false);
+  const [weeks, setWeeks] = useState(4);
+  const [summary, setSummary] = useState<{ created: string[]; conflicts: string[] } | null>(null);
 
   const court = courts.find((c) => c.id === courtId);
   const startOptions = useMemo(
@@ -46,7 +49,7 @@ export function WalkInForm({ courts }: { courts: CourtOpt[] }) {
     setError(null);
     const f = new FormData(e.currentTarget);
     const endH = parseInt(start, 10) + hours;
-    const res = await createWalkInBooking({
+    const input = {
       courtId,
       date,
       startTime: start,
@@ -55,7 +58,21 @@ export function WalkInForm({ courts }: { courts: CourtOpt[] }) {
       userPhone: String(f.get("userPhone")),
       method,
       note: String(f.get("note") ?? "").trim() || undefined,
-    });
+    };
+
+    if (repeat) {
+      const res = await createRecurringWalkIn(input, weeks);
+      if (res.error) {
+        setError(res.error);
+        setBusy(false);
+        return;
+      }
+      setSummary({ created: res.created ?? [], conflicts: res.conflicts ?? [] });
+      setBusy(false);
+      return;
+    }
+
+    const res = await createWalkInBooking(input);
     if (res.error) {
       setError(res.error);
       setBusy(false);
@@ -63,6 +80,29 @@ export function WalkInForm({ courts }: { courts: CourtOpt[] }) {
     }
     setDone(res.bookingCode!);
     setBusy(false);
+  }
+
+  if (summary) {
+    return (
+      <div className="card-floating flex flex-col items-center gap-4 p-10 text-center">
+        <h2 className="font-display text-display-md font-semibold text-success">
+          จองซ้ำสำเร็จ {summary.created.length} ครั้ง
+        </h2>
+        {summary.conflicts.length > 0 && (
+          <p className="text-body-sm text-warning">
+            ข้าม {summary.conflicts.length} วันที่ชนกับการจองอื่น: {summary.conflicts.join(", ")}
+          </p>
+        )}
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={() => { setSummary(null); setStart(""); setRepeat(false); }}>
+            จองรายการต่อไป
+          </Button>
+          <Button onClick={() => router.push("/dashboard/bookings")}>
+            ไปหน้ารายการจอง
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   if (done) {
@@ -164,9 +204,40 @@ export function WalkInForm({ courts }: { courts: CourtOpt[] }) {
         </div>
       </div>
 
+      {/* จองซ้ำรายสัปดาห์ (ทีมประจำ) */}
+      <div className="flex flex-col gap-2 rounded-sm bg-brand-soft/30 p-4 ring-1 ring-inset ring-line">
+        <label className="flex items-center gap-2 text-body-sm font-medium text-ink">
+          <input
+            type="checkbox"
+            checked={repeat}
+            onChange={(e) => setRepeat(e.target.checked)}
+            className="h-4 w-4 accent-brand"
+          />
+          จองซ้ำทุกสัปดาห์ (วัน/เวลาเดิม)
+        </label>
+        {repeat && (
+          <div className="flex items-center gap-2 text-body-sm text-ink-soft">
+            จำนวน
+            <input
+              type="number"
+              min={2}
+              max={12}
+              value={weeks}
+              onChange={(e) => setWeeks(Number(e.target.value))}
+              className="w-20 rounded-sm bg-surface px-3 py-1.5 text-body text-ink shadow-sm outline-none ring-1 ring-inset ring-line focus:ring-2 focus:ring-brand"
+            />
+            สัปดาห์ (วันที่ชนกับการจองอื่นจะถูกข้าม)
+          </div>
+        )}
+      </div>
+
       {error && <p role="alert" className="text-body-sm text-danger">{error}</p>}
       <Button type="submit" disabled={busy || !start}>
-        {busy ? "กำลังจอง..." : "ยืนยันการจอง (รับเงินแล้ว)"}
+        {busy
+          ? "กำลังจอง..."
+          : repeat
+            ? `ยืนยันจองซ้ำ ${weeks} สัปดาห์ (รับเงินแล้ว)`
+            : "ยืนยันการจอง (รับเงินแล้ว)"}
       </Button>
     </form>
   );

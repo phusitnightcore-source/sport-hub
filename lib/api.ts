@@ -45,6 +45,11 @@ export function isoDaysAgo(days: number): string {
   return new Date(Date.now() - days * 86_400_000).toISOString();
 }
 
+/** timestamp ISO ปัจจุบัน — helper สำหรับ server component (เลี่ยง Date ใน render) */
+export function nowIso(): string {
+  return new Date().toISOString();
+}
+
 /** รายการวันที่เขตเวลาไทย (YYYY-MM-DD) ย้อนหลัง N วันจนถึงวันนี้ (เรียงเก่า→ใหม่) */
 export function bangkokLastDays(days: number): string[] {
   const now = Date.now();

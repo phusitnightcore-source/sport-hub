@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { roleHasPermission } from "@/lib/permissions";
 import type { Database } from "@/lib/supabase/types";
 
 type UserRole = Database["public"]["Enums"]["user_role"];
@@ -55,11 +56,10 @@ export async function getStaffContext(): Promise<StaffContext | null> {
   };
 }
 
-// Permission Matrix ตาม SCOPE.md §26 — venue_admin ทำได้ทุกอย่างใน tenant ตัวเอง
-// staff ต้องมี extra_permissions รายตัว (verify_slip, confirm_refund, ...)
+// Permission Matrix ตาม SCOPE.md §26 (แหล่งความจริงใน lib/permissions.ts)
+// venue_admin = ทุกสิทธิ์ / staff = สิทธิ์พื้นฐาน ∪ extra_permissions ที่ admin ปลดล็อก
 export function hasPermission(ctx: StaffContext, permission: string): boolean {
-  if (ctx.role === "venue_admin") return true;
-  return ctx.extraPermissions.includes(permission);
+  return roleHasPermission(ctx.role, ctx.extraPermissions, permission);
 }
 
 // Context ของทีม SportHub (super_admin) — tenant_id เป็น null

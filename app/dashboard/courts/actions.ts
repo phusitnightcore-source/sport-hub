@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffContext } from "@/lib/auth";
-import { checkCourtQuota } from "@/lib/subscription";
+import { checkCourtQuota } from "@/lib/entitlements.server";
 import { logAudit } from "@/lib/audit";
 
 const courtSchema = z.object({

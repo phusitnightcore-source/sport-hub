@@ -13,12 +13,14 @@ export function lineConfigured(): boolean {
 
 export type LineResult = { ok: boolean; unconfigured?: boolean; error?: string };
 
-/** ส่งข้อความ text หา LINE userId ปลายทาง (ต้อง add เพื่อนเพจก่อน) */
+/** ส่งข้อความ text หา LINE userId ปลายทาง (ต้อง add เพื่อนเพจก่อน)
+ *  token: ใช้ของสนาม (per-tenant) ถ้าส่งมา ไม่งั้น fallback เป็น env กลาง */
 export async function pushLineMessage(params: {
   to: string;
   text: string;
+  token?: string;
 }): Promise<LineResult> {
-  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  const token = params.token ?? process.env.LINE_CHANNEL_ACCESS_TOKEN;
   if (!token) return { ok: false, unconfigured: true };
 
   try {
@@ -36,6 +38,34 @@ export async function pushLineMessage(params: {
     if (!res.ok) {
       const detail = await res.text().catch(() => String(res.status));
       return { ok: false, error: `LINE ${res.status}: ${detail}` };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** ตอบกลับข้อความ (ใช้ replyToken จาก webhook) ด้วย token ของ OA สนามนั้น */
+export async function replyLineMessage(
+  replyToken: string,
+  text: string,
+  token: string,
+): Promise<LineResult> {
+  try {
+    const res = await fetch("https://api.line.me/v2/bot/message/reply", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        replyToken,
+        messages: [{ type: "text", text: text.slice(0, 5000) }],
+      }),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => String(res.status));
+      return { ok: false, error: `LINE reply ${res.status}: ${detail}` };
     }
     return { ok: true };
   } catch (e) {

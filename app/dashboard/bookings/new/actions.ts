@@ -153,3 +153,34 @@ export async function createWalkInBooking(input: z.input<typeof schema>) {
   revalidatePath("/dashboard/bookings");
   return { success: true, bookingCode: booking.booking_code };
 }
+
+// บวกวันแบบ UTC (เลี่ยง DST/timezone) — คืน YYYY-MM-DD
+function addDays(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().slice(0, 10);
+}
+
+// จองซ้ำรายสัปดาห์ (§7.1 recurring) — Staff จองทีมประจำ N สัปดาห์ติด (walk-in confirmed)
+// วนสร้างทีละวันด้วย logic เดียวกับ createWalkInBooking; ชนวันไหนข้ามแล้วรายงาน
+export async function createRecurringWalkIn(
+  input: z.input<typeof schema>,
+  weeks: number,
+): Promise<{ error?: string; created?: string[]; conflicts?: string[] }> {
+  const n = Math.max(2, Math.min(12, Math.floor(weeks) || 0));
+  const created: string[] = [];
+  const conflicts: string[] = [];
+
+  for (let k = 0; k < n; k++) {
+    const date = addDays(input.date, 7 * k);
+    const res = await createWalkInBooking({ ...input, date });
+    if (res.success && res.bookingCode) created.push(res.bookingCode);
+    else conflicts.push(date);
+  }
+
+  if (created.length === 0) {
+    return { error: "จองซ้ำไม่สำเร็จ — ทุกสัปดาห์ชนกับการจองอื่นหรือช่วงเวลาไม่ถูกต้อง" };
+  }
+  revalidatePath("/dashboard/bookings");
+  return { created, conflicts };
+}

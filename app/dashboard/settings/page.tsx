@@ -3,6 +3,7 @@ import { getStaffContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SettingsForm } from "./SettingsForm";
 import { PromptpayQrUploader } from "./PromptpayQrUploader";
+import { LineOaForm } from "./LineOaForm";
 
 // ตั้งค่าสนามแบบรวม (§23)
 export default async function SettingsPage() {
@@ -19,6 +20,10 @@ export default async function SettingsPage() {
   if (!tenant) redirect("/login");
 
   const settings = (tenant.settings as Record<string, unknown> | null) ?? {};
+  const lineOa = settings.line_oa as
+    | { channel_access_token?: string; connected?: boolean; oa_friend_url?: string }
+    | undefined;
+  const lineToken = lineOa?.channel_access_token ?? "";
 
   return (
     <main className="flex flex-col gap-6">
@@ -46,6 +51,13 @@ export default async function SettingsPage() {
               : 30,
           auto_approve_slip: settings.auto_approve_slip === true,
         }}
+      />
+
+      <LineOaForm
+        connected={Boolean(lineOa?.connected && lineToken)}
+        tokenLast4={lineToken ? lineToken.slice(-4) : undefined}
+        friendUrl={lineOa?.oa_friend_url ?? undefined}
+        webhookUrl={`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/line/webhook/${ctx.tenantId}`}
       />
 
       <PromptpayQrUploader

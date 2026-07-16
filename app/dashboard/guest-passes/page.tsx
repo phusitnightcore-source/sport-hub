@@ -2,7 +2,10 @@ import { redirect } from "next/navigation";
 import { getStaffContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { bangkokToday } from "@/lib/api";
+import { getTenantEntitlements } from "@/lib/entitlements.server";
+import { PLANS } from "@/lib/plans";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { UpgradeLock } from "@/components/ui/UpgradeLock";
 import { GuestPassForm } from "./GuestPassForm";
 
 // Guest Pass (§10.6) — ออก/ดูบัตรเข้าใช้ชั่วคราว
@@ -14,6 +17,13 @@ export default async function GuestPassesPage() {
 
   const today = bangkokToday();
   const admin = createAdminClient();
+
+  // Plan gating — Guest Pass เฉพาะ Pro
+  const { plan, entitlements } = await getTenantEntitlements(admin, ctx.tenantId);
+  if (!entitlements.guest_pass) {
+    return <UpgradeLock feature="บัตรเข้าใช้ชั่วคราว (Guest Pass)" plan={PLANS[plan].name} />;
+  }
+
   const { data: passes } = await admin
     .from("guest_passes")
     .select(

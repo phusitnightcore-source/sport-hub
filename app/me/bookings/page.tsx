@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, CalendarSearch } from "lucide-react";
+import { ArrowLeft, CalendarSearch, PenLine } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BookingRow } from "@/components/ui/BookingRow";
+import { Button } from "@/components/ui/Button";
 import type { BookingStatus } from "@/lib/booking/status";
 
-// ประวัติการจองของสมาชิก (ผู้ใช้ที่ล็อกอิน) — จับคู่ด้วย member_id หรือเบอร์โทร
+// ประวัติการจองของผู้ใช้ (ล็อกอิน) — ข้ามทุกสนาม ผูกด้วย profile_id (+ member_id ถ้าเป็นสมาชิกฟิตเนส)
 export const dynamic = "force-dynamic";
 
 export default async function MyBookingsPage() {
@@ -19,33 +20,20 @@ export default async function MyBookingsPage() {
   const admin = createAdminClient();
   const { data: member } = await admin
     .from("members")
-    .select("id, phone, tenant_id")
+    .select("id")
     .eq("profile_id", user.id)
     .maybeSingle();
 
-  if (!member) {
-    return (
-      <main className="mx-auto flex max-w-lg flex-col items-center gap-4 px-6 py-16 text-center">
-        <h1 className="font-display text-display-md font-semibold text-ink">
-          คุณยังไม่ได้เป็นสมาชิก
-        </h1>
-        <p className="text-body-sm text-ink-soft">
-          ผู้ที่จองแบบทั่วไปสามารถเช็คการจองได้ที่หน้าเช็คการจอง
-        </p>
-        <Link href="/track" className="font-medium text-brand hover:underline">
-          ไปหน้าเช็คการจอง
-        </Link>
-      </main>
-    );
-  }
+  const filter = member
+    ? `profile_id.eq.${user.id},member_id.eq.${member.id}`
+    : `profile_id.eq.${user.id}`;
 
   const { data: rows } = await admin
     .from("bookings")
     .select(
-      "booking_code, booking_date, start_time, end_time, total_price, status, courts(name)",
+      "booking_code, booking_date, start_time, end_time, total_price, status, courts(name), tenants(name)",
     )
-    .eq("tenant_id", member.tenant_id)
-    .or(`member_id.eq.${member.id},user_phone.eq.${member.phone}`)
+    .or(filter)
     .order("booking_date", { ascending: false })
     .limit(100);
 
@@ -58,17 +46,27 @@ export default async function MyBookingsPage() {
         className="inline-flex items-center gap-1.5 text-body-sm text-ink-soft hover:text-brand"
       >
         <ArrowLeft aria-hidden className="h-4 w-4" />
-        กลับหน้าสมาชิก
+        พื้นที่ของฉัน
       </Link>
 
-      <h1 className="font-display text-display-md font-semibold text-ink">
-        การจองของฉัน
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-display text-display-md font-semibold text-ink">
+          การจองของฉัน
+        </h1>
+        <Link href="/blog/write">
+          <Button variant="secondary" size="sm">
+            <PenLine className="h-4 w-4" />
+            เขียนบทความ
+          </Button>
+        </Link>
+      </div>
 
       {bookings.length === 0 ? (
         <div className="card-floating flex flex-col items-center gap-3 p-10 text-center">
           <CalendarSearch className="h-10 w-10 text-ink-soft" />
-          <p className="text-body-sm text-ink-soft">ยังไม่มีประวัติการจอง</p>
+          <p className="text-body-sm text-ink-soft">
+            ยังไม่มีประวัติการจอง — จองผ่านลิงก์ของสนามที่คุณต้องการ
+          </p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -77,6 +75,7 @@ export default async function MyBookingsPage() {
               key={b.booking_code}
               booking={{
                 code: b.booking_code,
+                venue: b.tenants?.name ?? undefined,
                 courtName: b.courts?.name ?? "—",
                 date: b.booking_date,
                 startTime: b.start_time,

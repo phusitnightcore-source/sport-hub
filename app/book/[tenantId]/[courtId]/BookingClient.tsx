@@ -10,6 +10,14 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { formatBaht } from "@/lib/money";
 import { toMinutes, type Slot } from "@/lib/booking/slots";
 import { cn } from "@/lib/utils";
+import { joinWaitlist } from "./actions";
+
+type WaitlistOffer = {
+  start: string;
+  end: string;
+  userName: string;
+  userPhone: string;
+};
 
 type Policy = {
   freeCancelHours: number;
@@ -37,6 +45,10 @@ export function BookingClient({ courtId, minDate, maxDate, member, policy }: Pro
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [waitlistOffer, setWaitlistOffer] = useState<WaitlistOffer | null>(null);
+  const [waitlistState, setWaitlistState] = useState<"idle" | "joining" | "joined">("idle");
+  const [waitlistError, setWaitlistError] = useState<string | null>(null);
+
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -57,6 +69,8 @@ export function BookingClient({ courtId, minDate, maxDate, member, policy }: Pro
     setDate(value);
     setSlots(null);
     setSelected([]);
+    setWaitlistOffer(null);
+    setWaitlistState("idle");
   }
 
   function reloadSlots() {
@@ -107,6 +121,8 @@ export function BookingClient({ courtId, minDate, maxDate, member, policy }: Pro
     setSubmitting(true);
 
     const form = new FormData(e.currentTarget);
+    const userName = String(form.get("userName") ?? "").trim();
+    const userPhone = String(form.get("userPhone") ?? "").trim();
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -115,8 +131,8 @@ export function BookingClient({ courtId, minDate, maxDate, member, policy }: Pro
         date,
         startTime: range.start,
         endTime: range.end,
-        userName: form.get("userName"),
-        userPhone: form.get("userPhone"),
+        userName,
+        userPhone,
         note: String(form.get("note") ?? "").trim() || undefined,
         couponCode: coupon.trim() || undefined,
         acceptPolicy: accepted,
@@ -127,7 +143,12 @@ export function BookingClient({ courtId, minDate, maxDate, member, policy }: Pro
     if (!json.success) {
       setError(json.error?.message ?? "เกิดข้อผิดพลาด กรุณาลองใหม่");
       setSubmitting(false);
-      // slot ถูกตัดหน้า/ถูกบล็อก → reload ตารางตาม §28.2
+      // slot ถูกตัดหน้า → เสนอ Waitlist สำหรับช่วงที่เลือก + reload ตาราง (§28.2)
+      if (json.error?.code === "BOOKING_SLOT_UNAVAILABLE") {
+        setWaitlistOffer({ start: range.start, end: range.end, userName, userPhone });
+        setWaitlistState("idle");
+        setWaitlistError(null);
+      }
       if (
         json.error?.code === "BOOKING_SLOT_UNAVAILABLE" ||
         json.error?.code === "BOOKING_SLOT_BLOCKED"
@@ -137,6 +158,30 @@ export function BookingClient({ courtId, minDate, maxDate, member, policy }: Pro
       return;
     }
     router.push(`/booking/${json.data.bookingCode}`);
+  }
+
+  async function handleJoinWaitlist() {
+    if (!waitlistOffer) return;
+    if (waitlistOffer.userName.length < 2 || !/^0[0-9]{8,9}$/.test(waitlistOffer.userPhone)) {
+      setWaitlistError("กรุณากรอกชื่อและเบอร์โทรให้ถูกต้องก่อนลงคิว");
+      return;
+    }
+    setWaitlistState("joining");
+    setWaitlistError(null);
+    const res = await joinWaitlist({
+      courtId,
+      date,
+      startTime: waitlistOffer.start,
+      endTime: waitlistOffer.end,
+      userName: waitlistOffer.userName,
+      userPhone: waitlistOffer.userPhone,
+    });
+    if (res.success) {
+      setWaitlistState("joined");
+    } else {
+      setWaitlistState("idle");
+      setWaitlistError(res.error ?? "ลงคิวไม่สำเร็จ");
+    }
   }
 
   return (
@@ -252,6 +297,45 @@ export function BookingClient({ courtId, minDate, maxDate, member, policy }: Pro
         <p role="alert" className="text-body-sm text-danger">
           {error}
         </p>
+      )}
+
+      {/* Waitlist — เสนอเมื่อช่วงที่เลือกถูกจองตัดหน้า */}
+      {waitlistOffer && (
+        <div className="card-floating flex flex-col gap-3 p-6">
+          {waitlistState === "joined" ? (
+            <p className="text-body-sm text-success">
+              ลงคิวเรียบร้อย — เราจะแจ้งเตือนทันทีที่ช่วง{" "}
+              <span className="font-mono text-mono-sm font-medium">
+                {waitlistOffer.start}–{waitlistOffer.end}
+              </span>{" "}
+              ว่างลง
+            </p>
+          ) : (
+            <>
+              <p className="text-body-sm text-ink">
+                ช่วง{" "}
+                <span className="font-mono text-mono-sm font-medium">
+                  {waitlistOffer.start}–{waitlistOffer.end}
+                </span>{" "}
+                ถูกจองแล้ว — ลงชื่อรอคิวไว้ไหม? เราจะแจ้งเตือนทันทีที่ว่าง
+              </p>
+              {waitlistError && (
+                <p role="alert" className="text-body-sm text-danger">
+                  {waitlistError}
+                </p>
+              )}
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleJoinWaitlist}
+                disabled={waitlistState === "joining"}
+                className="self-start"
+              >
+                {waitlistState === "joining" ? "กำลังลงคิว..." : "แจ้งเตือนเมื่อว่าง"}
+              </Button>
+            </>
+          )}
+        </div>
       )}
 
       <Button

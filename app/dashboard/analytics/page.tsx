@@ -3,8 +3,11 @@ import { getStaffContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { toSatang, formatBaht } from "@/lib/money";
 import { bangkokLastDays, isoDaysAgo } from "@/lib/api";
+import { getTenantEntitlements } from "@/lib/entitlements.server";
+import { PLANS } from "@/lib/plans";
 import { StatCard } from "@/components/ui/StatCard";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { UpgradeLock } from "@/components/ui/UpgradeLock";
 
 // Analytics (§16 / Module 10) — แนวโน้มรายได้ 14 วัน, ชั่วโมงพีค, สถานะสมาชิก, สนามยอดนิยม
 export const dynamic = "force-dynamic";
@@ -18,6 +21,12 @@ export default async function AnalyticsPage() {
   if (!ctx) redirect("/login");
 
   const admin = createAdminClient();
+
+  // Plan gating (§5/§26) — analytics เฉพาะ Growth+
+  const { plan, entitlements } = await getTenantEntitlements(admin, ctx.tenantId);
+  if (!entitlements.analytics) {
+    return <UpgradeLock feature="การวิเคราะห์" plan={PLANS[plan].name} />;
+  }
 
   // ช่วง 14 วันล่าสุด (รวมวันนี้)
   const days = bangkokLastDays(14);

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Prompt, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { BfcacheGuard } from "@/components/auth/BfcacheGuard";
+import { PageViewTracker } from "@/components/PageViewTracker";
 
 const prompt = Prompt({
   variable: "--font-prompt",
@@ -41,6 +42,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full font-body">
         <BfcacheGuard />
+        <PageViewTracker />
         {children}
       </body>
     </html>

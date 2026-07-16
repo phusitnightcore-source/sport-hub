@@ -3,7 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { captureException, logger } from "@/lib/logger";
 import type { Database } from "@/lib/supabase/types";
-import { lineConfigured, pushLineMessage } from "./line";
+import { pushLineMessage } from "./line";
 import { emailConfigured, sendEmail } from "./email";
 
 // ============================================================================
@@ -92,9 +92,28 @@ export async function dispatchNotification(
     captureException("notify.in_app_insert", e);
   }
 
+  // token ของ LINE: ใช้ของสนามก่อน (tenants.settings.line_oa.channel_access_token)
+  // ไม่งั้น fallback เป็น env กลางของ SportHub
+  let lineToken: string | undefined =
+    process.env.LINE_CHANNEL_ACCESS_TOKEN || undefined;
+  if (p.tenantId) {
+    try {
+      const { data: t } = await admin
+        .from("tenants")
+        .select("settings")
+        .eq("id", p.tenantId)
+        .maybeSingle();
+      const oa = (t?.settings as { line_oa?: { channel_access_token?: string } } | null)
+        ?.line_oa;
+      if (oa?.channel_access_token) lineToken = oa.channel_access_token;
+    } catch (e) {
+      captureException("notify.tenant_line_token", e);
+    }
+  }
+
   // 2) LINE — ช่องทางหลัก (retry ≤ 3)
   let lineDelivered = false;
-  if (p.lineUserId && lineConfigured()) {
+  if (p.lineUserId && lineToken) {
     let attempts = 0;
     let lastError: string | undefined;
     while (attempts < LINE_MAX_RETRY) {
@@ -102,6 +121,7 @@ export async function dispatchNotification(
       const r = await pushLineMessage({
         to: p.lineUserId,
         text: `${p.title}\n${p.body ?? ""}`.trim(),
+        token: lineToken,
       });
       if (r.ok) {
         lineDelivered = true;

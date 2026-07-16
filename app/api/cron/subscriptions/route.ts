@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { apiOk, apiError } from "@/lib/api";
+import { apiOk, apiError, isoDatePlusDays } from "@/lib/api";
+import { dispatchNotification } from "@/lib/notify";
+import { captureException } from "@/lib/logger";
 
 const DAY_MS = 24 * 60 * 60_000;
 
@@ -21,6 +23,7 @@ export async function GET(request: Request) {
     trialExpired: 0,
     graceExpired: 0,
     reminders: 0,
+    memberReminders: 0,
     downgrades: 0,
     hardDeleted: 0,
   };
@@ -87,6 +90,45 @@ export async function GET(request: Request) {
       sent_at: nowIso,
     });
     result.reminders += 1;
+  }
+
+  // 3b) เตือนสมาชิกใกล้หมดอายุ 7/3/0 วัน (§14.1) ผ่าน dispatcher (LINE→email→in-app)
+  try {
+    for (const d of [7, 3, 0]) {
+      const targetDate = isoDatePlusDays(d);
+      const { data: expiringMembers } = await admin
+        .from("members")
+        .select("id, tenant_id, line_user_id, email, end_date")
+        .eq("status", "active")
+        .eq("end_date", targetDate);
+      for (const m of expiringMembers ?? []) {
+        const title = d === 0 ? "สมาชิกหมดอายุวันนี้" : `สมาชิกใกล้หมดอายุ (${d} วัน)`;
+        const { data: dup } = await admin
+          .from("notifications")
+          .select("id")
+          .eq("reference_id", m.id)
+          .eq("type", "membership")
+          .eq("title", title)
+          .limit(1)
+          .maybeSingle();
+        if (dup) continue;
+        await dispatchNotification({
+          tenantId: m.tenant_id,
+          recipientId: m.id,
+          recipientType: "member",
+          type: "membership",
+          title,
+          body: `สมาชิกภาพจะหมดวันที่ ${m.end_date} — ต่ออายุเพื่อใช้งานต่อเนื่อง`,
+          referenceId: m.id,
+          referenceType: "member",
+          lineUserId: m.line_user_id,
+          email: m.email,
+        });
+        result.memberReminders += 1;
+      }
+    }
+  } catch (e) {
+    captureException("cron.subscriptions.memberReminders", e);
   }
 
   // 4) Downgrade ตามกำหนด (plan_change_logs ที่ effective_at ถึงแล้ว)

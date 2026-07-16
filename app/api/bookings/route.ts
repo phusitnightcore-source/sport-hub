@@ -5,8 +5,8 @@ import { apiOk, apiError, bangkokToday, bangkokNowTime } from "@/lib/api";
 import { buildSlots, toMinutes } from "@/lib/booking/slots";
 import { satangToBahtString, toSatang } from "@/lib/money";
 import { logAudit } from "@/lib/audit";
-import { PLANS } from "@/lib/plans";
 import { getEffectivePlan } from "@/lib/subscription";
+import { getPlanEntitlements } from "@/lib/entitlements.server";
 import { rateLimit } from "@/lib/ratelimit";
 
 const bodySchema = z.object({
@@ -143,17 +143,18 @@ export async function POST(request: Request) {
     return apiError("TENANT_SUSPENDED", "สนามนี้ปิดรับการจองชั่วคราว", 403);
   }
 
-  // Plan gating (§5): Free = ไม่มี Online Payment + จำกัด 30 จอง/เดือน
-  // ใช้ getEffectivePlan (แหล่งความจริงเดียว, เช็ค trial/grace real-time)
+  // Plan gating (§5): อ่านสิทธิ์จาก plan_entitlements (Super Admin แก้ได้)
+  // getEffectivePlan = แพลนจริงเช็ค trial/grace real-time / getPlanEntitlements = สิทธิ์แพลนนั้น
   const plan = await getEffectivePlan(admin, court.tenant_id);
-  if (!PLANS[plan].onlinePayment) {
+  const entitlements = await getPlanEntitlements(admin, plan);
+  if (!entitlements.online_payment) {
     return apiError(
       "SUBSCRIPTION_INACTIVE",
       "สนามนี้ยังไม่เปิดรับจองออนไลน์ กรุณาติดต่อสนามโดยตรง",
       402,
     );
   }
-  const limit = PLANS[plan].monthlyBookingLimit;
+  const limit = entitlements.monthly_booking_limit;
   if (limit !== null) {
     const monthStart = `${today.slice(0, 7)}-01T00:00:00+07:00`;
     const { count } = await admin
@@ -261,6 +262,7 @@ export async function POST(request: Request) {
       court_id: court.id,
       branch_id: court.branch_id,
       member_id: bookerMemberId,
+      profile_id: bookerActorId, // ผูกกับบัญชีผู้ใช้ (ถ้าล็อกอิน) — ดูประวัติข้ามสนามได้
       user_name: body.userName,
       user_phone: body.userPhone,
       booking_date: body.date,

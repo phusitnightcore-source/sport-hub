@@ -1,14 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { Building2, User, Phone, Mail, Lock, MapPin, QrCode, Hash, MessageCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 
 export function SignupForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  const [hasOa, setHasOa] = useState<"" | "yes" | "no">("");
+  const [wantSetup, setWantSetup] = useState<"team" | "self">("team");
+  const [sendLater, setSendLater] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -18,6 +23,17 @@ export function SignupForm() {
     const form = new FormData(e.currentTarget);
     const email = String(form.get("email"));
     const password = String(form.get("password"));
+
+    const lineOa =
+      hasOa === "yes"
+        ? {
+            has: true,
+            inviteLink: String(form.get("lineInvite") ?? "").trim() || undefined,
+            sendLater,
+          }
+        : hasOa === "no"
+          ? { has: false, wantSetup }
+          : undefined;
 
     const res = await fetch("/api/signup", {
       method: "POST",
@@ -32,6 +48,7 @@ export function SignupForm() {
         promptpayId: String(form.get("promptpayId") ?? "").trim() || undefined,
         businessType: form.get("businessType"),
         taxId: String(form.get("taxId") ?? "").trim() || undefined,
+        lineOa,
         acceptPdpa: accepted,
       }),
     });
@@ -57,8 +74,8 @@ export function SignupForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <Input label="ชื่อสนาม/ฟิตเนส" name="venueName" required minLength={2} />
-      <Input label="ชื่อเจ้าของ (ชื่อ-นามสกุล)" name="ownerName" required minLength={2} />
+      <Input label="ชื่อสนาม/ฟิตเนส" name="venueName" required minLength={2} icon={<Building2 />} />
+      <Input label="ชื่อเจ้าของ (ชื่อ-นามสกุล)" name="ownerName" required minLength={2} icon={<User />} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Input
           label="เบอร์โทรศัพท์"
@@ -67,24 +84,20 @@ export function SignupForm() {
           required
           pattern="0[0-9]{8,9}"
           placeholder="08XXXXXXXX"
+          icon={<Phone />}
         />
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="businessType" className="text-body-sm font-medium text-ink">
-            ประเภทธุรกิจ
-          </label>
-          <select
-            id="businessType"
-            name="businessType"
-            required
-            className="w-full rounded-sm bg-surface px-4 py-2.5 text-body text-ink shadow-sm outline-none transition-shadow duration-fast focus:shadow-md focus:ring-2 focus:ring-brand"
-          >
-            <option value="sports_venue">สนามกีฬา</option>
-            <option value="fitness">ฟิตเนส</option>
-            <option value="both">ทั้งสองอย่าง</option>
-          </select>
-        </div>
+        <Select
+          name="businessType"
+          label="ประเภทธุรกิจ"
+          defaultValue="sports_venue"
+          options={[
+            { value: "sports_venue", label: "สนามกีฬา" },
+            { value: "fitness", label: "ฟิตเนส" },
+            { value: "both", label: "ทั้งสองอย่าง" },
+          ]}
+        />
       </div>
-      <Input label="อีเมล (ใช้ Login)" name="email" type="email" required />
+      <Input label="อีเมล (ใช้ Login)" name="email" type="email" required icon={<Mail />} />
       <Input
         label="รหัสผ่าน (อย่างน้อย 8 ตัวอักษร)"
         name="password"
@@ -92,20 +105,101 @@ export function SignupForm() {
         required
         minLength={8}
         autoComplete="new-password"
+        icon={<Lock />}
       />
-      <Input label="ที่อยู่สนาม (ถ้ามี)" name="address" />
+      <Input label="ที่อยู่สนาม (ถ้ามี)" name="address" icon={<MapPin />} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Input
           label="เบอร์/บัญชีพร้อมเพย์ (รับเงินลูกค้า)"
           name="promptpayId"
           pattern="[0-9]{10}|[0-9]{13}|[0-9]{15}"
           placeholder="08XXXXXXXX"
+          icon={<QrCode />}
         />
         <Input
           label="เลขผู้เสียภาษี (ไม่บังคับ)"
           name="taxId"
           pattern="[0-9]{13}"
+          icon={<Hash />}
         />
+      </div>
+
+      {/* LINE Official Account */}
+      <div className="flex flex-col gap-3 rounded-md bg-brand-soft/30 p-4 ring-1 ring-inset ring-line">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-brand" />
+          <span className="font-display font-semibold text-ink">LINE Official Account</span>
+        </div>
+        <p className="text-body-sm text-ink">มี LINE OA (บัญชีทางการ) ของร้านแล้วหรือยัง?</p>
+        <div className="grid grid-cols-2 gap-3">
+          {(["yes", "no"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setHasOa(v)}
+              className={
+                "rounded-sm px-4 py-2.5 text-body-sm font-medium shadow-sm transition-all " +
+                (hasOa === v
+                  ? "bg-brand text-white ring-2 ring-brand"
+                  : "bg-surface text-ink ring-1 ring-inset ring-line hover:ring-brand/40")
+              }
+            >
+              {v === "yes" ? "มีแล้ว" : "ยังไม่มี"}
+            </button>
+          ))}
+        </div>
+
+        {hasOa === "yes" && (
+          <div className="flex flex-col gap-2">
+            <Input
+              label="ลิงก์เชิญเป็นแอดมิน (Admin invite link) — ไม่บังคับ"
+              name="lineInvite"
+              placeholder="วางลิงก์ที่ออกจาก LINE OA Manager"
+            />
+            <label className="flex cursor-pointer items-center gap-2 text-body-sm text-ink">
+              <input
+                type="checkbox"
+                checked={sendLater}
+                onChange={(e) => setSendLater(e.target.checked)}
+                className="h-4 w-4 accent-brand"
+              />
+              ฉันต้องการส่งในภายหลัง
+            </label>
+            <p className="text-body-sm text-ink-soft">
+              ทีมงานขอสิทธิ์ผู้ดูแลเฉพาะสำหรับ<strong>การตั้งค่าและเชื่อมต่อระบบ</strong>เท่านั้น
+              ไม่เข้าถึงข้อความสนทนาหรือข้อมูลลูกค้า — เพิกถอนสิทธิ์ได้ตลอดเวลา
+            </p>
+          </div>
+        )}
+
+        {hasOa === "no" && (
+          <div className="flex flex-col gap-2">
+            <p className="rounded-sm bg-success/10 px-3 py-2 text-body-sm text-success">
+              ไม่เป็นไรครับ 👍 LINE OA สมัครฟรี — เลือกได้ว่าจะให้เราช่วยสร้างให้ หรือสร้างเอง
+            </p>
+            {(
+              [
+                { v: "team", t: "ให้ทีมงานสร้างให้", d: "สะดวกสุด เราสร้าง LINE OA + ตั้งค่าเชื่อมระบบให้ฟรี" },
+                { v: "self", t: "จะสร้างเอง", d: "มีคู่มือ + ทีมงานคอยแนะนำขั้นตอนให้" },
+              ] as const
+            ).map((o) => (
+              <button
+                key={o.v}
+                type="button"
+                onClick={() => setWantSetup(o.v)}
+                className={
+                  "flex flex-col items-start rounded-sm px-4 py-3 text-left shadow-sm transition-all " +
+                  (wantSetup === o.v
+                    ? "bg-surface ring-2 ring-brand"
+                    : "bg-surface ring-1 ring-inset ring-line hover:ring-brand/40")
+                }
+              >
+                <span className="font-medium text-ink">{o.t}</span>
+                <span className="text-body-sm text-ink-soft">{o.d}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <label className="flex cursor-pointer items-start gap-2 text-body-sm text-ink">
@@ -129,7 +223,7 @@ export function SignupForm() {
           {error}
         </p>
       )}
-      <Button type="submit" disabled={loading || !accepted} className="mt-2">
+      <Button type="submit" disabled={loading || !accepted} size="lg" className="mt-2 w-full">
         {loading ? "กำลังสมัคร..." : "เริ่มทดลองใช้ฟรี 14 วัน"}
       </Button>
     </form>

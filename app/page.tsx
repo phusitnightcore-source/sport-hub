@@ -1,8 +1,8 @@
 import Link from "next/link";
 import {
   Activity,
-  CalendarCheck,
   CreditCard,
+  CalendarCheck,
   Dumbbell,
   Zap,
   Trophy,
@@ -15,9 +15,16 @@ import {
   QrCode,
   Sparkles,
   MapPin,
+  X,
+  Check,
+  CalendarX,
+  PhoneOff,
+  ReceiptText,
+  BellOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { PublicNav } from "@/components/ui/PublicNav";
+import { BannerSlot } from "@/components/ads/BannerSlot";
 
 const FEATURES = [
   {
@@ -65,6 +72,51 @@ const STEPS = [
   { icon: Trophy, title: "โตแบบวัดผลได้", desc: "ดูรายได้และสถิติเรียลไทม์ทุกวัน" },
 ];
 
+// ปัญหาจริงที่เจ้าของสนามเจอ (เข้าใจตลาด — แก้ตรงจุด)
+const PAINS = [
+  { icon: CalendarX, title: "จองซ้อน จดสมุดแล้วพลาด", desc: "ลูกค้ามาถึงแล้วเวลาชนกัน เสียลูกค้า เสียความน่าเชื่อถือ" },
+  { icon: PhoneOff, title: "ตอบไลน์ไม่ทัน ลูกค้าหลุด", desc: "ช่วงพีคตอบแชทช้าแป๊บเดียว ลูกค้าไปจองสนามอื่น" },
+  { icon: ReceiptText, title: "ตรวจสลิปเองช้า เจอสลิปปลอม", desc: "ไล่เช็คสลิปทีละใบ พลาดสลิปปลอม/สลิปซ้ำได้ง่าย" },
+  { icon: BellOff, title: "สมาชิกหมดอายุ ไม่มีใครตาม", desc: "ลืมเตือนต่ออายุ รายได้ประจำหลุดมือไปเงียบๆ" },
+];
+
+// เปรียบเทียบ ไม่ใช้ระบบ vs ใช้ SportHub
+const COMPARE = [
+  { f: "รับจอง", no: "โทร/แชท เฉพาะเวลาเปิดร้าน", yes: "ลิงก์จองออนไลน์ 24 ชม." },
+  { f: "กันจองซ้อน", no: "จดสมุด/ความจำ พลาดได้", yes: "กันซ้อนอัตโนมัติระดับฐานข้อมูล" },
+  { f: "รับเงิน", no: "โอนแล้วส่งสลิปในแชท", yes: "QR PromptPay + แนบสลิปในระบบ" },
+  { f: "ตรวจสลิป", no: "ไล่เช็คเอง เสี่ยงสลิปปลอม", yes: "ตรวจในระบบ + กันสลิปซ้ำ" },
+  { f: "รายได้", no: "ไม่รู้ตัวเลขจริงแต่ละเดือน", yes: "Dashboard รายได้เรียลไทม์" },
+  { f: "สมาชิกฟิตเนส", no: "จดมือ เตือนต่ออายุเอง", yes: "ระบบสมาชิก + เตือนหมดอายุอัตโนมัติ" },
+  { f: "เช็คอิน", no: "เซ็นสมุด / นับเอง", yes: "สแกน QR นับคนในสนามแบบสด" },
+];
+
+// คำถามที่พบบ่อย
+const FAQS = [
+  { q: "เงินค่าจองเข้าบัญชีใคร?", a: "เข้าบัญชีสนามโดยตรง 100% ผ่าน PromptPay ของสนามเอง — SportHub ไม่แตะเงินส่วนนี้เลย" },
+  { q: "ลูกค้าต้องโหลดแอปไหม?", a: "ไม่ต้อง ลูกค้าจองผ่านลิงก์บนเบราว์เซอร์ได้ทันที ไม่ต้องติดตั้งอะไร" },
+  { q: "ระบบตรวจสลิปแม่นแค่ไหน?", a: "แนบสลิปเข้าระบบ มีการกันสลิปซ้ำอัตโนมัติ และถ้าเปิด OCR จะช่วยอ่านยอดเทียบให้ สุดท้ายแอดมินกดยืนยันเอง" },
+  { q: "มีหลายสนาม/หลายกีฬาใช้ได้ไหม?", a: "ได้ รองรับหลายสาขา หลายคอร์ท ทั้งสนามกีฬาและฟิตเนสในบัญชีเดียว (ตามแพลนที่เลือก)" },
+  { q: "ติดตั้งยากไหม ต้องมีความรู้เทคนิคไหม?", a: "ไม่ต้อง ตั้งค่าเสร็จใน 5 นาที มีทีมช่วยแนะนำ และช่วยเชื่อม LINE OA ให้ได้" },
+  { q: "ทดลองใช้ฟรีมีเงื่อนไขไหม?", a: "ทดลอง Growth Plan ฟรี 14 วัน ไม่ต้องใช้บัตรเครดิต ยกเลิกได้ทุกเมื่อ" },
+];
+
+function FragmentRow({ row }: { row: { f: string; no: string; yes: string } }) {
+  return (
+    <>
+      <div className="bg-surface p-4 font-medium text-ink">{row.f}</div>
+      <div className="flex items-start gap-1.5 bg-surface p-4 text-ink-soft">
+        <X aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+        {row.no}
+      </div>
+      <div className="flex items-start gap-1.5 bg-surface p-4 text-ink">
+        <Check aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+        {row.yes}
+      </div>
+    </>
+  );
+}
+
 export default function Home() {
   return (
     <div className="relative flex min-h-screen flex-col overflow-x-clip">
@@ -76,24 +128,7 @@ export default function Home() {
       </div>
 
       {/* ---- Header ---- */}
-      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-line/60 bg-surface/70 px-4 backdrop-blur-md sm:px-6">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white shadow-sm">
-            <Activity className="h-5 w-5" />
-            <span className="absolute inset-0 rounded-full bg-brand/40 animate-pulse-ring" />
-          </span>
-          <span className="font-display text-body-lg font-bold text-ink">SportHub</span>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <ThemeToggle />
-          <Link href="/login">
-            <Button variant="secondary" size="sm">เข้าสู่ระบบ</Button>
-          </Link>
-          <Link href="/signup">
-            <Button variant="primary" size="sm">สมัครใช้งาน</Button>
-          </Link>
-        </div>
-      </header>
+      <PublicNav />
 
       <main className="flex-1">
         {/* ---- Hero ---- */}
@@ -229,6 +264,57 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ---- Banner โฆษณา (แสดงเมื่อมีแบนเนอร์ active placement=home) ---- */}
+        <section className="mx-auto max-w-6xl px-6">
+          <BannerSlot placement="home" className="block" />
+        </section>
+
+        {/* ---- Pain points ---- */}
+        <section className="mx-auto max-w-6xl px-6 py-16">
+          <div className="mb-10 text-center">
+            <h2 className="font-display text-display-md font-semibold text-ink">
+              ปัญหาที่สนามเจอทุกวัน
+            </h2>
+            <p className="mt-2 text-body text-ink-soft">
+              ถ้าคุณเจอสิ่งเหล่านี้ — SportHub แก้ให้ได้
+            </p>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {PAINS.map((p) => (
+              <div key={p.title} className="card-floating flex flex-col gap-3 p-6">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-danger/10 text-danger">
+                  <p.icon className="h-5 w-5" />
+                </span>
+                <h3 className="font-display text-body-lg font-bold text-ink">{p.title}</h3>
+                <p className="text-body-sm text-ink-soft">{p.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ---- Comparison ---- */}
+        <section id="compare" className="mx-auto max-w-4xl scroll-mt-20 px-6 py-16">
+          <div className="mb-10 text-center">
+            <h2 className="font-display text-display-md font-semibold text-ink">
+              ใช้ระบบ ต่างกับ ไม่ใช้ระบบ ยังไง
+            </h2>
+          </div>
+          <div className="card-floating overflow-hidden p-0">
+            <div className="grid grid-cols-[1.2fr_1fr_1fr] gap-px bg-line text-body-sm">
+              <div className="bg-surface p-4 font-medium text-ink-soft">หัวข้อ</div>
+              <div className="bg-surface p-4 text-center font-medium text-ink-soft">
+                ไม่ใช้ระบบ
+              </div>
+              <div className="bg-brand-soft p-4 text-center font-semibold text-brand-dark">
+                ใช้ SportHub
+              </div>
+              {COMPARE.map((row) => (
+                <FragmentRow key={row.f} row={row} />
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* ---- Features ---- */}
         <section className="mx-auto max-w-6xl px-6 py-20">
           <div className="mb-12 text-center">
@@ -274,6 +360,34 @@ export default function Home() {
                 <h3 className="font-display text-body-lg font-bold text-ink">{s.title}</h3>
                 <p className="max-w-xs text-body-sm text-ink-soft">{s.desc}</p>
               </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ---- FAQ ---- */}
+        <section id="faq" className="mx-auto max-w-3xl scroll-mt-20 px-6 py-16">
+          <div className="mb-10 text-center">
+            <h2 className="font-display text-display-md font-semibold text-ink">
+              คำถามที่พบบ่อย
+            </h2>
+            <p className="mt-2 text-body text-ink-soft">
+              เรื่องที่เจ้าของสนามถามบ่อย
+            </p>
+          </div>
+          <div className="flex flex-col gap-3">
+            {FAQS.map((item) => (
+              <details
+                key={item.q}
+                className="card-floating group p-0 [&_summary]:list-none"
+              >
+                <summary className="flex cursor-pointer items-center justify-between gap-3 p-5 font-display font-semibold text-ink">
+                  {item.q}
+                  <span className="text-brand transition-transform duration-fast group-open:rotate-45">
+                    <ArrowRight className="h-5 w-5 rotate-45" />
+                  </span>
+                </summary>
+                <p className="px-5 pb-5 text-body-sm text-ink-soft">{item.a}</p>
+              </details>
             ))}
           </div>
         </section>

@@ -1,10 +1,15 @@
 import Link from "next/link";
-import { LayoutDashboard, Building2 } from "lucide-react";
+import { LayoutDashboard, Building2, SlidersHorizontal, TrendingUp, Newspaper, Megaphone } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 const NAV_ITEMS = [
   { href: "/super-admin", label: "ภาพรวม", icon: LayoutDashboard },
   { href: "/super-admin/tenants", label: "สนามทั้งหมด", icon: Building2 },
+  { href: "/super-admin/plans", label: "แพลน & สิทธิ์", icon: SlidersHorizontal },
+  { href: "/super-admin/traffic", label: "การเข้าชม", icon: TrendingUp },
+  { href: "/super-admin/blog", label: "บทความ", icon: Newspaper },
+  { href: "/super-admin/banners", label: "แบนเนอร์", icon: Megaphone },
 ];
 
 // Shell ฝั่งทีม SportHub (super_admin)
@@ -43,7 +48,8 @@ export default function SuperAdminLayout({
           <div className="md:hidden font-display text-lg font-bold text-brand">
             SportHub <span className="text-body-sm font-normal text-ink-soft">Admin</span>
           </div>
-          <div className="flex flex-1 items-center justify-end gap-4 text-body-sm text-ink-soft">
+          <div className="flex flex-1 items-center justify-end gap-3 text-body-sm text-ink-soft">
+            <ThemeToggle />
             <span className="hidden md:inline">Super Admin</span>
             <div className="md:hidden">
               <LogoutButton />

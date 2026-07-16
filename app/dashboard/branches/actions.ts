@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffContext } from "@/lib/auth";
+import { checkBranchQuota } from "@/lib/entitlements.server";
 
 const branchSchema = z.object({
   name: z.string().min(1, "กรุณากรอกชื่อสาขา"),
@@ -29,6 +30,11 @@ export async function createBranch(formData: FormData) {
   }
 
   const supabase = await createClient();
+
+  // Gate: เพดานจำนวนสาขาตามแพลน (Free = 1 สาขา) — §5
+  const quota = await checkBranchQuota(supabase, ctx.tenantId);
+  if (!quota.ok) return { error: quota.reason };
+
   const { error } = await supabase.from("branches").insert({
     tenant_id: ctx.tenantId,
     name: parsed.data.name,

@@ -27,7 +27,7 @@ export default async function TenantsPage() {
   const [{ data: tenants }, { data: subs }] = await Promise.all([
     supabase
       .from("tenants")
-      .select("id, name, owner_name, email, phone, status, created_at")
+      .select("id, name, owner_name, email, phone, status, settings, created_at")
       .order("created_at", { ascending: false }),
     supabase.from("subscriptions").select("tenant_id, plan, status, trial_end"),
   ]);
@@ -43,6 +43,16 @@ export default async function TenantsPage() {
         {(tenants ?? []).map((t) => {
           const st = TENANT_STATUS[t.status] ?? TENANT_STATUS.active;
           const sub = subByTenant.get(t.id);
+          const lineOa = (t.settings as { line_oa?: {
+            want_setup?: string | null;
+            has_oa?: boolean;
+            invite_link?: string | null;
+            connected?: boolean;
+          } } | null)?.line_oa;
+          const needsLine =
+            !!lineOa &&
+            !lineOa.connected &&
+            (lineOa.want_setup === "team" || !!lineOa.invite_link);
           return (
             <ListRowCard
               key={t.id}
@@ -63,15 +73,23 @@ export default async function TenantsPage() {
                 </div>
               }
             >
-              <span className="text-body-sm text-ink">
-                {sub ? PLANS[sub.plan].name : "-"}
-                {sub?.status === "trial" && sub.trial_end && (
-                  <span className="text-ink-soft">
-                    {" "}
-                    (ถึง {sub.trial_end.slice(0, 10)})
-                  </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-body-sm text-ink">
+                  {sub ? PLANS[sub.plan].name : "-"}
+                  {sub?.status === "trial" && sub.trial_end && (
+                    <span className="text-ink-soft">
+                      {" "}
+                      (ถึง {sub.trial_end.slice(0, 10)})
+                    </span>
+                  )}
+                </span>
+                {needsLine && (
+                  <StatusPill tone="warning">
+                    รอเชื่อม LINE OA
+                    {lineOa?.want_setup === "team" ? " (ทีมสร้าง)" : ""}
+                  </StatusPill>
                 )}
-              </span>
+              </div>
             </ListRowCard>
           );
         })}

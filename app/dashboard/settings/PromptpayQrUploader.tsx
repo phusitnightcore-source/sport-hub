@@ -5,7 +5,11 @@
 import { useActionState } from "react";
 import { Upload, Trash2, QrCode, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { ConfirmSubmit } from "@/components/ui/ConfirmDialog";
 import { savePromptpayQr, removePromptpayQr, type SettingsState } from "./actions";
+
+const SECONDARY_DANGER_BTN =
+  "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all duration-fast active:scale-[0.97] bg-surface text-danger shadow-sm hover:shadow-md hover:-translate-y-px px-4 py-1.5 text-body-sm";
 
 export function PromptpayQrUploader({ currentQr }: { currentQr: string | null }) {
   const [state, action, pending] = useActionState<SettingsState, FormData>(
@@ -34,12 +38,16 @@ export function PromptpayQrUploader({ currentQr }: { currentQr: string | null })
             height={200}
             className="rounded-sm ring-1 ring-inset ring-line"
           />
-          <form action={removePromptpayQr}>
-            <Button type="submit" variant="secondary" size="sm" className="text-danger">
-              <Trash2 className="h-4 w-4" />
-              ลบรูป QR (กลับไปใช้ QR อัตโนมัติ)
-            </Button>
-          </form>
+          <ConfirmSubmit
+            action={removePromptpayQr}
+            title="ลบรูป QR ที่อัปโหลด?"
+            message="ระบบจะกลับไปสร้าง QR จากเลขพร้อมเพย์ให้อัตโนมัติ"
+            confirmLabel="ลบรูป"
+            triggerClassName={SECONDARY_DANGER_BTN}
+          >
+            <Trash2 className="h-4 w-4" />
+            ลบรูป QR (กลับไปใช้ QR อัตโนมัติ)
+          </ConfirmSubmit>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-2 rounded-sm bg-brand-soft/40 p-6 text-center">

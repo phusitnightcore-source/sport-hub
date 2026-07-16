@@ -19,18 +19,10 @@ export default async function MemberPage() {
     .from("members")
     .select("*, packages(name, type, sessions_limit), tenants(name)")
     .eq("profile_id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (!member) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-6">
-        <h1 className="font-display text-display-md font-semibold text-ink">
-          คุณยังไม่ได้เป็นสมาชิก
-        </h1>
-        <LogoutButton />
-      </main>
-    );
-  }
+  // ผู้ใช้ทั่วไป (ไม่ใช่สมาชิกฟิตเนสรายสนาม) → ไปหน้าการจอง/พื้นที่ของฉัน
+  if (!member) redirect("/me/bookings");
 
 
   return (

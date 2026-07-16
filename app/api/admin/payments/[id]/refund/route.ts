@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { apiOk, apiError } from "@/lib/api";
 import { getStaffContext, hasPermission } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { notifyWaitlistForFreedSlot } from "@/lib/waitlist";
 
 const MAX_EVIDENCE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -82,6 +83,23 @@ export async function POST(
       .from("bookings")
       .update({ status: "refunded" })
       .eq("id", payment.booking_id);
+
+    // slot ว่างลง (refunded ไม่อยู่ใน exclusion constraint แล้ว) → แจ้ง waitlist
+    const { data: b } = await admin
+      .from("bookings")
+      .select("tenant_id, court_id, booking_date, start_time, end_time, courts(name)")
+      .eq("id", payment.booking_id)
+      .maybeSingle();
+    if (b) {
+      await notifyWaitlistForFreedSlot(admin, {
+        tenantId: b.tenant_id,
+        courtId: b.court_id,
+        bookingDate: b.booking_date,
+        startTime: b.start_time,
+        endTime: b.end_time,
+        courtName: b.courts?.name ?? null,
+      });
+    }
   }
 
   await logAudit({

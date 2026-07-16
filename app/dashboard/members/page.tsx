@@ -2,14 +2,22 @@ import Link from "next/link";
 import { Snowflake } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffContext } from "@/lib/auth";
+import { getTenantEntitlements } from "@/lib/entitlements.server";
+import { PLANS } from "@/lib/plans";
 import { Button } from "@/components/ui/Button";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { UpgradeLock } from "@/components/ui/UpgradeLock";
 
 export default async function MembersPage() {
   const ctx = await getStaffContext();
   if (!ctx) return null;
 
   const supabase = await createClient();
+
+  const { plan, entitlements } = await getTenantEntitlements(supabase, ctx.tenantId);
+  if (!entitlements.member_system) {
+    return <UpgradeLock feature="ระบบสมาชิกฟิตเนส" plan={PLANS[plan].name} />;
+  }
   const { data: members } = await supabase
     .from("members")
     .select(`

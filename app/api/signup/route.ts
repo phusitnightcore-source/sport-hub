@@ -18,6 +18,15 @@ const bodySchema = z.object({
     .optional(),
   businessType: z.enum(["sports_venue", "fitness", "both"]),
   taxId: z.string().regex(/^\d{13}$/).optional(),
+  // LINE OA (ไม่บังคับ) — เก็บไว้ให้ทีมตามไปเชื่อมต่อ
+  lineOa: z
+    .object({
+      has: z.boolean().default(false),
+      inviteLink: z.string().trim().max(500).optional(),
+      wantSetup: z.enum(["team", "self"]).optional(),
+      sendLater: z.boolean().optional(),
+    })
+    .optional(),
   acceptPdpa: z.literal(true), // ต้องยินยอมก่อน Activate บัญชี (§6.2)
 });
 
@@ -74,6 +83,19 @@ export async function POST(request: Request) {
       pdpa_consent_at: new Date().toISOString(),
       pdpa_consent_ip: ip,
       consent_version: "1.0",
+      settings: {
+        slot_lock_minutes: 30,
+        auto_approve_slip: false,
+        renewal_reminder_days: [7, 3, 0],
+        theme: {},
+        line_oa: {
+          has_oa: body.lineOa?.has ?? false,
+          invite_link: body.lineOa?.inviteLink ?? null,
+          want_setup: body.lineOa?.wantSetup ?? null,
+          send_later: body.lineOa?.sendLater ?? false,
+          connected: false, // ทีมอัปเดตเป็น true เมื่อเชื่อมเสร็จ
+        },
+      },
     })
     .select("id, name")
     .single();

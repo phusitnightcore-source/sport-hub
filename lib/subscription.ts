@@ -33,7 +33,11 @@ export async function requireOnlinePayment(
   return PLANS[plan].onlinePayment ? { ok: true, plan } : { ok: false, plan, reason };
 }
 
-/** เพดานจำนวนสนามตามแพลน (Free = 1) — คืน error ถ้าจะเกิน */
+/**
+ * @deprecated ใช้ checkCourtQuota จาก lib/entitlements.server.ts แทน
+ * (ตัวนั้นอ่านจาก plan_entitlements ที่ Super Admin แก้ได้ — ตัวนี้ใช้ PLANS hardcoded)
+ * เพดานจำนวนสนามตามแพลน (Free = 1) — คืน error ถ้าจะเกิน
+ */
 export async function checkCourtQuota(
   db: DB,
   tenantId: string,

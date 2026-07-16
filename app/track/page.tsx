@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Activity } from "lucide-react";
+import { PublicNav } from "@/components/ui/PublicNav";
 import { TrackClient } from "./TrackClient";
 
 // หน้าเช็คการจองสำหรับผู้ใช้ทั่วไป (guest) — ยืนยันด้วยเบอร์ + รหัสจอง
@@ -10,18 +10,7 @@ export const metadata = {
 export default function TrackPage() {
   return (
     <div className="min-h-screen">
-      <header className="flex h-16 items-center justify-between border-b border-line/60 bg-surface/70 px-6 backdrop-blur-md">
-        <Link href="/" className="flex items-center gap-2">
-          <Activity className="h-6 w-6 text-brand" />
-          <span className="font-display text-body-lg font-bold text-ink">SportHub</span>
-        </Link>
-        <Link
-          href="/login"
-          className="text-body-sm font-medium text-ink-soft hover:text-brand"
-        >
-          เข้าสู่ระบบสมาชิก
-        </Link>
-      </header>
+      <PublicNav />
 
       <main className="mx-auto max-w-xl px-6 py-12">
         <div className="mb-6">

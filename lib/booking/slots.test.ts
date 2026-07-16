@@ -9,7 +9,8 @@ const court = {
 };
 
 // วันในอนาคตไกลๆ เพื่อไม่ให้ slot กลายเป็น "past"
-const FUTURE = "2999-01-04"; // เป็นวันจันทร์ (dow=1)
+const FUTURE = "2999-01-04"; // เป็นวันศุกร์ (dow=5)
+const FUTURE_DOW = 5;
 const base = {
   court,
   peakWindows: [],
@@ -30,8 +31,8 @@ describe("toMinutes", () => {
 
 describe("dayOfWeekOf", () => {
   it("คืนวันในสัปดาห์ถูกต้อง (ไม่ขึ้นกับ timezone)", () => {
-    expect(dayOfWeekOf("2999-01-04")).toBe(1); // จันทร์
-    expect(dayOfWeekOf("2999-01-03")).toBe(0); // อาทิตย์
+    expect(dayOfWeekOf("2999-01-04")).toBe(5); // ศุกร์
+    expect(dayOfWeekOf("2999-01-03")).toBe(4); // พฤหัส
   });
 });
 
@@ -52,7 +53,7 @@ describe("buildSlots", () => {
   it("ราคา peak เมื่ออยู่ในช่วง peak ของวันนั้น", () => {
     const slots = buildSlots({
       ...base,
-      peakWindows: [{ day_of_week: 1, start_time: "08:00", end_time: "09:00" }],
+      peakWindows: [{ day_of_week: FUTURE_DOW, start_time: "08:00", end_time: "09:00" }],
     });
     expect(slots[0].isPeak).toBe(true);
     expect(slots[0].priceSatang).toBe(15000);
@@ -93,7 +94,7 @@ describe("buildSlots", () => {
     const slots = buildSlots({
       ...base,
       court: { ...court, price_peak: null },
-      peakWindows: [{ day_of_week: 1, start_time: "08:00", end_time: "09:00" }],
+      peakWindows: [{ day_of_week: FUTURE_DOW, start_time: "08:00", end_time: "09:00" }],
     });
     expect(slots[0].priceSatang).toBe(10000);
   });

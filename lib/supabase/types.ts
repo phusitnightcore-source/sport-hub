@@ -39,6 +39,216 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_events: {
+        Row: {
+          id: string
+          kind: string
+          label: string | null
+          path: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          kind: string
+          label?: string | null
+          path?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          label?: string | null
+          path?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      banners: {
+        Row: {
+          id: string
+          name: string
+          image_url: string
+          link_url: string
+          placement: string
+          is_active: boolean
+          weight: number
+          impressions: number
+          clicks: number
+          starts_at: string | null
+          ends_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          image_url: string
+          link_url: string
+          placement?: string
+          is_active?: boolean
+          weight?: number
+          impressions?: number
+          clicks?: number
+          starts_at?: string | null
+          ends_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          image_url?: string
+          link_url?: string
+          placement?: string
+          is_active?: boolean
+          weight?: number
+          impressions?: number
+          clicks?: number
+          starts_at?: string | null
+          ends_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      blog_posts: {
+        Row: {
+          id: string
+          slug: string
+          title: string
+          excerpt: string | null
+          content: string
+          cover_image_url: string | null
+          category: string | null
+          tags: string[]
+          status: Database["public"]["Enums"]["blog_status"]
+          author_name: string | null
+          author_id: string | null
+          views: number
+          published_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          title: string
+          excerpt?: string | null
+          content?: string
+          cover_image_url?: string | null
+          category?: string | null
+          tags?: string[]
+          status?: Database["public"]["Enums"]["blog_status"]
+          author_name?: string | null
+          author_id?: string | null
+          views?: number
+          published_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          title?: string
+          excerpt?: string | null
+          content?: string
+          cover_image_url?: string | null
+          category?: string | null
+          tags?: string[]
+          status?: Database["public"]["Enums"]["blog_status"]
+          author_name?: string | null
+          author_id?: string | null
+          views?: number
+          published_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      page_views: {
+        Row: {
+          id: string
+          path: string
+          tenant_id: string | null
+          referrer: string | null
+          visitor_hash: string | null
+          device: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          path: string
+          tenant_id?: string | null
+          referrer?: string | null
+          visitor_hash?: string | null
+          device?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          path?: string
+          tenant_id?: string | null
+          referrer?: string | null
+          visitor_hash?: string | null
+          device?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      plan_entitlements: {
+        Row: {
+          plan: Database["public"]["Enums"]["plan_type"]
+          online_payment: boolean
+          monthly_booking_limit: number | null
+          max_courts: number | null
+          max_branches: number | null
+          line_notify: boolean
+          member_system: boolean
+          peak_pricing: boolean
+          broadcast: boolean
+          export_reports: boolean
+          guest_pass: boolean
+          kiosk_mode: boolean
+          custom_domain: boolean
+          analytics: boolean
+          updated_at: string
+        }
+        Insert: {
+          plan: Database["public"]["Enums"]["plan_type"]
+          online_payment?: boolean
+          monthly_booking_limit?: number | null
+          max_courts?: number | null
+          max_branches?: number | null
+          line_notify?: boolean
+          member_system?: boolean
+          peak_pricing?: boolean
+          broadcast?: boolean
+          export_reports?: boolean
+          guest_pass?: boolean
+          kiosk_mode?: boolean
+          custom_domain?: boolean
+          analytics?: boolean
+          updated_at?: string
+        }
+        Update: {
+          plan?: Database["public"]["Enums"]["plan_type"]
+          online_payment?: boolean
+          monthly_booking_limit?: number | null
+          max_courts?: number | null
+          max_branches?: number | null
+          line_notify?: boolean
+          member_system?: boolean
+          peak_pricing?: boolean
+          broadcast?: boolean
+          export_reports?: boolean
+          guest_pass?: boolean
+          kiosk_mode?: boolean
+          custom_domain?: boolean
+          analytics?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -181,6 +391,7 @@ export type Database = {
           updated_at: string
           user_name: string
           user_phone: string
+          profile_id: string | null
         }
         Insert: {
           booking_code?: string
@@ -212,6 +423,7 @@ export type Database = {
           updated_at?: string
           user_name: string
           user_phone: string
+          profile_id?: string | null
         }
         Update: {
           booking_code?: string
@@ -243,6 +455,7 @@ export type Database = {
           updated_at?: string
           user_name?: string
           user_phone?: string
+          profile_id?: string | null
         }
         Relationships: [
           {
@@ -303,6 +516,7 @@ export type Database = {
           id: string
           images: string[]
           kiosk_scan_out_enabled: boolean
+          kiosk_token: string | null
           latitude: number | null
           longitude: number | null
           max_capacity: number
@@ -328,6 +542,7 @@ export type Database = {
           id?: string
           images?: string[]
           kiosk_scan_out_enabled?: boolean
+          kiosk_token?: string | null
           latitude?: number | null
           longitude?: number | null
           max_capacity?: number
@@ -353,6 +568,7 @@ export type Database = {
           id?: string
           images?: string[]
           kiosk_scan_out_enabled?: boolean
+          kiosk_token?: string | null
           latitude?: number | null
           longitude?: number | null
           max_capacity?: number
@@ -368,6 +584,63 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "branches_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      waitlists: {
+        Row: {
+          booking_date: string
+          court_id: string
+          created_at: string
+          end_time: string
+          id: string
+          notified_at: string | null
+          profile_id: string | null
+          start_time: string
+          tenant_id: string
+          user_name: string
+          user_phone: string
+        }
+        Insert: {
+          booking_date: string
+          court_id: string
+          created_at?: string
+          end_time: string
+          id?: string
+          notified_at?: string | null
+          profile_id?: string | null
+          start_time: string
+          tenant_id: string
+          user_name: string
+          user_phone: string
+        }
+        Update: {
+          booking_date?: string
+          court_id?: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          notified_at?: string | null
+          profile_id?: string | null
+          start_time?: string
+          tenant_id?: string
+          user_name?: string
+          user_phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waitlists_court_id_fkey"
+            columns: ["court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waitlists_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1292,6 +1565,8 @@ export type Database = {
           full_name: string | null
           id: string
           is_active: boolean
+          line_user_id: string | null
+          pdpa_consent_at: string | null
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           tenant_id: string | null
@@ -1303,6 +1578,8 @@ export type Database = {
           full_name?: string | null
           id: string
           is_active?: boolean
+          line_user_id?: string | null
+          pdpa_consent_at?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           tenant_id?: string | null
@@ -1314,6 +1591,8 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_active?: boolean
+          line_user_id?: string | null
+          pdpa_consent_at?: string | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           tenant_id?: string | null
@@ -1739,6 +2018,7 @@ export type Database = {
       next_receipt_number: { Args: { p_tenant: string }; Returns: string }
     }
     Enums: {
+      blog_status: "draft" | "published" | "pending_review"
       booking_status:
         | "pending_payment"
         | "awaiting_verification"
@@ -1928,6 +2208,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      blog_status: ["draft", "published", "pending_review"],
       booking_status: [
         "pending_payment",
         "awaiting_verification",
