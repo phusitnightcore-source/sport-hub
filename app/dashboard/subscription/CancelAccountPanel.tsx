@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/Button";
+import { ConfirmButton } from "@/components/ui/ConfirmDialog";
 import { cancelTenantAccount } from "./offboarding-actions";
 
 // Offboarding (§32): ยกเลิกบัญชี → มีเวลา Export ข้อมูล 30 วัน แล้วลบถาวร
@@ -14,8 +14,6 @@ export function CancelAccountPanel({
   hardDeleteAfter: string | null;
 }) {
   const router = useRouter();
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (pendingDelete) {
@@ -38,40 +36,26 @@ export function CancelAccountPanel({
         เมื่อยกเลิก คุณมีเวลา 30 วันในการ Export ข้อมูลทั้งหมด หลังจากนั้นข้อมูลสนาม
         สมาชิก การจอง และไฟล์ทั้งหมดจะถูกลบถาวร (§PDPA 6.4)
       </p>
-      {confirming ? (
-        <div className="flex gap-3">
-          <Button
-            variant="danger"
-            size="sm"
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              const res = await cancelTenantAccount();
-              if (res.error) {
-                setError(res.error);
-                setBusy(false);
-                setConfirming(false);
-                return;
-              }
-              router.refresh();
-            }}
-          >
-            {busy ? "กำลังดำเนินการ..." : "ยืนยันยกเลิกบัญชี"}
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => setConfirming(false)}>
-            กลับ
-          </Button>
-        </div>
-      ) : (
-        <Button
-          variant="secondary"
-          size="sm"
-          className="self-start text-danger"
-          onClick={() => setConfirming(true)}
-        >
-          ต้องการยกเลิกบัญชี...
-        </Button>
-      )}
+      <ConfirmButton
+        onConfirm={async () => {
+          setError(null);
+          const res = await cancelTenantAccount();
+          if (res.error) {
+            setError(res.error);
+            return;
+          }
+          router.refresh();
+        }}
+        title="ยกเลิกบัญชีสนาม?"
+        message="ข้อมูลสนาม สมาชิก การจอง และไฟล์ทั้งหมดจะถูกลบถาวรหลังพ้น 30 วัน — ยืนยันการยกเลิกบัญชีหรือไม่?"
+        confirmLabel="ยืนยันยกเลิกบัญชี"
+        tone="danger"
+        triggerVariant="secondary"
+        triggerSize="sm"
+        triggerClassName="self-start text-danger"
+      >
+        ต้องการยกเลิกบัญชี...
+      </ConfirmButton>
       {error && <p className="text-body-sm text-danger">{error}</p>}
     </div>
   );

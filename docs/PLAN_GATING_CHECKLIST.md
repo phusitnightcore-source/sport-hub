@@ -16,9 +16,9 @@
 | export_reports | ❌ | ✅ | ✅ | ปุ่ม Export + `GET /api/admin/reports/export` (402) |
 | guest_pass | ❌ | ❌ | ✅ | `/dashboard/guest-passes` → UpgradeLock |
 | peak_pricing | ❌ | ✅ | ✅ | (คิดราคา peak ใน buildSlots — ตาม court config) |
-| broadcast | ❌ | ✅ | ✅ | (TODO: หน้า broadcast) |
+| broadcast | ❌ | ✅ | ✅ | `/dashboard/broadcast` (BroadcastForm + action) |
 | line_notify | ❌ | ✅ | ✅ | (dispatcher ส่ง LINE เมื่อ configured) |
-| kiosk_mode | ❌ | ❌ | ✅ | (TODO: kiosk) |
+| kiosk_mode | ❌ | ❌ | ✅ | `/checkin/[token]` (self check-in) + KioskLinkPanel |
 | custom_domain | ❌ | ❌ | ✅ | (infra) |
 
 หมายเหตุ: trial = ใช้สิทธิ์ Growth เต็ม (§4) / grace = สิทธิ์แพลนเดิมจนหมด grace / หมดอายุ → free ทันที

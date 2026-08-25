@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ConfirmButton } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { createBranch, updateBranch, deleteBranch } from "./actions";
@@ -52,8 +53,6 @@ export function BranchForm({
 
   async function handleDelete() {
     if (!initialData?.id) return;
-    if (!confirm("คุณแน่ใจหรือไม่ที่จะลบ (ปิด) สาขานี้?")) return;
-    
     setBusy(true);
     const res = await deleteBranch(initialData.id);
     if (res?.error) {
@@ -176,14 +175,18 @@ export function BranchForm({
 
       <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between border-t border-line">
         {isEdit ? (
-          <Button
-            type="button"
-            variant="danger"
+          <ConfirmButton
+            onConfirm={handleDelete}
+            title="ระงับ/ลบสาขานี้?"
+            message="สาขาจะถูกปิดใช้งาน การจอง/เช็คอินของสาขานี้จะทำไม่ได้อีก"
+            confirmLabel="ยืนยันระงับ/ลบ"
+            tone="danger"
+            triggerVariant="danger"
+            triggerSize="md"
             disabled={busy}
-            onClick={handleDelete}
           >
             ระงับ/ลบสาขา
-          </Button>
+          </ConfirmButton>
         ) : (
           <div></div> // Spacer
         )}

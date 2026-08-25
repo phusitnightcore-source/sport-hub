@@ -4,7 +4,8 @@ import { AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStaffContext } from "@/lib/auth";
-import { formatBahtFromDb } from "@/lib/money";
+import { formatBaht, formatBahtFromDb } from "@/lib/money";
+import { ocrConfigured, checkSlipAmount } from "@/lib/ocr";
 import { VerifyActions } from "./VerifyActions";
 
 /* eslint-disable @next/next/no-img-element */
@@ -51,6 +52,12 @@ export default async function PaymentDetailPage({
       .neq("id", payment.id);
     duplicateCount = count ?? 0;
   }
+
+  // OCR ตรวจยอดในสลิปอัตโนมัติ (§9.6) — เฉพาะเมื่อตั้งค่า key + มีรูป + ยังรอตรวจ (graceful)
+  const ocr =
+    payment.status === "awaiting_verification" && slipUrl && ocrConfigured()
+      ? await checkSlipAmount({ imageUrl: slipUrl, expectedBaht: payment.amount })
+      : null;
 
   const b = payment.bookings;
   const mem = payment.members;
@@ -150,6 +157,30 @@ export default async function PaymentDetailPage({
               </dd>
             </dl>
           </div>
+
+          {ocr && ocr.configured && (
+            <div
+              className={`card-floating flex items-center gap-3 p-4 text-body-sm ${
+                ocr.matches === true
+                  ? "text-success"
+                  : ocr.matches === false
+                    ? "text-danger"
+                    : "text-ink-soft"
+              }`}
+            >
+              <AlertTriangle aria-hidden className="h-5 w-5 shrink-0" />
+              {ocr.detectedSatang == null ? (
+                <span>OCR อ่านยอดจากสลิปไม่ได้ — กรุณาตรวจยอดด้วยตนเอง</span>
+              ) : ocr.matches ? (
+                <span>OCR อ่านยอดได้ ฿{formatBaht(ocr.detectedSatang)} — ตรงกับยอดที่ต้องชำระ ✓</span>
+              ) : (
+                <span>
+                  OCR อ่านยอดได้ ฿{formatBaht(ocr.detectedSatang)} — <b>ไม่ตรง</b> กับยอด ฿
+                  {formatBahtFromDb(payment.amount)} กรุณาตรวจสอบ
+                </span>
+              )}
+            </div>
+          )}
 
           {payment.status === "awaiting_verification" ? (
             <VerifyActions paymentId={payment.id} />

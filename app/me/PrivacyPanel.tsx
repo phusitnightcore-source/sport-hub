@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Download, BellOff, Bell, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { ConfirmButton } from "@/components/ui/ConfirmDialog";
 import { toggleBroadcastOptOut, requestErasure } from "./actions";
 
 // จัดการข้อมูลส่วนตัว (PDPA §6.5) — Export CSV / Opt-out Broadcast / ขอลบบัญชี
@@ -11,7 +12,6 @@ export function PrivacyPanel({ optOut }: { optOut: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [confirmErase, setConfirmErase] = useState(false);
 
   async function onToggle() {
     setBusy(true);
@@ -21,15 +21,12 @@ export function PrivacyPanel({ optOut }: { optOut: boolean }) {
   }
 
   async function onErase() {
-    setBusy(true);
     const res = await requestErasure();
     setMsg(
       res.success
         ? "ส่งคำขอลบบัญชีแล้ว สนามจะดำเนินการภายใน 30 วันตามกฎหมาย"
         : res.error ?? "เกิดข้อผิดพลาด",
     );
-    setConfirmErase(false);
-    setBusy(false);
   }
 
   return (
@@ -53,27 +50,20 @@ export function PrivacyPanel({ optOut }: { optOut: boolean }) {
             </>
           )}
         </Button>
-        {confirmErase ? (
-          <>
-            <Button size="sm" variant="danger" onClick={onErase} disabled={busy}>
-              ยืนยันส่งคำขอลบบัญชี
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => setConfirmErase(false)}>
-              ยกเลิก
-            </Button>
-          </>
-        ) : (
-          <Button
-            size="sm"
-            variant="secondary"
-            className="text-danger"
-            onClick={() => setConfirmErase(true)}
-            disabled={busy}
-          >
-            <Trash2 aria-hidden className="h-4 w-4" />
-            ขอลบบัญชี
-          </Button>
-        )}
+        <ConfirmButton
+          onConfirm={onErase}
+          title="ขอลบบัญชีถาวร?"
+          message="สนามจะดำเนินการลบข้อมูลของคุณภายใน 30 วันตามกฎหมาย PDPA — การกระทำนี้ย้อนกลับไม่ได้"
+          confirmLabel="ยืนยันส่งคำขอลบบัญชี"
+          tone="danger"
+          triggerVariant="secondary"
+          triggerSize="sm"
+          triggerClassName="text-danger"
+          disabled={busy}
+        >
+          <Trash2 aria-hidden className="h-4 w-4" />
+          ขอลบบัญชี
+        </ConfirmButton>
       </div>
       {msg && <p className="text-body-sm text-ink-soft">{msg}</p>}
     </div>

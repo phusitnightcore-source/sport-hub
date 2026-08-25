@@ -31,7 +31,7 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const limited = rateLimit(request, "signup", 5, 60_000);
+  const limited = await rateLimit(request, "signup", 5, 60_000);
   if (limited) return limited;
 
   let json: unknown;
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       pdpa_consent_ip: ip,
       consent_version: "1.0",
       settings: {
-        slot_lock_minutes: 30,
+        slot_lock_minutes: 15,
         auto_approve_slip: false,
         renewal_reminder_days: [7, 3, 0],
         theme: {},

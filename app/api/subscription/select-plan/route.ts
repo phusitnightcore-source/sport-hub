@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { apiOk, apiError, bangkokToday } from "@/lib/api";
 import { getStaffContext } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { dispatchNotification } from "@/lib/notify";
 import { PLANS, prorateUpgradeSatang, type PlanType } from "@/lib/plans";
 import { satangToBahtString } from "@/lib/money";
 
@@ -226,6 +227,25 @@ export async function POST(request: Request) {
       total: invoice.total_amount,
     },
   });
+
+  // แจ้งทีม SportHub (platform, tenant_id=null) ว่ามีสนามออก Invoice รอชำระ
+  {
+    const { data: t } = await admin
+      .from("tenants")
+      .select("name")
+      .eq("id", ctx.tenantId)
+      .maybeSingle();
+    await dispatchNotification({
+      tenantId: null,
+      recipientId: null,
+      recipientType: "admin",
+      type: "system",
+      title: "สนามออก Invoice ใหม่",
+      body: `${t?.name ?? "สนาม"} เลือกแพลน ${PLANS[targetPlan].name} — Invoice ${invoice.invoice_number} รอชำระ`,
+      referenceId: invoice.id,
+      referenceType: "subscription_invoice",
+    });
+  }
 
   return apiOk(
     {

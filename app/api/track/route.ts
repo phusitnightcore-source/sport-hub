@@ -11,7 +11,7 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const limited = rateLimit(request, "track", 10, 60_000);
+  const limited = await rateLimit(request, "track", 10, 60_000);
   if (limited) return limited;
 
   let json: unknown;

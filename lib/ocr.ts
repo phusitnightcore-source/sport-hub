@@ -22,7 +22,7 @@ export type SlipAmountCheck = {
 };
 
 // ดึงจำนวนเงินที่ "มากสุด" จากข้อความ (มักเป็นยอดโอนในสลิป) — รูปแบบ 1,234.56 / 1234
-function extractAmountSatang(text: string): number | null {
+export function extractAmountSatang(text: string): number | null {
   const matches = text.match(/\d{1,3}(?:,\d{3})*(?:\.\d{2})?|\d+\.\d{2}/g);
   if (!matches) return null;
   let best = 0;

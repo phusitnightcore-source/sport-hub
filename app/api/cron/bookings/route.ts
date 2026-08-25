@@ -5,7 +5,7 @@ import { dispatchNotification } from "@/lib/notify";
 import { notifyWaitlistForFreedSlot } from "@/lib/waitlist";
 import { captureException } from "@/lib/logger";
 
-// Cron: (1) ยกเลิกการจอง pending_payment ที่หมดเวลา slot lock 30 นาที (§9.3)
+// Cron: (1) ยกเลิกการจอง pending_payment ที่หมดเวลา Hold 15 นาที (§9.3)
 //        (2) เตือนก่อนถึงเวลาจอง ~1 ชม. (§14.1) ผ่าน dispatcher (LINE→email→in-app)
 // เรียกโดย Vercel Cron ทุก 5 นาที — กันด้วย CRON_SECRET
 export async function GET(request: Request) {
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     .update({
       status: "cancelled",
       cancelled_at: new Date().toISOString(),
-      cancel_reason: "หมดเวลาชำระเงิน 30 นาที (ยกเลิกอัตโนมัติ)",
+      cancel_reason: "หมดเวลาชำระเงิน 15 นาที (ยกเลิกอัตโนมัติ)",
     })
     .eq("status", "pending_payment")
     .lt("slot_locked_until", new Date().toISOString())

@@ -19,7 +19,6 @@ const schema = z.object({
   address: z.string().trim().max(300).optional(),
   promptpay_id: z.string().trim().max(50).optional(),
   tax_id: z.string().trim().max(30).optional(),
-  slot_lock_minutes: z.coerce.number().int().min(5).max(120),
   auto_approve_slip: z.coerce.boolean(),
 });
 
@@ -43,7 +42,6 @@ export async function updateTenantSettings(
     address: formData.get("address") || undefined,
     promptpay_id: formData.get("promptpay_id") || undefined,
     tax_id: formData.get("tax_id") || undefined,
-    slot_lock_minutes: formData.get("slot_lock_minutes"),
     auto_approve_slip: formData.get("auto_approve_slip") === "on",
   });
   if (!parsed.success) {
@@ -62,7 +60,8 @@ export async function updateTenantSettings(
     (current?.settings as Record<string, unknown> | null) ?? {};
   const nextSettings = {
     ...prevSettings,
-    slot_lock_minutes: v.slot_lock_minutes,
+    // SOW v1.1 กำหนด Hold เป็น 15 นาทีและไม่อนุญาตให้ Owner ปรับ/ต่อเวลา
+    slot_lock_minutes: 15,
     auto_approve_slip: v.auto_approve_slip,
   };
 
@@ -254,6 +253,109 @@ export async function disconnectLineOa(): Promise<void> {
 }
 
 // ลบรูป QR ที่อัปโหลด (กลับไปใช้ QR สร้างจากเลขพร้อมเพย์)
+// ---- เสียงแจ้งเตือนที่สนามอัปโหลดเอง (เก็บ path ใน tenant-media + settings.notification_sounds) ----
+const SOUND_TYPES = ["booking", "payment", "membership", "promotion", "system"] as const;
+const AUDIO_TYPES = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/ogg", "audio/webm"];
+const MAX_SOUND_BYTES = 1024 * 1024; // 1 MB
+
+export async function saveNotificationSound(formData: FormData): Promise<SettingsState> {
+  const ctx = await getStaffContext();
+  if (!ctx) return { error: "ไม่มีสิทธิ์เข้าถึง" };
+  if (!hasPermission(ctx, "manage_settings")) {
+    return { error: "เฉพาะผู้ดูแลสนามเท่านั้นที่แก้ไขการตั้งค่าได้" };
+  }
+  const type = String(formData.get("type") ?? "");
+  if (!(SOUND_TYPES as readonly string[]).includes(type)) return { error: "ประเภทไม่ถูกต้อง" };
+  const file = formData.get("sound");
+  if (!(file instanceof File) || file.size === 0) return { error: "กรุณาเลือกไฟล์เสียง" };
+  if (!AUDIO_TYPES.includes(file.type)) return { error: "รองรับ MP3 / WAV / OGG เท่านั้น" };
+  if (file.size > MAX_SOUND_BYTES) return { error: "ไฟล์ใหญ่เกิน 1 MB — กรุณาย่อก่อน" };
+
+  const ext = file.type.includes("mpeg") || file.type.includes("mp3")
+    ? "mp3"
+    : file.type.includes("ogg") || file.type.includes("webm")
+      ? "ogg"
+      : "wav";
+
+  const admin = createAdminClient();
+  const path = `${ctx.tenantId}/sounds/${type}-${Date.now()}.${ext}`;
+  const { error: upErr } = await admin.storage
+    .from("tenant-media")
+    .upload(path, Buffer.from(await file.arrayBuffer()), { contentType: file.type, upsert: true });
+  if (upErr) {
+    captureException("settings.saveNotificationSound", upErr);
+    return { error: "อัปโหลดไม่สำเร็จ กรุณาลองใหม่" };
+  }
+
+  const { data: current } = await admin
+    .from("tenants")
+    .select("settings")
+    .eq("id", ctx.tenantId)
+    .single();
+  const prevSettings = (current?.settings as SettingsObj | null) ?? {};
+  const prevSounds =
+    (prevSettings.notification_sounds as Record<string, string | undefined> | undefined) ?? {};
+  const oldPath = prevSounds[type];
+
+  const { error } = await admin
+    .from("tenants")
+    .update({
+      settings: { ...prevSettings, notification_sounds: { ...prevSounds, [type]: path } },
+    })
+    .eq("id", ctx.tenantId);
+  if (error) {
+    captureException("settings.saveNotificationSound.update", error);
+    return { error: "บันทึกไม่สำเร็จ กรุณาลองใหม่" };
+  }
+  if (oldPath && oldPath !== path) {
+    await admin.storage.from("tenant-media").remove([oldPath]);
+  }
+
+  await logAudit({
+    tenantId: ctx.tenantId,
+    actorId: ctx.userId,
+    actorRole: ctx.role,
+    action: "update",
+    module: "settings",
+    referenceId: ctx.tenantId,
+    after: { notification_sound: type },
+  });
+  revalidatePath("/dashboard/settings");
+  return { success: true };
+}
+
+export async function resetNotificationSound(formData: FormData): Promise<SettingsState> {
+  const ctx = await getStaffContext();
+  if (!ctx) return { error: "ไม่มีสิทธิ์เข้าถึง" };
+  if (!hasPermission(ctx, "manage_settings")) {
+    return { error: "เฉพาะผู้ดูแลสนามเท่านั้นที่แก้ไขการตั้งค่าได้" };
+  }
+  const type = String(formData.get("type") ?? "");
+  if (!(SOUND_TYPES as readonly string[]).includes(type)) return { error: "ประเภทไม่ถูกต้อง" };
+
+  const admin = createAdminClient();
+  const { data: current } = await admin
+    .from("tenants")
+    .select("settings")
+    .eq("id", ctx.tenantId)
+    .single();
+  const prevSettings = (current?.settings as SettingsObj | null) ?? {};
+  const prevSounds =
+    (prevSettings.notification_sounds as Record<string, string | undefined> | undefined) ?? {};
+  const oldPath = prevSounds[type];
+  const nextSounds = { ...prevSounds };
+  delete nextSounds[type];
+
+  await admin
+    .from("tenants")
+    .update({ settings: { ...prevSettings, notification_sounds: nextSounds } })
+    .eq("id", ctx.tenantId);
+  if (oldPath) await admin.storage.from("tenant-media").remove([oldPath]);
+
+  revalidatePath("/dashboard/settings");
+  return { success: true };
+}
+
 export async function removePromptpayQr(): Promise<void> {
   const ctx = await getStaffContext();
   if (!ctx || !hasPermission(ctx, "manage_settings")) return;

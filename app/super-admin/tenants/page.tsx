@@ -6,6 +6,9 @@ import { PLANS } from "@/lib/plans";
 import { ListRowCard, LeadingIcon } from "@/components/ui/ListRowCard";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { TenantStatusButton } from "./TenantStatusButton";
+import { TenantLineOaConnect } from "./TenantLineOaConnect";
+
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
 
 const TENANT_STATUS: Record<
   string,
@@ -89,7 +92,16 @@ export default async function TenantsPage() {
                     {lineOa?.want_setup === "team" ? " (ทีมสร้าง)" : ""}
                   </StatusPill>
                 )}
+                {lineOa?.connected && (
+                  <StatusPill tone="success">LINE OA เชื่อมแล้ว</StatusPill>
+                )}
               </div>
+
+              <TenantLineOaConnect
+                tenantId={t.id}
+                connected={Boolean(lineOa?.connected)}
+                webhookBase={APP_URL}
+              />
             </ListRowCard>
           );
         })}

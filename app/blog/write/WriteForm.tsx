@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { submitUserPost, type WriteState } from "./actions";
 
-export function WriteForm() {
+export function WriteForm({ backHref = "/blog" }: { backHref?: string }) {
   const [state, action, pending] = useActionState<WriteState, FormData>(
     submitUserPost,
     {},
@@ -23,7 +23,7 @@ export function WriteForm() {
         <p className="text-body-sm text-ink-soft">
           ทีมงาน SportHub จะตรวจและเผยแพร่ให้เร็วที่สุด ขอบคุณที่ร่วมแบ่งปัน 🙌
         </p>
-        <Link href="/blog">
+        <Link href={backHref}>
           <Button variant="secondary" size="sm">
             กลับหน้าบทความ
           </Button>

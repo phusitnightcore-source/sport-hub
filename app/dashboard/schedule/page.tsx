@@ -136,12 +136,12 @@ export default async function SchedulePage({
     <main className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-display text-display-md font-semibold text-ink">ตารางสนาม</h1>
-        <form method="get" className="flex items-center gap-2">
+        <form method="get" className="flex flex-wrap items-center gap-2.5">
           {branches.length > 1 && (
             <select
               name="branch"
               defaultValue={currentBranch.id}
-              className="rounded-sm bg-surface px-3 py-2 text-body-sm text-ink shadow-sm outline-none focus:ring-2 focus:ring-brand"
+              className="rounded-xl border border-line bg-surface px-3.5 py-2 text-body-sm font-semibold text-ink shadow-xs outline-none focus:border-brand cursor-pointer"
             >
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -154,9 +154,9 @@ export default async function SchedulePage({
             type="date"
             name="date"
             defaultValue={date}
-            className="rounded-sm bg-surface px-3 py-2 text-body-sm text-ink shadow-sm outline-none focus:ring-2 focus:ring-brand"
+            className="rounded-xl border border-line bg-surface px-3.5 py-2 text-body-sm font-semibold text-ink shadow-xs outline-none focus:border-brand cursor-pointer"
           />
-          <Button type="submit" size="sm">
+          <Button type="submit" size="sm" className="rounded-xl shadow-xs">
             ดูตาราง
           </Button>
         </form>

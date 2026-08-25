@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { ConfirmButton } from "@/components/ui/ConfirmDialog";
 import { Select } from "@/components/ui/Select";
-import { createPackage, togglePackageStatus } from "./actions";
+import { createPackage, updatePackage, togglePackageStatus } from "./actions";
 import type { Database } from "@/lib/supabase/types";
 
 type Package = Database["public"]["Tables"]["packages"]["Row"];
@@ -51,10 +52,25 @@ export function PackageForm({
     const sessions_limit = sessionsLimit ? parseInt(sessionsLimit, 10) : null;
     
     if (initialData) {
-      // TODO: Update logic if needed, but for now we focus on creation
-      // For editing, we might just allow toggling status or basic edits
-      setError("การแก้ไขแบบเต็มรูปแบบกำลังอยู่ระหว่างพัฒนา");
-      setLoading(false);
+      const res = await updatePackage(initialData.id, {
+        name,
+        type,
+        price,
+        duration_days,
+        sessions_limit,
+        sessions_carryover: initialData.sessions_carryover ?? false,
+        branch_access_all: initialData.branch_access_all ?? true,
+        freeze_max_times: parseInt(freezeMax, 10) || 0,
+        freeze_max_days: parseInt(freezeDays, 10) || 0,
+        freeze_auto_approve: freezeAuto,
+        benefits,
+      });
+      if (res.success) {
+        router.push("/dashboard/packages");
+      } else {
+        setError(res.error || "เกิดข้อผิดพลาด");
+        setLoading(false);
+      }
       return;
     }
 
@@ -224,16 +240,25 @@ export function PackageForm({
       </div>
 
       <div className="flex justify-end gap-3">
-        {initialData && (
-          <Button
-            type="button"
-            variant={initialData.is_active ? "danger" : "primary"}
-            disabled={loading}
-            onClick={handleToggleStatus}
-          >
-            {initialData.is_active ? "ปิดชั่วคราว (Inactive)" : "เปิดขาย (Active)"}
-          </Button>
-        )}
+        {initialData &&
+          (initialData.is_active ? (
+            <ConfirmButton
+              onConfirm={handleToggleStatus}
+              title="ปิดขายแพ็กเกจนี้ชั่วคราว?"
+              message="ลูกค้าจะซื้อ/สมัครแพ็กเกจนี้ไม่ได้จนกว่าจะเปิดขายอีกครั้ง"
+              confirmLabel="ปิดชั่วคราว"
+              tone="danger"
+              triggerVariant="danger"
+              triggerSize="md"
+              disabled={loading}
+            >
+              ปิดชั่วคราว (Inactive)
+            </ConfirmButton>
+          ) : (
+            <Button type="button" variant="primary" disabled={loading} onClick={handleToggleStatus}>
+              เปิดขาย (Active)
+            </Button>
+          ))}
         <Button type="button" variant="secondary" onClick={() => router.back()}>
           ยกเลิก
         </Button>

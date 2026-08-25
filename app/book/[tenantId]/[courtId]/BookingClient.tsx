@@ -45,6 +45,9 @@ export function BookingClient({ courtId, minDate, maxDate, member, policy }: Pro
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [weeks, setWeeks] = useState(4);
+
   const [waitlistOffer, setWaitlistOffer] = useState<WaitlistOffer | null>(null);
   const [waitlistState, setWaitlistState] = useState<"idle" | "joining" | "joined">("idle");
   const [waitlistError, setWaitlistError] = useState<string | null>(null);
@@ -123,7 +126,8 @@ export function BookingClient({ courtId, minDate, maxDate, member, policy }: Pro
     const form = new FormData(e.currentTarget);
     const userName = String(form.get("userName") ?? "").trim();
     const userPhone = String(form.get("userPhone") ?? "").trim();
-    const res = await fetch("/api/bookings", {
+    const useRecurring = repeatWeekly && weeks >= 2;
+    const res = await fetch(useRecurring ? "/api/bookings/recurring" : "/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -136,6 +140,7 @@ export function BookingClient({ courtId, minDate, maxDate, member, policy }: Pro
         note: String(form.get("note") ?? "").trim() || undefined,
         couponCode: coupon.trim() || undefined,
         acceptPolicy: accepted,
+        ...(useRecurring ? { repeatWeeks: weeks } : {}),
       }),
     });
     const json = await res.json();
@@ -157,7 +162,8 @@ export function BookingClient({ courtId, minDate, maxDate, member, policy }: Pro
       }
       return;
     }
-    router.push(`/booking/${json.data.bookingCode}`);
+    const code = useRecurring ? json.data.primaryCode : json.data.bookingCode;
+    router.push(`/booking/${code}`);
   }
 
   async function handleJoinWaitlist() {
@@ -233,6 +239,39 @@ export function BookingClient({ courtId, minDate, maxDate, member, policy }: Pro
               ฿{formatBaht(totalSatang)}
             </span>
           </p>
+        )}
+      </div>
+
+      {/* จองซ้ำรายสัปดาห์ (§7.1) */}
+      <div className="card-floating flex flex-col gap-3 p-6">
+        <label className="flex cursor-pointer items-center gap-2 text-body font-medium text-ink">
+          <input
+            type="checkbox"
+            checked={repeatWeekly}
+            onChange={(e) => setRepeatWeekly(e.target.checked)}
+            className="h-4 w-4 accent-brand"
+          />
+          จองซ้ำเวลานี้ทุกสัปดาห์
+        </label>
+        {repeatWeekly && (
+          <div className="flex flex-wrap items-center gap-2 text-body-sm text-ink-soft">
+            <span>ต่อเนื่อง</span>
+            <select
+              value={weeks}
+              onChange={(e) => setWeeks(Number(e.target.value))}
+              className="rounded-sm bg-surface px-3 py-2 text-body-sm text-ink shadow-sm outline-none focus:ring-2 focus:ring-brand"
+            >
+              {[2, 3, 4, 5, 6, 8].map((n) => (
+                <option key={n} value={n}>
+                  {n} สัปดาห์
+                </option>
+              ))}
+            </select>
+            <span>
+              (เริ่ม {date} เวลาเดิม — สัปดาห์ที่เต็มจะถูกข้าม
+              ชำระเงินแยกแต่ละครั้งที่ &ldquo;การจองของฉัน&rdquo;)
+            </span>
+          </div>
         )}
       </div>
 

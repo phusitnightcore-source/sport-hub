@@ -17,21 +17,17 @@
 | **SendGrid** (อีเมล/ใบเสร็จ) | 🟡 | `.env` `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` | สมัคร SendGrid → ใส่ key (dispatcher fallback เป็น email อยู่แล้ว) |
 | **Omise** (Subscription B2B) | 🟡 | `.env` `OMISE_PUBLIC_KEY`, `OMISE_SECRET_KEY`, `OMISE_WEBHOOK_SECRET` | ใส่ key จริง (ตอนไม่มี key ใช้เส้นทาง PromptPay แทน) |
 | **OCR ตรวจสลิป** | 🟡 | `.env` `OCR_API_URL`, `OCR_API_KEY` | ใส่ key + **ยังไม่ wire เข้า UI หน้า verify สลิป** (lib/ocr.ts พร้อม) |
-| **Sentry** (error monitoring) | 🔴 | `.env` `SENTRY_DSN` | ต้อง `npm i @sentry/nextjs` ก่อน (ตอนนี้ instrumentation.ts เป็น no-op; logger มี hook รอ) |
+| **Sentry** (error monitoring) | 🟡 | `.env` `SENTRY_DSN` | ติดตั้ง + เปิด hook แล้ว (instrumentation `register`/`onRequestError` + logger captureException) — ใส่ DSN ก็ทำงานทันที |
 | **Google AdSense** | 🟡 | `.env` `NEXT_PUBLIC_ADSENSE_CLIENT` | Google อนุมัติก่อน → ใส่ Publisher ID (AdSlot พร้อม) |
 | **Affiliate** (Lazada/Shopee) | 🟡 | ในบทความ / AffiliateCard | สมัคร affiliate เอาลิงก์มาวาง (นับคลิกผ่าน `/api/ad/click` พร้อม) |
-| **LINE LIFF** (บัตร/จองในแอป LINE) | 🔴 | `.env` `NEXT_PUBLIC_LIFF_ID` | มี env slot แต่ **ยังไม่สร้างหน้า LIFF** |
+| **LINE LIFF** (บัตร/จองในแอป LINE) | 🟡 | `.env` `NEXT_PUBLIC_LIFF_ID` | หน้า `/liff` พร้อม — รอใส่ LIFF ID |
+| **LINE Login** (ผู้ใช้ทั่วไป สมัคร/ล็อกอิน/ผูกบัญชี) | 🟡 | `.env` `LINE_LOGIN_CHANNEL_ID/SECRET` | โค้ด OAuth พร้อม (`/api/auth/line/start`+`/callback`) — ตั้ง Callback URL `{APP_URL}/api/auth/line/callback` ในคอนโซล. ไม่มี key = ปุ่มซ่อน ไม่ crash |
 
 ---
 
 ## 2. ฟีเจอร์ที่ยังไม่ได้สร้าง (🔴)
 
-| ฟีเจอร์ | หมายเหตุ |
-|---|---|
-| **จองซ้ำรายสัปดาห์** (recurring) | ยังไม่เริ่ม |
-| Waitlist — dashboard list | ✅ join+auto-notify ทำงานแล้ว แต่ยังไม่มีหน้าให้ admin ดูรายชื่อคิว (nice-to-have) |
-| **LINE Login / LIFF** | สำหรับผูก userId แบบลื่นกว่าพิมพ์เบอร์ (ทางเลือกของ webhook) |
-| Member search box | `dashboard/members/page.tsx` มี TODO |
+_ครบทุกฟีเจอร์ในสโคปแล้ว — เหลือเฉพาะการตั้งค่าภายนอก/ใส่ key (ดู §1, §3) และ Sentry (§30, ต้อง `npm i`)_
 
 ---
 
@@ -56,6 +52,15 @@
 - **Kiosk self check-in**: หน้าสาธารณะ `/checkin/[token]` (token ต่อสาขา, gate ด้วย entitlement kiosk_mode) ลูกค้ากรอกเบอร์เช็คอินเอง (method=kiosk) → ลิงก์อยู่ในหน้า Dashboard → Check-in
 - **Waitlist**: slot เต็ม → กด "แจ้งเตือนเมื่อว่าง" ในหน้าจอง → เก็บ `waitlists` → auto-notify เมื่อ slot ว่าง (cron cancel + refund) ผ่าน dispatcher
 - **Sidebar เมนู**: กรองตาม role/permission (§26 — staff เห็นเฉพาะที่มีสิทธิ์, venue_admin เห็นครบ) + จัด 4 หมวด (ดำเนินงาน/สมาชิก&การตลาด/รายงาน/ตั้งค่าระบบ) + เมนูที่แพลนไม่รองรับโชว์พร้อม 🔒 ชวนอัปเกรด
+- **โปรไฟล์ผู้ใช้ทั่วไป** `/me/profile`: avatar hero + แก้ชื่อ/เบอร์ + ดูอีเมล/วันสมัคร + เชื่อม/ยกเลิก LINE
+- **Navbar ผู้ที่ล็อกอินแล้ว** (`app/me/layout.tsx` + `MemberNav`): โลโก้ + เมนู (จอง/โปรไฟล์/เขียนบทความ) + ธีม + avatar + ออกจากระบบ ครอบทุกหน้า /me (active state + responsive)
+- **LINE Login** (รอใส่ key): ปุ่ม "เข้าสู่ระบบ/สมัครด้วย LINE" ที่ /login + /signup → OAuth → สร้าง/ผูกบัญชี profile (role=member, synthetic email กัน takeover) + สร้าง session ผ่าน magiclink OTP. โหมด link ผูก line_user_id ให้บัญชีที่ล็อกอินอยู่
+- **Confirm dialogs**: action ทำลายข้อมูล (ยกเลิกบัญชี/ลบสาขา-พนักงาน-คูปอง-แพ็กเกจ/หมดอายุสมาชิก/ขอลบบัญชี/ยกเลิก LINE) ใช้ modal `ConfirmButton` (แทน native confirm/alert)
+- **Motion polish**: `PageTransition` (slide-fade ทุกหน้าใน layout /me,/dashboard,/blog) + loading skeleton (dashboard, me/bookings, me/blog, book) — เคารพ prefers-reduced-motion
+- **Member search** (`/dashboard/members?q=`) + **Waitlist admin** (`/dashboard/waitlist`) + **OCR verify UI** (แสดงยอดที่อ่านได้เทียบยอดจริง) + **Package edit** (updatePackage)
+- **Customer recurring booking**: จองซ้ำรายสัปดาห์ 2–8 ครั้งใน `/book` → `POST /api/bookings/recurring` (reuse `lib/booking/create.ts createBooking`) ข้ามสัปดาห์ที่เต็ม
+- **Tests**: vitest 39 ผ่าน (เพิ่ม plans/line-login/ocr)
+- **แจ้งเตือนเรียลไทม์ + เสียง** (ทุก role): migration `20260716000000` เพิ่ม `notifications` เข้า realtime publication + RLS ให้ staff/member เห็นของตน. `NotificationBell` (กระดิ่ง+badge+toast+เสียง) วางที่ dashboard/`/me`/super-admin. เสียง default = WebAudio synth แยกตามประเภท (`lib/sounds.ts`); สนามอัปโหลดเสียงเองได้ต่อประเภท (Settings → tenant-media). จุด dispatch หา admin: จองใหม่/แนบสลิป/ขอ Freeze/ลงคิว waitlist + super_admin เมื่อสนามออก invoice. หน้า `/me/notifications` ใหม่. **แก้ gap เดิม**: dashboard/notifications เคยว่าง เพราะไม่มีใคร dispatch หา admin
 
 ---
 

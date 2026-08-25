@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import {
-  Save, CheckCircle2, Building2, User, Phone, Mail, MapPin, Hash, QrCode, Clock,
+  Save, CheckCircle2, Building2, User, Phone, Mail, MapPin, Hash, QrCode,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -16,7 +16,6 @@ type Tenant = {
   address: string | null;
   promptpay_id: string | null;
   tax_id: string | null;
-  slot_lock_minutes: number;
   auto_approve_slip: boolean;
 };
 
@@ -65,15 +64,9 @@ export function SettingsForm({ tenant }: { tenant: Tenant }) {
         <h2 className="font-display text-body-lg font-semibold text-ink">
           การจอง
         </h2>
-        <Input
-          label="ระยะเวลาล็อกช่วงเวลาจอง (นาที)"
-          name="slot_lock_minutes"
-          type="number"
-          min={5}
-          max={120}
-          defaultValue={tenant.slot_lock_minutes}
-          icon={<Clock />}
-        />
+        <p className="rounded-sm bg-brand-soft/50 p-3 text-body-sm text-ink-soft">
+          ระบบกันช่วงเวลาจองไว้ 15 นาที และไม่รองรับการต่อเวลา เพื่อให้สนามกลับมาว่างอัตโนมัติเมื่อผู้จองไม่ชำระเงิน
+        </p>
         <label className="flex items-center gap-3 text-body text-ink">
           <input
             type="checkbox"

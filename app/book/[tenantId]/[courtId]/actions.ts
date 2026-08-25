@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { dispatchNotification } from "@/lib/notify";
 
 const schema = z.object({
   courtId: z.string().uuid(),
@@ -79,6 +80,17 @@ export async function joinWaitlist(input: {
   if (error) {
     return { success: false, error: "ลงคิวไม่สำเร็จ กรุณาลองใหม่" };
   }
+
+  // แจ้งเตือนสนามว่ามีคนลงคิวรอ (in_app)
+  await dispatchNotification({
+    tenantId: court.tenant_id,
+    recipientId: null,
+    recipientType: "admin",
+    type: "booking",
+    title: "มีคนลงคิวรอ (Waitlist)",
+    body: `${d.userName} รอช่วง ${d.date} ${d.startTime}–${d.endTime}`,
+    referenceType: "waitlist",
+  });
 
   return { success: true };
 }

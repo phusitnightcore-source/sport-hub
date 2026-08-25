@@ -1,10 +1,26 @@
-// Next.js instrumentation hook
-// NOTE: Sentry ยังไม่เปิดใช้ — ติดตั้ง @sentry/nextjs ไม่สำเร็จ (SSL cert ของ npm registry)
-// เมื่อติดตั้งได้แล้ว เพิ่มกลับ:
-//   if (process.env.SENTRY_DSN) {
-//     const Sentry = await import("@sentry/nextjs");
-//     Sentry.init({ dsn: process.env.SENTRY_DSN, tracesSampleRate: 0.1 });
-//   }
+import type { Instrumentation } from "next";
+
+// Sentry — เปิดใช้เมื่อมี SENTRY_DSN เท่านั้น (ไม่ตั้ง = inert สนิท ไม่กระทบอะไร)
+// จับ error ฝั่ง server (route handlers / server components) + ที่เรียก captureException เอง
 export async function register() {
-  // no-op จนกว่าจะติดตั้ง @sentry/nextjs ได้ (ดู lib/logger.ts captureException)
+  if (!process.env.SENTRY_DSN) return;
+  if (process.env.NEXT_RUNTIME === "nodejs" || process.env.NEXT_RUNTIME === "edge") {
+    const Sentry = await import("@sentry/nextjs");
+    Sentry.init({
+      dsn: process.env.SENTRY_DSN,
+      tracesSampleRate: 0.1,
+      environment: process.env.NODE_ENV,
+    });
+  }
 }
+
+// ส่ง error ของ request (server) เข้า Sentry — no-op ถ้ายังไม่ตั้ง DSN
+export const onRequestError: Instrumentation.onRequestError = async (
+  err,
+  request,
+  context,
+) => {
+  if (!process.env.SENTRY_DSN) return;
+  const Sentry = await import("@sentry/nextjs");
+  Sentry.captureRequestError(err, request, context);
+};

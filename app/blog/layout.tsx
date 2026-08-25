@@ -1,11 +1,14 @@
 import { PublicNav } from "@/components/ui/PublicNav";
+import { PageTransition } from "@/components/ui/PageTransition";
 
 export default function BlogLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <PublicNav />
 
-      <main className="flex-1">{children}</main>
+      <main className="flex-1">
+        <PageTransition>{children}</PageTransition>
+      </main>
 
       <footer className="mt-auto border-t border-line py-8 text-center text-body-sm text-ink-soft">
         <p>© SportHub — แพลตฟอร์มจัดการสนามกีฬาและฟิตเนส</p>

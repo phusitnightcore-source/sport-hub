@@ -14,7 +14,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ code: string }> },
 ) {
-  const limited = rateLimit(request, "cancel", 10, 60_000);
+  const limited = await rateLimit(request, "cancel", 10, 60_000);
   if (limited) return limited;
 
   const { code } = await params;

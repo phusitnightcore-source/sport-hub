@@ -136,7 +136,7 @@ create table if not exists tenants (
   consent_version   text,
   -- Settings รวม (Section 23) เก็บเป็น JSONB ยืดหยุ่นสุด
   settings          jsonb not null default '{
-    "slot_lock_minutes": 30,
+    "slot_lock_minutes": 15,
     "auto_approve_slip": false,
     "renewal_reminder_days": [7,3,0],
     "theme": {}
@@ -414,7 +414,7 @@ create table if not exists bookings (
   price_type      price_type not null default 'standard',
   status          booking_status not null default 'pending_payment',
   payment_method  payment_method not null default 'online_qr',
-  slot_locked_until timestamptz,          -- now() + 30 นาที
+  slot_locked_until timestamptz,          -- now() + 15 นาที
   created_by      uuid references staff(id),  -- null = ลูกค้าจองเอง
   cancelled_at    timestamptz,
   cancel_reason   text,
@@ -1062,7 +1062,7 @@ exception when duplicate_object then null; end $$;
 
 -- ============================================================================
 -- เสร็จสิ้น — ขั้นถัดไป (ทำที่ API Layer / Edge Functions / Cron):
---  * pg_cron หรือ Vercel Cron: ยกเลิก booking หมด 30 นาที, Auto Check-out,
+--  * pg_cron หรือ Vercel Cron: ยกเลิก booking หมด 15 นาที, Auto Check-out,
 --    Renewal Reminder 7/3/0 วัน, Trial แจ้งเตือนวัน 11, Downgrade วัน 14,
 --    Hard Delete tenant หลัง 30 วัน
 --  * Omise Webhook: charge.complete / charge.failed → update subscriptions

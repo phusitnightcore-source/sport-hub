@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -392,6 +392,7 @@ export type Database = {
           user_name: string
           user_phone: string
           profile_id: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
         }
         Insert: {
           booking_code?: string
@@ -424,6 +425,7 @@ export type Database = {
           user_name: string
           user_phone: string
           profile_id?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
         }
         Update: {
           booking_code?: string
@@ -456,6 +458,7 @@ export type Database = {
           user_name?: string
           user_phone?: string
           profile_id?: string | null
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
         }
         Relationships: [
           {
@@ -948,6 +951,7 @@ export type Database = {
           status: Database["public"]["Enums"]["court_status"]
           tenant_id: string
           type: string
+          is_indoor?: boolean | null
           updated_at: string
         }
         Insert: {
@@ -971,6 +975,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["court_status"]
           tenant_id: string
           type: string
+          is_indoor?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -994,6 +999,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["court_status"]
           tenant_id?: string
           type?: string
+          is_indoor?: boolean | null
           updated_at?: string
         }
         Relationships: [
@@ -1938,6 +1944,9 @@ export type Database = {
           settings: Json
           status: Database["public"]["Enums"]["tenant_status"]
           tax_id: string | null
+          rating_avg: number
+          review_count: number
+          sport_types: string[]
           updated_at: string
         }
         Insert: {
@@ -1959,6 +1968,9 @@ export type Database = {
           settings?: Json
           status?: Database["public"]["Enums"]["tenant_status"]
           tax_id?: string | null
+          rating_avg?: number | null
+          review_count?: number | null
+          sport_types?: string[] | null
           updated_at?: string
         }
         Update: {
@@ -1980,7 +1992,1225 @@ export type Database = {
           settings?: Json
           status?: Database["public"]["Enums"]["tenant_status"]
           tax_id?: string | null
+          rating_avg?: number | null
+          review_count?: number | null
+          sport_types?: string[] | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      product_categories: {
+        Row: {
+          id: string
+          tenant_id: string
+          name: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          name: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          name?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          id: string
+          tenant_id: string
+          category_id: string | null
+          sku: string | null
+          barcode: string | null
+          name: string
+          product_type: "product" | "rental" | "service"
+          cost_price: number
+          selling_price: number
+          low_stock_threshold: number
+          track_stock: boolean
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          category_id?: string | null
+          sku?: string | null
+          barcode?: string | null
+          name: string
+          product_type?: "product" | "rental" | "service"
+          cost_price?: number
+          selling_price: number
+          low_stock_threshold?: number
+          track_stock?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          category_id?: string | null
+          sku?: string | null
+          barcode?: string | null
+          name?: string
+          product_type?: "product" | "rental" | "service"
+          cost_price?: number
+          selling_price?: number
+          low_stock_threshold?: number
+          track_stock?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory: {
+        Row: {
+          id: string
+          tenant_id: string
+          branch_id: string
+          product_id: string
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          branch_id: string
+          product_id: string
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          branch_id?: string
+          product_id?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales: {
+        Row: {
+          id: string
+          tenant_id: string
+          branch_id: string
+          shift_id: string | null
+          booking_id: string | null
+          staff_id: string | null
+          sale_number: string
+          receipt_number: string
+          customer_name: string | null
+          customer_phone: string | null
+          subtotal: number
+          discount_amount: number
+          total_amount: number
+          status: "completed" | "voided"
+          note: string | null
+          completed_at: string
+          voided_at: string | null
+          void_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          branch_id: string
+          shift_id?: string | null
+          booking_id?: string | null
+          staff_id?: string | null
+          sale_number: string
+          receipt_number: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          subtotal?: number
+          discount_amount?: number
+          total_amount?: number
+          status?: "completed" | "voided"
+          note?: string | null
+          completed_at?: string
+          voided_at?: string | null
+          void_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          branch_id?: string
+          shift_id?: string | null
+          booking_id?: string | null
+          staff_id?: string | null
+          sale_number?: string
+          receipt_number?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          subtotal?: number
+          discount_amount?: number
+          total_amount?: number
+          status?: "completed" | "voided"
+          note?: string | null
+          completed_at?: string
+          voided_at?: string | null
+          void_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sale_items: {
+        Row: {
+          id: string
+          tenant_id: string
+          sale_id: string
+          product_id: string | null
+          product_name: string
+          product_type: "product" | "rental" | "service"
+          quantity: number
+          unit_price: number
+          line_total: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          sale_id: string
+          product_id?: string | null
+          product_name: string
+          product_type: "product" | "rental" | "service"
+          quantity: number
+          unit_price: number
+          line_total: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          sale_id?: string
+          product_id?: string | null
+          product_name?: string
+          product_type?: "product" | "rental" | "service"
+          quantity?: number
+          unit_price?: number
+          line_total?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_payments: {
+        Row: {
+          id: string
+          tenant_id: string
+          sale_id: string
+          method: "cash" | "transfer" | "card" | "other"
+          amount: number
+          reference: string | null
+          received_by: string | null
+          paid_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          sale_id: string
+          method: "cash" | "transfer" | "card" | "other"
+          amount: number
+          reference?: string | null
+          received_by?: string | null
+          paid_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          sale_id?: string
+          method?: "cash" | "transfer" | "card" | "other"
+          amount?: number
+          reference?: string | null
+          received_by?: string | null
+          paid_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_payments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_shifts: {
+        Row: {
+          id: string
+          tenant_id: string
+          branch_id: string
+          opened_by: string | null
+          closed_by: string | null
+          opened_at: string
+          closed_at: string | null
+          status: "open" | "closed"
+          starting_cash: number
+          actual_closing_cash: number | null
+          expected_closing_cash: number | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          branch_id: string
+          opened_by?: string | null
+          closed_by?: string | null
+          opened_at?: string
+          closed_at?: string | null
+          status?: "open" | "closed"
+          starting_cash?: number
+          actual_closing_cash?: number | null
+          expected_closing_cash?: number | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          branch_id?: string
+          opened_by?: string | null
+          closed_by?: string | null
+          opened_at?: string
+          closed_at?: string | null
+          status?: "open" | "closed"
+          starting_cash?: number
+          actual_closing_cash?: number | null
+          expected_closing_cash?: number | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          id: string
+          tenant_id: string
+          branch_id: string
+          product_id: string
+          sale_id: string | null
+          movement_type: "purchase" | "sale" | "return" | "adjustment" | "damage" | "transfer" | "initial"
+          quantity_change: number
+          quantity_after: number
+          note: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          branch_id: string
+          product_id: string
+          sale_id?: string | null
+          movement_type: "purchase" | "sale" | "return" | "adjustment" | "damage" | "transfer" | "initial"
+          quantity_change: number
+          quantity_after: number
+          note?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          branch_id?: string
+          product_id?: string
+          sale_id?: string | null
+          movement_type?: "purchase" | "sale" | "return" | "adjustment" | "damage" | "transfer" | "initial"
+          quantity_change?: number
+          quantity_after?: number
+          note?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          profile_id: string
+          role: "player" | "coach" | "facility_owner"
+          is_active: boolean
+          granted_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          role: "player" | "coach" | "facility_owner"
+          is_active?: boolean
+          granted_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          role?: "player" | "coach" | "facility_owner"
+          is_active?: boolean
+          granted_at?: string
+        }
+        Relationships: []
+      }
+      coach_profiles: {
+        Row: {
+          id: string
+          profile_id: string
+          display_name: string
+          sport: string
+          skill_level: string | null
+          experience_years: number | null
+          biography: string | null
+          cover_image_url: string | null
+          profile_image_url: string | null
+          location_province: string | null
+          latitude: number | null
+          longitude: number | null
+          payment_info: string | null
+          approval_status: "pending" | "approved" | "rejected" | "suspended"
+          approved_at: string | null
+          approved_by: string | null
+          rejection_reason: string | null
+          rating_avg: number
+          review_count: number
+          is_visible: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          display_name: string
+          sport: string
+          skill_level?: string | null
+          experience_years?: number | null
+          biography?: string | null
+          cover_image_url?: string | null
+          profile_image_url?: string | null
+          location_province?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          payment_info?: string | null
+          approval_status?: "pending" | "approved" | "rejected" | "suspended"
+          approved_at?: string | null
+          approved_by?: string | null
+          rejection_reason?: string | null
+          rating_avg?: number
+          review_count?: number
+          is_visible?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          display_name?: string
+          sport?: string
+          skill_level?: string | null
+          experience_years?: number | null
+          biography?: string | null
+          cover_image_url?: string | null
+          profile_image_url?: string | null
+          location_province?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          payment_info?: string | null
+          approval_status?: "pending" | "approved" | "rejected" | "suspended"
+          approved_at?: string | null
+          approved_by?: string | null
+          rejection_reason?: string | null
+          rating_avg?: number
+          review_count?: number
+          is_visible?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      coach_certificates: {
+        Row: {
+          id: string
+          coach_profile_id: string
+          name: string
+          issuing_org: string | null
+          issued_date: string | null
+          image_url: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          coach_profile_id: string
+          name: string
+          issuing_org?: string | null
+          issued_date?: string | null
+          image_url?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          coach_profile_id?: string
+          name?: string
+          issuing_org?: string | null
+          issued_date?: string | null
+          image_url?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      coach_media: {
+        Row: {
+          id: string
+          coach_profile_id: string
+          media_type: "image" | "video"
+          url: string
+          caption: string | null
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          coach_profile_id: string
+          media_type: "image" | "video"
+          url: string
+          caption?: string | null
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          coach_profile_id?: string
+          media_type?: "image" | "video"
+          url?: string
+          caption?: string | null
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      coach_services: {
+        Row: {
+          id: string
+          coach_profile_id: string
+          name: string
+          description: string | null
+          duration_minutes: number
+          price: number
+          max_participants: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_profile_id: string
+          name: string
+          description?: string | null
+          duration_minutes?: number
+          price: number
+          max_participants?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_profile_id?: string
+          name?: string
+          description?: string | null
+          duration_minutes?: number
+          price?: number
+          max_participants?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      coach_schedules: {
+        Row: {
+          id: string
+          coach_profile_id: string
+          day_of_week: number
+          start_time: string
+          end_time: string
+          is_available: boolean
+        }
+        Insert: {
+          id?: string
+          coach_profile_id: string
+          day_of_week: number
+          start_time: string
+          end_time: string
+          is_available?: boolean
+        }
+        Update: {
+          id?: string
+          coach_profile_id?: string
+          day_of_week?: number
+          start_time?: string
+          end_time?: string
+          is_available?: boolean
+        }
+        Relationships: []
+      }
+      coach_bookings: {
+        Row: {
+          id: string
+          coach_profile_id: string
+          player_profile_id: string
+          service_id: string
+          booking_date: string
+          start_time: string
+          end_time: string
+          location_note: string | null
+          total_price: number
+          status: "requested" | "accepted" | "rejected" | "confirmed" | "in_progress" | "completed" | "cancelled"
+          slip_image_url: string | null
+          player_note: string | null
+          coach_note: string | null
+          cancelled_at: string | null
+          cancel_reason: string | null
+          cancelled_by: "player" | "coach" | null
+          completed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          coach_profile_id: string
+          player_profile_id: string
+          service_id: string
+          booking_date: string
+          start_time: string
+          end_time: string
+          location_note?: string | null
+          total_price: number
+          status?: "requested" | "accepted" | "rejected" | "confirmed" | "in_progress" | "completed" | "cancelled"
+          slip_image_url?: string | null
+          player_note?: string | null
+          coach_note?: string | null
+          cancelled_at?: string | null
+          cancel_reason?: string | null
+          cancelled_by?: "player" | "coach" | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          coach_profile_id?: string
+          player_profile_id?: string
+          service_id?: string
+          booking_date?: string
+          start_time?: string
+          end_time?: string
+          location_note?: string | null
+          total_price?: number
+          status?: "requested" | "accepted" | "rejected" | "confirmed" | "in_progress" | "completed" | "cancelled"
+          slip_image_url?: string | null
+          player_note?: string | null
+          coach_note?: string | null
+          cancelled_at?: string | null
+          cancel_reason?: string | null
+          cancelled_by?: "player" | "coach" | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_bookings_coach_profile_id_fkey"
+            columns: ["coach_profile_id"]
+            isOneToOne: false
+            referencedRelation: "coach_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_bookings_player_profile_id_fkey"
+            columns: ["player_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_bookings_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "coach_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reviews: {
+        Row: {
+          id: string
+          reviewer_id: string
+          entity_type: "facility" | "coach"
+          facility_id: string | null
+          coach_id: string | null
+          coach_profile_id: string | null
+          booking_id: string | null
+          rating_overall: number
+          rating_cleanliness: number | null
+          rating_court: number | null
+          rating_bathroom: number | null
+          rating_parking: number | null
+          rating_service: number | null
+          rating_technique: number | null
+          rating_communication: number | null
+          rating_punctuality: number | null
+          rating_value: number | null
+          comment: string | null
+          is_visible: boolean
+          reported_at: string | null
+          report_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          reviewer_id: string
+          entity_type: "facility" | "coach"
+          facility_id?: string | null
+          coach_id?: string | null
+          coach_profile_id?: string | null
+          booking_id?: string | null
+          rating_overall: number
+          rating_cleanliness?: number | null
+          rating_court?: number | null
+          rating_bathroom?: number | null
+          rating_parking?: number | null
+          rating_service?: number | null
+          rating_technique?: number | null
+          rating_communication?: number | null
+          rating_punctuality?: number | null
+          rating_value?: number | null
+          comment?: string | null
+          is_visible?: boolean
+          reported_at?: string | null
+          report_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          reviewer_id?: string
+          entity_type?: "facility" | "coach"
+          facility_id?: string | null
+          coach_id?: string | null
+          coach_profile_id?: string | null
+          booking_id?: string | null
+          rating_overall?: number
+          rating_cleanliness?: number | null
+          rating_court?: number | null
+          rating_bathroom?: number | null
+          rating_parking?: number | null
+          rating_service?: number | null
+          rating_technique?: number | null
+          rating_communication?: number | null
+          rating_punctuality?: number | null
+          rating_value?: number | null
+          comment?: string | null
+          is_visible?: boolean
+          reported_at?: string | null
+          report_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_facility_id_fkey"
+            columns: ["facility_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_coach_profile_id_fkey"
+            columns: ["coach_profile_id"]
+            isOneToOne: false
+            referencedRelation: "coach_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          id: string
+          creator_id: string
+          sport: string
+          facility_id: string | null
+          branch_id: string | null
+          title: string
+          description: string | null
+          play_date: string
+          start_time: string
+          end_time: string
+          max_players: number
+          current_players: number
+          skill_level: string | null
+          cost_per_person: number | null
+          booking_id: string | null
+          status: "open" | "full" | "booked" | "completed" | "cancelled"
+          deadline: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          creator_id: string
+          sport: string
+          facility_id?: string | null
+          branch_id?: string | null
+          title: string
+          description?: string | null
+          play_date: string
+          start_time: string
+          end_time: string
+          max_players: number
+          current_players?: number
+          skill_level?: string | null
+          cost_per_person?: number | null
+          booking_id?: string | null
+          status?: "open" | "full" | "booked" | "completed" | "cancelled"
+          deadline?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          creator_id?: string
+          sport?: string
+          facility_id?: string | null
+          branch_id?: string | null
+          title?: string
+          description?: string | null
+          play_date?: string
+          start_time?: string
+          end_time?: string
+          max_players?: number
+          current_players?: number
+          skill_level?: string | null
+          cost_per_person?: number | null
+          booking_id?: string | null
+          status?: "open" | "full" | "booked" | "completed" | "cancelled"
+          deadline?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      group_members: {
+        Row: {
+          id: string
+          group_id: string
+          profile_id: string
+          joined_at: string
+          is_creator: boolean
+        }
+        Insert: {
+          id?: string
+          group_id: string
+          profile_id: string
+          joined_at?: string
+          is_creator?: boolean
+        }
+        Update: {
+          id?: string
+          group_id?: string
+          profile_id?: string
+          joined_at?: string
+          is_creator?: boolean
+        }
+        Relationships: []
+      }
+      tournaments: {
+        Row: {
+          id: string
+          tenant_id: string
+          branch_id: string | null
+          organizer_id: string
+          name: string
+          sport: string
+          description: string | null
+          banner_image_url: string | null
+          start_date: string
+          end_date: string | null
+          registration_deadline: string | null
+          entry_fee: number
+          max_teams: number | null
+          rules: string | null
+          prize_info: string | null
+          bracket_type: "single_elimination" | "double_elimination" | "round_robin" | "group_knockout"
+          status: "draft" | "registration_open" | "registration_closed" | "in_progress" | "completed" | "cancelled"
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          branch_id?: string | null
+          organizer_id: string
+          name: string
+          sport: string
+          description?: string | null
+          banner_image_url?: string | null
+          start_date: string
+          end_date?: string | null
+          registration_deadline?: string | null
+          entry_fee?: number
+          max_teams?: number | null
+          rules?: string | null
+          prize_info?: string | null
+          bracket_type?: "single_elimination" | "double_elimination" | "round_robin" | "group_knockout"
+          status?: "draft" | "registration_open" | "registration_closed" | "in_progress" | "completed" | "cancelled"
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          branch_id?: string | null
+          organizer_id?: string
+          name?: string
+          sport?: string
+          description?: string | null
+          banner_image_url?: string | null
+          start_date?: string
+          end_date?: string | null
+          registration_deadline?: string | null
+          entry_fee?: number
+          max_teams?: number | null
+          rules?: string | null
+          prize_info?: string | null
+          bracket_type?: "single_elimination" | "double_elimination" | "round_robin" | "group_knockout"
+          status?: "draft" | "registration_open" | "registration_closed" | "in_progress" | "completed" | "cancelled"
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tournament_categories: {
+        Row: {
+          id: string
+          tournament_id: string
+          name: string
+          max_teams: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          name: string
+          max_teams?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tournament_id?: string
+          name?: string
+          max_teams?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      teams: {
+        Row: {
+          id: string
+          tournament_id: string
+          category_id: string | null
+          name: string
+          seed: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          category_id?: string | null
+          name: string
+          seed?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tournament_id?: string
+          category_id?: string | null
+          name?: string
+          seed?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          id: string
+          team_id: string
+          profile_id: string
+          is_captain: boolean
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          profile_id: string
+          is_captain?: boolean
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          profile_id?: string
+          is_captain?: boolean
+        }
+        Relationships: []
+      }
+      tournament_registrations: {
+        Row: {
+          id: string
+          tournament_id: string
+          category_id: string | null
+          team_id: string | null
+          player_id: string
+          payment_status: "pending" | "paid" | "refunded"
+          slip_image_url: string | null
+          registered_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          category_id?: string | null
+          team_id?: string | null
+          player_id: string
+          payment_status?: "pending" | "paid" | "refunded"
+          slip_image_url?: string | null
+          registered_at?: string
+        }
+        Update: {
+          id?: string
+          tournament_id?: string
+          category_id?: string | null
+          team_id?: string | null
+          player_id?: string
+          payment_status?: "pending" | "paid" | "refunded"
+          slip_image_url?: string | null
+          registered_at?: string
+        }
+        Relationships: []
+      }
+      matches: {
+        Row: {
+          id: string
+          tournament_id: string
+          category_id: string | null
+          round: number
+          match_number: number
+          team_a_id: string | null
+          team_b_id: string | null
+          winner_id: string | null
+          score_a: string | null
+          score_b: string | null
+          court_id: string | null
+          scheduled_at: string | null
+          started_at: string | null
+          completed_at: string | null
+          duration_minutes: number | null
+          status: "scheduled" | "in_progress" | "completed" | "cancelled"
+          notes: string | null
+          next_match_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          category_id?: string | null
+          round: number
+          match_number: number
+          team_a_id?: string | null
+          team_b_id?: string | null
+          winner_id?: string | null
+          score_a?: string | null
+          score_b?: string | null
+          court_id?: string | null
+          scheduled_at?: string | null
+          started_at?: string | null
+          completed_at?: string | null
+          duration_minutes?: number | null
+          status?: "scheduled" | "in_progress" | "completed" | "cancelled"
+          notes?: string | null
+          next_match_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tournament_id?: string
+          category_id?: string | null
+          round?: number
+          match_number?: number
+          team_a_id?: string | null
+          team_b_id?: string | null
+          winner_id?: string | null
+          score_a?: string | null
+          score_b?: string | null
+          court_id?: string | null
+          scheduled_at?: string | null
+          started_at?: string | null
+          completed_at?: string | null
+          duration_minutes?: number | null
+          status?: "scheduled" | "in_progress" | "completed" | "cancelled"
+          notes?: string | null
+          next_match_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      elo_ratings: {
+        Row: {
+          id: string
+          profile_id: string
+          sport: string
+          rating: number
+          games_played: number
+          wins: number
+          losses: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          sport: string
+          rating?: number
+          games_played?: number
+          wins?: number
+          losses?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          sport?: string
+          rating?: number
+          games_played?: number
+          wins?: number
+          losses?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      elo_history: {
+        Row: {
+          id: string
+          profile_id: string
+          sport: string
+          match_id: string | null
+          tournament_id: string | null
+          opponent_id: string | null
+          rating_before: number
+          rating_after: number
+          rating_change: number
+          result: "win" | "loss" | "draw"
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          sport: string
+          match_id?: string | null
+          tournament_id?: string | null
+          opponent_id?: string | null
+          rating_before: number
+          rating_after: number
+          rating_change: number
+          result: "win" | "loss" | "draw"
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          sport?: string
+          match_id?: string | null
+          tournament_id?: string | null
+          opponent_id?: string | null
+          rating_before?: number
+          rating_after?: number
+          rating_change?: number
+          result?: "win" | "loss" | "draw"
+          created_at?: string
         }
         Relationships: []
       }
@@ -2016,6 +3246,58 @@ export type Database = {
       is_venue_admin: { Args: never; Returns: boolean }
       my_branch_ids: { Args: never; Returns: string[] }
       next_receipt_number: { Args: { p_tenant: string }; Returns: string }
+      adjust_inventory: {
+        Args: {
+          p_tenant_id: string
+          p_branch_id: string
+          p_product_id: string
+          p_quantity_change: number
+          p_movement_type: string
+          p_note?: string | null
+          p_created_by?: string | null
+          p_sale_id?: string | null
+        }
+        Returns: number
+      }
+      open_pos_shift: {
+        Args: {
+          p_tenant_id: string
+          p_branch_id: string
+          p_staff_id?: string | null
+          p_starting_cash: number
+        }
+        Returns: string
+      }
+      close_pos_shift: {
+        Args: {
+          p_tenant_id: string
+          p_shift_id: string
+          p_staff_id?: string | null
+          p_actual_cash: number
+          p_notes?: string | null
+        }
+        Returns: void
+      }
+      complete_pos_sale: {
+        Args: {
+          p_tenant_id: string
+          p_branch_id: string
+          p_staff_id?: string | null
+          p_shift_id: string
+          p_payment_method: string
+          p_items: Json
+          p_customer_name?: string | null
+          p_customer_phone?: string | null
+          p_booking_id?: string | null
+          p_note?: string | null
+          p_discount_amount?: number
+        }
+        Returns: {
+          sale_id: string
+          receipt_number: string
+          total_amount: number
+        }[]
+      }
     }
     Enums: {
       blog_status: "draft" | "published" | "pending_review"

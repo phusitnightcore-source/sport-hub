@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { CalendarSearch } from "lucide-react";
-import { LogoutButton } from "@/components/auth/LogoutButton";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -26,14 +25,7 @@ export default async function MemberPage() {
 
 
   return (
-    <main className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-10">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-display-md font-semibold text-brand">
-          SportHub Member
-        </h1>
-        <LogoutButton />
-      </div>
-
+    <main className="mx-auto flex max-w-lg flex-col gap-6 px-5 py-8 sm:px-6">
       <MemberCard member={member} tenantName={member.tenants?.name || "SportHub"} />
 
       <Link href="/me/bookings">

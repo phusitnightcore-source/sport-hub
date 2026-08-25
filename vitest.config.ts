@@ -6,6 +6,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL(".", import.meta.url)),
+      // "server-only" throw นอก RSC → แทนด้วยสตับว่างเพื่อเทสต์ pure funcs ใน lib server
+      "server-only": fileURLToPath(new URL("./test/empty-module.ts", import.meta.url)),
     },
   },
   test: {

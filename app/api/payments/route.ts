@@ -3,6 +3,8 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { apiOk, apiError } from "@/lib/api";
 import { logAudit } from "@/lib/audit";
+import { dispatchNotification } from "@/lib/notify";
+import { formatBahtFromDb } from "@/lib/money";
 import { rateLimit } from "@/lib/ratelimit";
 
 const MAX_SLIP_BYTES = 10 * 1024 * 1024; // 10 MB — §28.2 PAYMENT_SLIP_TOO_LARGE
@@ -17,7 +19,7 @@ const fieldsSchema = z.object({
 
 // ลูกค้าแนบสลิป (§9.2 ขั้น 4-5) — service role อย่างจงใจ: guest upload ผ่าน RLS ไม่ได้
 export async function POST(request: Request) {
-  const limited = rateLimit(request, "payments", 10, 60_000);
+  const limited = await rateLimit(request, "payments", 10, 60_000);
   if (limited) return limited;
   let form: FormData;
   try {
@@ -60,7 +62,7 @@ export async function POST(request: Request) {
     return apiError("VALIDATION_ERROR", "การจองนี้ไม่อยู่ในสถานะรอชำระ", 400);
   }
 
-  // หมดเวลา slot lock 30 นาที → ยกเลิกอัตโนมัติ (§9.3 + PAYMENT_TIMEOUT)
+  // หมดเวลา Hold 15 นาที → ยกเลิกอัตโนมัติ (§9.3 + PAYMENT_TIMEOUT)
   if (
     booking.slot_locked_until &&
     new Date(booking.slot_locked_until).getTime() < Date.now()
@@ -70,7 +72,7 @@ export async function POST(request: Request) {
       .update({
         status: "cancelled",
         cancelled_at: new Date().toISOString(),
-        cancel_reason: "หมดเวลาชำระเงิน 30 นาที",
+        cancel_reason: "หมดเวลาชำระเงิน 15 นาที",
       })
       .eq("id", booking.id);
     return apiError(
@@ -137,6 +139,18 @@ export async function POST(request: Request) {
     .from("bookings")
     .update({ status: "awaiting_verification" })
     .eq("id", booking.id);
+
+  // แจ้งเตือนฝั่งสนามแบบเรียลไทม์ (in_app) ว่ามีสลิปรอตรวจ
+  await dispatchNotification({
+    tenantId: booking.tenant_id,
+    recipientId: null,
+    recipientType: "admin",
+    type: "payment",
+    title: "มีสลิปรอตรวจสอบ",
+    body: `${parsed.data.senderName} แนบสลิป ฿${formatBahtFromDb(booking.total_price)} — กดตรวจสอบ`,
+    referenceId: payment.id,
+    referenceType: "payment",
+  });
 
   await logAudit({
     tenantId: booking.tenant_id,

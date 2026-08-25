@@ -30,8 +30,11 @@ export function sentryConfigured(): boolean {
   return Boolean(process.env.SENTRY_DSN);
 }
 
+// cache โมดูล Sentry (import ครั้งเดียว) — โหลดเฉพาะเมื่อมี DSN
+let sentryMod: typeof import("@sentry/nextjs") | null = null;
+
 // จุดเดียวสำหรับรายงาน error — เรียกที่ catch สำคัญแทน console.error
-// เมื่อพร้อมใช้ Sentry: ติดตั้ง @sentry/nextjs แล้วเรียก Sentry.captureException(error) ตรงนี้
+// log เสมอ + ส่งเข้า Sentry เมื่อมี SENTRY_DSN (ไม่มี DSN = log อย่างเดียว)
 export function captureException(
   context: string,
   error: unknown,
@@ -40,7 +43,18 @@ export function captureException(
   const message = error instanceof Error ? error.message : String(error);
   const stack = error instanceof Error ? error.stack : undefined;
   logger.error(context, { ...meta, error: message, stack });
-  // เมื่อติดตั้ง @sentry/nextjs ได้แล้ว (ตอนนี้ติดไม่ได้เพราะ SSL cert ของ npm) เพิ่มกลับ:
-  //   if (sentryConfigured()) import("@sentry/nextjs")
-  //     .then((S) => S.captureException(error, { extra: { context, ...meta } })).catch(() => {});
+
+  if (!sentryConfigured()) return;
+  const send = (S: typeof import("@sentry/nextjs")) =>
+    S.captureException(error, { extra: { context, ...meta } });
+  if (sentryMod) {
+    send(sentryMod);
+  } else {
+    import("@sentry/nextjs")
+      .then((S) => {
+        sentryMod = S;
+        send(S);
+      })
+      .catch(() => {});
+  }
 }

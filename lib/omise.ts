@@ -37,7 +37,13 @@ type OmiseCharge = {
   status: string;
   paid: boolean;
   failure_message: string | null;
+  metadata?: Record<string, string>;
 };
+
+/** ดึงข้อมูล charge จาก Omise (ใช้ verify webhook — payload ตรงๆ เชื่อไม่ได้) */
+export async function retrieveCharge(chargeId: string): Promise<OmiseCharge> {
+  return omiseRequest<OmiseCharge>(`/charges/${encodeURIComponent(chargeId)}`);
+}
 
 /** สร้าง Omise customer พร้อมผูกบัตรจาก token (Omise.js ฝั่ง client) */
 export async function createCustomerWithCard(params: {
@@ -52,16 +58,19 @@ export async function createCustomerWithCard(params: {
   });
 }
 
-/** ตัดบัตรลูกค้าที่ผูกไว้ (จำนวนเป็นสตางค์ ตรงกับหน่วยของ Omise THB) */
+/** ตัดบัตรลูกค้าที่ผูกไว้ (จำนวนเป็นสตางค์ ตรงกับหน่วยของ Omise THB)
+ *  ใส่ metadata.invoice_id เสมอเพื่อให้ webhook (charge.complete) reconcile กลับ invoice ได้ */
 export async function chargeCustomer(params: {
   customerId: string;
   amountSatang: number;
   description: string;
+  invoiceId: string;
 }): Promise<OmiseCharge> {
   return omiseRequest<OmiseCharge>("/charges", {
     amount: String(params.amountSatang),
     currency: "thb",
     customer: params.customerId,
     description: params.description,
+    "metadata[invoice_id]": params.invoiceId,
   });
 }

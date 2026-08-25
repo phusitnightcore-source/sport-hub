@@ -22,6 +22,8 @@ export const STAFF_GRANTABLE_PERMISSIONS = [
   "edit_member",        // แก้ไขข้อมูลสมาชิก
   "freeze_member",      // Freeze/Unfreeze
   "issue_guest_pass",   // ออก Guest Pass
+  "use_pos",            // POS / Checkout / Receipt (Cashier)
+  "manage_inventory",   // สินค้าและปรับสต็อก (Manager)
 ] as const;
 
 // สิทธิ์เฉพาะ venue_admin (ไม่ปลดล็อกให้ staff — §26)
@@ -49,6 +51,8 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   edit_member: "แก้ไขข้อมูลสมาชิก",
   freeze_member: "Freeze / Unfreeze สมาชิก",
   issue_guest_pass: "ออก Guest Pass",
+  use_pos: "ใช้งาน POS / Checkout / ใบเสร็จ",
+  manage_inventory: "จัดการสินค้าและคลังสต็อก",
   manage_branch: "จัดการสาขา",
   manage_court: "จัดการสนาม / ราคา",
   view_bookings_all: "ดูตารางจอง (ทุกสาขา)",

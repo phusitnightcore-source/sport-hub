@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { ConfirmButton } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { createStaff, updateStaff, toggleStaffStatus } from "./actions";
@@ -76,8 +77,6 @@ export function StaffForm({
   async function handleToggleStatus() {
     if (!initialData?.id) return;
     const newStatus = initialData.status === "active" ? "inactive" : "active";
-    if (!confirm(`คุณแน่ใจหรือไม่ที่จะเปลี่ยนสถานะพนักงานเป็น ${newStatus.toUpperCase()}?`)) return;
-    
     setBusy(true);
     const res = await toggleStaffStatus(initialData.id, newStatus);
     if (res?.error) {
@@ -235,14 +234,24 @@ export function StaffForm({
 
       <div className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between border-t border-line">
         {isEdit ? (
-          <Button
-            type="button"
-            variant="danger"
-            disabled={busy}
-            onClick={handleToggleStatus}
-          >
-            {initialData.status === "active" ? "ระงับพนักงาน" : "เปิดใช้งานพนักงาน"}
-          </Button>
+          initialData.status === "active" ? (
+            <ConfirmButton
+              onConfirm={handleToggleStatus}
+              title="ระงับพนักงานคนนี้?"
+              message="พนักงานจะเข้าใช้งานระบบไม่ได้จนกว่าจะเปิดใช้งานอีกครั้ง"
+              confirmLabel="ระงับพนักงาน"
+              tone="danger"
+              triggerVariant="danger"
+              triggerSize="md"
+              disabled={busy}
+            >
+              ระงับพนักงาน
+            </ConfirmButton>
+          ) : (
+            <Button type="button" variant="secondary" disabled={busy} onClick={handleToggleStatus}>
+              เปิดใช้งานพนักงาน
+            </Button>
+          )
         ) : (
           <div></div> // Spacer
         )}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ConfirmButton } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { createCoupon, updateCoupon, toggleCouponStatus } from "./actions";
@@ -59,9 +60,6 @@ export function CouponForm({
 
   async function handleToggleStatus() {
     if (!initialData?.id || !initialData?.status) return;
-    const newStatus = initialData.status === "active" ? "inactive" : "active";
-    if (!confirm(`คุณแน่ใจหรือไม่ที่จะเปลี่ยนสถานะคูปองเป็น ${newStatus.toUpperCase()}?`)) return;
-    
     setBusy(true);
     const res = await toggleCouponStatus(initialData.id, initialData.status);
     if (res?.error) {
@@ -231,16 +229,26 @@ export function CouponForm({
 
       <div className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between border-t border-line">
         {isEdit && initialData.status ? (
-          <Button
-            type="button"
-            variant="danger"
-            disabled={busy}
-            onClick={handleToggleStatus}
-          >
-            {initialData.status === "active" ? "ระงับคูปอง" : "เปิดใช้งานคูปอง"}
-          </Button>
+          initialData.status === "active" ? (
+            <ConfirmButton
+              onConfirm={handleToggleStatus}
+              title="ระงับคูปองนี้?"
+              message="ลูกค้าจะใช้คูปองนี้ไม่ได้จนกว่าจะเปิดใช้งานอีกครั้ง"
+              confirmLabel="ระงับคูปอง"
+              tone="danger"
+              triggerVariant="danger"
+              triggerSize="md"
+              disabled={busy}
+            >
+              ระงับคูปอง
+            </ConfirmButton>
+          ) : (
+            <Button type="button" variant="secondary" disabled={busy} onClick={handleToggleStatus}>
+              เปิดใช้งานคูปอง
+            </Button>
+          )
         ) : (
-          <div></div> 
+          <div></div>
         )}
         
         <div className="flex items-center gap-3">

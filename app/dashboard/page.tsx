@@ -10,6 +10,8 @@ import {
   RotateCcw,
   ArrowRight,
   Clock,
+  ShoppingCart,
+  Boxes,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffContext } from "@/lib/auth";
@@ -24,6 +26,8 @@ const QUICK_ACTIONS = [
   { href: "/dashboard/guest-passes", label: "ออกบัตรชั่วคราว", icon: TicketCheck },
   { href: "/dashboard/analytics", label: "ดูการวิเคราะห์", icon: LineChart },
   { href: "/dashboard/reports", label: "รายงาน", icon: ReceiptText },
+  { href: "/pos", label: "POS หน้าร้าน", icon: ShoppingCart },
+  { href: "/dashboard/inventory", label: "คลังสินค้า", icon: Boxes },
 ];
 
 // ภาพรวมวันนี้ (SCOPE §7.2 / §21 Dashboard KPI)
@@ -34,7 +38,7 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const today = bangkokToday();
 
-  const [bookingsToday, revenueRows, awaitingSlips, pendingRefunds] =
+  const [bookingsToday, revenueRows, awaitingSlips, pendingRefunds, posSales, inventoryRows, products] =
     await Promise.all([
       supabase
         .from("bookings")
@@ -54,6 +58,14 @@ export default async function DashboardPage() {
         .from("payments")
         .select("id", { count: "exact", head: true })
         .eq("refund_status", "awaiting_refund"),
+      supabase
+        .from("sales")
+        .select("total_amount")
+        .eq("status", "completed")
+        .gte("completed_at", `${today}T00:00:00+07:00`)
+        .lt("completed_at", `${today}T23:59:59.999+07:00`),
+      supabase.from("inventory").select("product_id, quantity"),
+      supabase.from("products").select("id, low_stock_threshold, track_stock").eq("is_active", true),
     ]);
 
   const revenueSatang = (revenueRows.data ?? []).reduce(
@@ -62,6 +74,17 @@ export default async function DashboardPage() {
   );
   const slips = awaitingSlips.count ?? 0;
   const refunds = pendingRefunds.count ?? 0;
+  const posRevenueSatang = (posSales.data ?? []).reduce(
+    (sum, sale) => sum + toSatang(sale.total_amount),
+    0,
+  );
+  const productThreshold = new Map(
+    (products.data ?? []).map((product) => [product.id, { threshold: product.low_stock_threshold, track: product.track_stock }]),
+  );
+  const lowStock = (inventoryRows.data ?? []).filter((row) => {
+    const product = productThreshold.get(row.product_id);
+    return product?.track && row.quantity <= product.threshold;
+  }).length;
 
   const tasks = [
     {
@@ -98,8 +121,10 @@ export default async function DashboardPage() {
         stats={[
           { label: "ยอดจองวันนี้", value: bookingsToday.count ?? 0, unit: "รายการ" },
           { label: "รายได้ยืนยันแล้ววันนี้", value: `฿${formatBaht(revenueSatang)}` },
+          { label: "ยอดขาย POS วันนี้", value: `฿${formatBaht(posRevenueSatang)}` },
           { label: "สลิปรอตรวจ", value: slips, unit: "รายการ" },
           { label: "รอคืนเงิน", value: refunds, unit: "รายการ" },
+          { label: "สต็อกต่ำ", value: lowStock, unit: "รายการ" },
         ]}
       />
 

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
+import { dispatchNotification } from "@/lib/notify";
 import { revalidatePath } from "next/cache";
 
 function todayISO(): string {
@@ -83,6 +84,20 @@ export async function requestFreeze(reason: string) {
     module: "members",
     referenceId: request.id,
   });
+
+  // แจ้งเตือนสนามเมื่อคำขอต้องรออนุมัติ (auto-approve = ไม่ต้องแจ้ง)
+  if (!autoApprove) {
+    await dispatchNotification({
+      tenantId: member.tenant_id,
+      recipientId: null,
+      recipientType: "admin",
+      type: "membership",
+      title: "คำขอระงับสมาชิกใหม่",
+      body: "มีสมาชิกขอระงับชั่วคราว (Freeze) — รออนุมัติที่หน้าคำขอ Freeze",
+      referenceId: request.id,
+      referenceType: "freeze_request",
+    });
+  }
 
   revalidatePath("/me");
   return { success: true, autoApprove };

@@ -6,7 +6,7 @@ import { apiError, bangkokToday } from "@/lib/api";
 import { logAudit } from "@/lib/audit";
 
 const querySchema = z.object({
-  type: z.enum(["bookings", "members", "payments"]),
+  type: z.enum(["bookings", "members", "payments", "sales"]),
   month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
 });
 
@@ -96,6 +96,28 @@ export async function GET(request: Request) {
     }));
     csv = toCsv(rows, Object.keys(rows[0] ?? { ไม่มีข้อมูล: "" }));
     filename = `payments-${month}.csv`;
+  } else if (parsed.data.type === "sales") {
+    // รายงานการขาย POS หน้าร้าน
+    const { data } = await supabase
+      .from("sales")
+      .select("receipt_number, sale_number, customer_name, customer_phone, subtotal, discount_amount, total_amount, completed_at, branches(name)")
+      .eq("status", "completed")
+      .gte("completed_at", monthStartIso)
+      .lt("completed_at", nextMonth.toISOString())
+      .order("completed_at");
+    const rows = (data ?? []).map((s: any) => ({
+      เลขที่ใบเสร็จ: s.receipt_number,
+      รหัสรายการ: s.sale_number,
+      สาขา: s.branches?.name,
+      ชื่อลูกค้า: s.customer_name || "ลูกค้าหน้าร้าน",
+      เบอร์โทร: s.customer_phone || "",
+      ยอดรวมก่อนลด: s.subtotal,
+      ส่วนลด: s.discount_amount,
+      ยอดสุทธิ: s.total_amount,
+      วันที่ทำรายการ: s.completed_at,
+    }));
+    csv = toCsv(rows, Object.keys(rows[0] ?? { ไม่มีข้อมูล: "" }));
+    filename = `pos-sales-${month}.csv`;
   } else {
     const { data } = await supabase
       .from("members")

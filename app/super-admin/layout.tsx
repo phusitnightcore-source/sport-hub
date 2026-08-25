@@ -2,6 +2,9 @@ import Link from "next/link";
 import { LayoutDashboard, Building2, SlidersHorizontal, TrendingUp, Newspaper, Megaphone } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { NotificationBell } from "@/components/ui/NotificationBell";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getPlatformBellData } from "@/lib/notify/bell-data";
 
 const NAV_ITEMS = [
   { href: "/super-admin", label: "ภาพรวม", icon: LayoutDashboard },
@@ -13,11 +16,12 @@ const NAV_ITEMS = [
 ];
 
 // Shell ฝั่งทีม SportHub (super_admin)
-export default function SuperAdminLayout({
+export default async function SuperAdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const bell = await getPlatformBellData(createAdminClient());
   return (
     <div className="flex min-h-screen bg-surface/50 pb-16 md:pb-0">
       <aside className="hidden sticky top-0 md:flex h-screen w-64 flex-col border-r border-line bg-surface px-4 py-6">
@@ -49,6 +53,12 @@ export default function SuperAdminLayout({
             SportHub <span className="text-body-sm font-normal text-ink-soft">Admin</span>
           </div>
           <div className="flex flex-1 items-center justify-end gap-3 text-body-sm text-ink-soft">
+            <NotificationBell
+              mode="platform"
+              initialItems={bell.items}
+              initialUnread={bell.unread}
+              href="/super-admin"
+            />
             <ThemeToggle />
             <span className="hidden md:inline">Super Admin</span>
             <div className="md:hidden">

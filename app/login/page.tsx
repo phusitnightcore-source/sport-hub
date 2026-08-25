@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthShell } from "@/components/ui/AuthShell";
+import { LineLoginButton } from "@/components/ui/LineLoginButton";
+import { lineLoginConfigured } from "@/lib/line-login";
 import { LoginForm } from "./LoginForm";
 
 export const metadata: Metadata = {
@@ -27,6 +29,7 @@ export default async function LoginPage({
         </>
       }
     >
+      {lineLoginConfigured() && <LineLoginButton />}
       <LoginForm redirect={redirect} />
     </AuthShell>
   );

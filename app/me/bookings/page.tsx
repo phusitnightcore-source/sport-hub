@@ -1,10 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, CalendarSearch, PenLine } from "lucide-react";
+import { CalendarSearch } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BookingRow } from "@/components/ui/BookingRow";
-import { Button } from "@/components/ui/Button";
 import type { BookingStatus } from "@/lib/booking/status";
 
 // ประวัติการจองของผู้ใช้ (ล็อกอิน) — ข้ามทุกสนาม ผูกด้วย profile_id (+ member_id ถ้าเป็นสมาชิกฟิตเนส)
@@ -38,34 +36,28 @@ export default async function MyBookingsPage() {
     .limit(100);
 
   const bookings = rows ?? [];
+  const upcoming = bookings.filter(
+    (b) => b.status === "confirmed" || b.status === "pending_payment",
+  ).length;
 
   return (
-    <main className="mx-auto flex max-w-lg flex-col gap-6 px-6 py-10">
-      <Link
-        href="/me"
-        className="inline-flex items-center gap-1.5 text-body-sm text-ink-soft hover:text-brand"
-      >
-        <ArrowLeft aria-hidden className="h-4 w-4" />
-        พื้นที่ของฉัน
-      </Link>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-display-md font-semibold text-ink">
-          การจองของฉัน
-        </h1>
-        <Link href="/blog/write">
-          <Button variant="secondary" size="sm">
-            <PenLine className="h-4 w-4" />
-            เขียนบทความ
-          </Button>
-        </Link>
-      </div>
+    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-5 py-8 sm:px-6">
+      <header className="flex flex-col gap-1">
+        <h1 className="font-display text-display-lg font-semibold text-ink">การจองของฉัน</h1>
+        <p className="text-body-sm text-ink-soft">
+          {bookings.length > 0
+            ? `ทั้งหมด ${bookings.length} รายการ · กำลังจะถึง ${upcoming} รายการ`
+            : "รวมการจองจากทุกสนามไว้ที่เดียว"}
+        </p>
+      </header>
 
       {bookings.length === 0 ? (
-        <div className="card-floating flex flex-col items-center gap-3 p-10 text-center">
-          <CalendarSearch className="h-10 w-10 text-ink-soft" />
-          <p className="text-body-sm text-ink-soft">
-            ยังไม่มีประวัติการจอง — จองผ่านลิงก์ของสนามที่คุณต้องการ
+        <div className="card-floating flex flex-col items-center gap-4 p-12 text-center">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft">
+            <CalendarSearch className="h-8 w-8 text-brand" />
+          </span>
+          <p className="max-w-xs text-body-sm text-ink-soft">
+            ยังไม่มีประวัติการจอง — จองผ่านลิงก์ของสนามที่คุณต้องการ แล้วรายการจะมาอยู่ที่นี่
           </p>
         </div>
       ) : (

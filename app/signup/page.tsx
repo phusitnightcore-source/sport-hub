@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthShell } from "@/components/ui/AuthShell";
+import { LineLoginButton } from "@/components/ui/LineLoginButton";
+import { lineLoginConfigured } from "@/lib/line-login";
 import { SignupSwitch } from "./SignupSwitch";
 
 export const metadata: Metadata = {
@@ -21,6 +23,7 @@ export default function SignupPage() {
         </>
       }
     >
+      {lineLoginConfigured() && <LineLoginButton label="สมัครด้วย LINE (ผู้ใช้ทั่วไป)" />}
       <SignupSwitch />
     </AuthShell>
   );

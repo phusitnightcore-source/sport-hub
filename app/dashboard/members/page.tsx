@@ -5,10 +5,15 @@ import { getStaffContext } from "@/lib/auth";
 import { getTenantEntitlements } from "@/lib/entitlements.server";
 import { PLANS } from "@/lib/plans";
 import { Button } from "@/components/ui/Button";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { UpgradeLock } from "@/components/ui/UpgradeLock";
 
-export default async function MembersPage() {
+export default async function MembersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const ctx = await getStaffContext();
   if (!ctx) return null;
 
@@ -18,14 +23,21 @@ export default async function MembersPage() {
   if (!entitlements.member_system) {
     return <UpgradeLock feature="ระบบสมาชิกฟิตเนส" plan={PLANS[plan].name} />;
   }
-  const { data: members } = await supabase
+
+  // ค้นหา: ชื่อ/นามสกุล/เบอร์/เลขสมาชิก (ลบอักขระที่ทำ PostgREST or-filter พัง)
+  const q = (await searchParams).q?.trim() ?? "";
+  const safeQ = q.replace(/[,()*]/g, "");
+
+  let query = supabase
     .from("members")
-    .select(`
-      *,
-      packages ( name )
-    `)
-    .eq("tenant_id", ctx.tenantId)
-    .order("created_at", { ascending: false });
+    .select(`*, packages ( name )`)
+    .eq("tenant_id", ctx.tenantId);
+  if (safeQ) {
+    query = query.or(
+      `first_name.ilike.%${safeQ}%,last_name.ilike.%${safeQ}%,phone.ilike.%${safeQ}%,member_number.ilike.%${safeQ}%`,
+    );
+  }
+  const { data: members } = await query.order("created_at", { ascending: false });
 
   // Count pending freeze requests
   const { count: pendingFreezeCount } = await supabase
@@ -58,9 +70,21 @@ export default async function MembersPage() {
         </div>
       </div>
 
-      {/* TODO: Add Search Component here */}
-      
+      <form action="/dashboard/members" method="get">
+        <SearchInput
+          name="q"
+          defaultValue={q}
+          placeholder="ค้นหาชื่อ เบอร์โทร หรือเลขสมาชิก…"
+          aria-label="ค้นหาสมาชิก"
+        />
+      </form>
+
       <div className="flex flex-col gap-3">
+        {safeQ && (
+          <p className="text-body-sm text-ink-soft">
+            ผลการค้นหา &ldquo;{q}&rdquo; — {(members ?? []).length} รายการ
+          </p>
+        )}
         {(members ?? []).map((m) => (
           <div
             key={m.id}
@@ -105,7 +129,7 @@ export default async function MembersPage() {
         ))}
         {(members ?? []).length === 0 && (
           <div className="card-floating p-10 text-center text-ink-soft">
-            ยังไม่มีข้อมูลสมาชิก
+            {safeQ ? "ไม่พบสมาชิกที่ตรงกับคำค้นหา" : "ยังไม่มีข้อมูลสมาชิก"}
           </div>
         )}
       </div>

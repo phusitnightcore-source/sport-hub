@@ -1,13 +1,28 @@
 import { redirect } from "next/navigation";
 import QRCode from "qrcode";
+import { Check, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getStaffContext } from "@/lib/auth";
 import { PLANS, effectivePlan, daysUntil, type PlanType } from "@/lib/plans";
+import { getAllEntitlements } from "@/lib/entitlements.server";
+import {
+  FEATURE_FLAGS,
+  FEATURE_LABELS,
+  LIMIT_FIELDS,
+  LIMIT_LABELS,
+  type PlanEntitlements,
+} from "@/lib/entitlements";
 import { promptpayPayload } from "@/lib/promptpay";
 import { toSatang, satangToBahtString, formatBahtFromDb, formatBaht } from "@/lib/money";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { PlanActions } from "./PlanActions";
 import { CancelAccountPanel } from "./CancelAccountPanel";
+
+// แสดงลิมิตแบบอ่านง่าย (null = ไม่จำกัด)
+function limitText(v: number | null): string {
+  return v === null ? "ไม่จำกัด" : String(v);
+}
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -52,6 +67,10 @@ export default async function SubscriptionPage() {
   const st = STATUS_LABEL[sub.status] ?? STATUS_LABEL.active;
   const trialDaysLeft = sub.trial_end ? daysUntil(sub.trial_end) : 0;
 
+  // สิทธิ์ทุกแพลนตามที่ Super Admin ตั้งค่าจริง (plan_entitlements) — ใช้ทั้งการ์ดปัจจุบัน + กริดเปรียบเทียบ
+  const allEnt = await getAllEntitlements(createAdminClient());
+  const currentEnt: PlanEntitlements = allEnt[current];
+
   // Invoice ที่รอชำระ → แสดง QR PromptPay ของ SportHub (§11.2)
   const pending = (invoices ?? []).find((i) => i.payment_status === "pending");
   let qrDataUrl: string | null = null;
@@ -89,6 +108,46 @@ export default async function SubscriptionPage() {
           )}
         </div>
         <StatusPill tone={st.tone}>{st.label}</StatusPill>
+      </div>
+
+      {/* สิทธิ์การใช้งานของแพลนปัจจุบัน — ตามที่ทีมงาน SportHub ตั้งค่า (plan_entitlements) */}
+      <div className="card-floating flex flex-col gap-4 p-6">
+        <div>
+          <h2 className="text-body font-medium text-ink">
+            สิทธิ์การใช้งานของแพลน {PLANS[current].name}
+          </h2>
+          <p className="text-body-sm text-ink-soft">
+            สิทธิ์และลิมิตด้านล่างเป็นค่าที่ทีมงานตั้งไว้สำหรับแพลนนี้
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          {LIMIT_FIELDS.map((f) => (
+            <div key={f} className="rounded-sm bg-brand-soft/50 px-4 py-3">
+              <p className="text-[11px] font-medium text-ink-soft">
+                {LIMIT_LABELS[f].split(" (")[0]}
+              </p>
+              <p className="mt-0.5 font-display text-body-lg font-semibold text-ink">
+                {limitText(currentEnt[f])}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {FEATURE_FLAGS.map((flag) => (
+            <li key={flag} className="flex items-center gap-2 text-body-sm">
+              {currentEnt[flag] ? (
+                <Check aria-hidden className="h-4 w-4 shrink-0 text-success" />
+              ) : (
+                <X aria-hidden className="h-4 w-4 shrink-0 text-ink-soft/40" />
+              )}
+              <span className={currentEnt[flag] ? "text-ink" : "text-ink-soft/50 line-through"}>
+                {FEATURE_LABELS[flag]}
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {/* Invoice รอชำระ + QR ของ SportHub */}
@@ -151,9 +210,30 @@ export default async function SubscriptionPage() {
                   )}
                 </p>
               </div>
-              <ul className="flex-1 list-disc pl-5 text-body-sm text-ink-soft">
-                {plan.features.map((f) => (
-                  <li key={f}>{f}</li>
+              <ul className="flex flex-1 flex-col gap-1.5 text-body-sm">
+                {LIMIT_FIELDS.map((f) => (
+                  <li key={f} className="flex items-center gap-2 text-ink-soft">
+                    <Check aria-hidden className="h-4 w-4 shrink-0 text-brand" />
+                    <span>
+                      {LIMIT_LABELS[f].split(" (")[0]}: {limitText(allEnt[key][f])}
+                    </span>
+                  </li>
+                ))}
+                {FEATURE_FLAGS.map((flag) => (
+                  <li key={flag} className="flex items-center gap-2">
+                    {allEnt[key][flag] ? (
+                      <Check aria-hidden className="h-4 w-4 shrink-0 text-success" />
+                    ) : (
+                      <X aria-hidden className="h-4 w-4 shrink-0 text-ink-soft/40" />
+                    )}
+                    <span
+                      className={
+                        allEnt[key][flag] ? "text-ink" : "text-ink-soft/50 line-through"
+                      }
+                    >
+                      {FEATURE_LABELS[flag]}
+                    </span>
+                  </li>
                 ))}
               </ul>
               <PlanActions
