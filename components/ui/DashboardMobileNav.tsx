@@ -2,12 +2,69 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Lock, type LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  CalendarDays,
+  ReceiptText,
+  RotateCcw,
+  CreditCard,
+  Package,
+  Users,
+  Building,
+  UserCog,
+  Ticket,
+  CalendarClock,
+  LayoutGrid,
+  ScanLine,
+  BarChart3,
+  LineChart,
+  Bell,
+  ScrollText,
+  Image as ImageIcon,
+  Settings,
+  TicketCheck,
+  Lock,
+  Megaphone,
+  ListChecks,
+  ShoppingCart,
+  Boxes,
+  Sparkles,
+  HelpCircle,
+  type LucideIcon,
+} from "lucide-react";
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  LayoutDashboard,
+  CalendarDays,
+  ReceiptText,
+  RotateCcw,
+  CreditCard,
+  Package,
+  Users,
+  Building,
+  UserCog,
+  Ticket,
+  CalendarClock,
+  LayoutGrid,
+  ScanLine,
+  BarChart3,
+  LineChart,
+  Bell,
+  ScrollText,
+  ImageIcon,
+  Settings,
+  TicketCheck,
+  Megaphone,
+  ListChecks,
+  ShoppingCart,
+  Boxes,
+  Sparkles,
+};
 
 export type MobileNavItem = {
   href: string;
   label: string;
-  icon: LucideIcon;
+  iconName: string;
   isLocked?: boolean;
 };
 
@@ -23,8 +80,9 @@ export function DashboardMobileNav({ items }: { items: MobileNavItem[] }) {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t border-line bg-surface/95 px-2 backdrop-blur-lg md:hidden">
-      {items.map(({ href, label, icon: Icon, isLocked }) => {
+      {items.map(({ href, label, iconName, isLocked }) => {
         const active = isActive(href);
+        const Icon = ICON_MAP[iconName] ?? HelpCircle;
         return (
           <Link
             key={href}

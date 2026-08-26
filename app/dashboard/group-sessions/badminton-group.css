@@ -1,0 +1,308 @@
+/*
+  Badminton Group Design System
+  Unified Light / Dark mode support with SportHub theme alignment
+*/
+
+/* ============================================================
+   Scoped under .bg-scope with Light & Dark theme variables
+   ============================================================ */
+.bg-scope {
+  /* Default: Light Mode */
+  --bg-white: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f8fafc;
+  --bg-surface-sunken: #f1f5f9;
+  --bg-gray-50: #f8fafc;
+  --bg-gray-100: #f1f5f9;
+  --bg-gray-200: #e2e8f0;
+  --bg-gray-300: #cbd5e1;
+  --bg-gray-400: #94a3b8;
+  --bg-gray-500: #64748b;
+  --bg-gray-600: #475569;
+  --bg-gray-700: #334155;
+  --bg-gray-800: #1e293b;
+  --bg-gray-900: #0f172a;
+  --bg-black: #020617;
+
+  --bg-card-bg: #ffffff;
+  --bg-card-border: #e2e8f0;
+  --bg-input-bg: #ffffff;
+  --bg-input-border: #cbd5e1;
+
+  --bg-orange-400: #60a5fa;
+  --bg-orange-500: #2e77f5;
+  --bg-orange-600: #1b5fe0;
+  --bg-orange-700: #1d4ed8;
+
+  --bg-success: #16a34a;
+  --bg-warning: #d97706;
+  --bg-danger: #dc2626;
+  --bg-violet: #7c3aed;
+
+  font-family: inherit;
+  color: var(--bg-gray-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Dark Mode Overrides */
+.dark .bg-scope,
+html.dark .bg-scope,
+:root[data-theme='dark'] .bg-scope,
+[data-theme='dark'] .bg-scope {
+  --bg-white: #1b2540;
+  --bg-surface: #1b2540;
+  --bg-surface-elevated: #151d32;
+  --bg-surface-sunken: #0b1120;
+  --bg-gray-50: #0b1120;
+  --bg-gray-100: #16213e;
+  --bg-gray-200: #2a3756;
+  --bg-gray-300: #3a4b6e;
+  --bg-gray-400: #64748b;
+  --bg-gray-500: #94a3b8;
+  --bg-gray-600: #cbd5e1;
+  --bg-gray-700: #e2e8f0;
+  --bg-gray-800: #f1f5f9;
+  --bg-gray-900: #f8fafc;
+  --bg-black: #ffffff;
+
+  --bg-card-bg: #1b2540;
+  --bg-card-border: #2a3756;
+  --bg-input-bg: #151d32;
+  --bg-input-border: #2a3756;
+
+  --bg-orange-400: #93c5fd;
+  --bg-orange-500: #3b82f6;
+  --bg-orange-600: #60a5fa;
+  --bg-orange-700: #93c5fd;
+
+  color: var(--bg-gray-900);
+}
+
+/* ---- Cards ---- */
+.bg-scope .bg-card {
+  background: var(--bg-card-bg);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark .bg-scope .bg-card,
+html.dark .bg-scope .bg-card {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.25);
+}
+
+.bg-scope .bg-card:hover {
+  border-color: rgba(249, 115, 22, 0.3);
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.08);
+}
+
+.bg-scope .bg-card-flat {
+  background: var(--bg-card-bg);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 14px;
+}
+
+/* ---- Buttons ---- */
+.bg-scope .bg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  line-height: 1.4;
+  font-family: inherit;
+}
+
+.bg-scope .bg-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bg-scope .bg-btn-primary {
+  background: var(--bg-orange-500);
+  color: #ffffff;
+  border-color: var(--bg-orange-500);
+}
+
+.bg-scope .bg-btn-primary:hover:not(:disabled) {
+  background: var(--bg-orange-600);
+  border-color: var(--bg-orange-600);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
+}
+
+.bg-scope .bg-btn-secondary {
+  background: var(--bg-gray-100);
+  color: var(--bg-gray-800);
+  border: 1px solid var(--bg-gray-200);
+}
+
+.bg-scope .bg-btn-secondary:hover:not(:disabled) {
+  background: var(--bg-gray-200);
+  color: var(--bg-gray-900);
+  border-color: var(--bg-gray-300);
+}
+
+.bg-scope .bg-btn-ghost {
+  background: transparent;
+  color: var(--bg-gray-500);
+  padding: 8px 12px;
+}
+
+.bg-scope .bg-btn-ghost:hover:not(:disabled) {
+  background: var(--bg-gray-100);
+  color: var(--bg-gray-900);
+}
+
+.bg-scope .bg-btn-sm {
+  padding: 6px 14px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.bg-scope .bg-btn-danger {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--bg-danger);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.bg-scope .bg-btn-danger:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.2);
+}
+
+/* ---- Form Controls ---- */
+.bg-scope .bg-form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bg-gray-700);
+  margin-bottom: 6px;
+}
+
+.bg-scope .bg-form-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-input-bg);
+  border: 1px solid var(--bg-input-border);
+  border-radius: 12px;
+  font-size: 14px;
+  color: var(--bg-gray-900);
+  transition: all 0.15s ease;
+  outline: none;
+  font-family: inherit;
+}
+
+.bg-scope .bg-form-input:focus {
+  border-color: var(--bg-orange-500);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+}
+
+.bg-scope .bg-form-input::placeholder {
+  color: var(--bg-gray-400);
+}
+
+.bg-scope .bg-form-select {
+  width: 100%;
+  padding: 10px 16px;
+  padding-right: 40px;
+  background-color: var(--bg-input-bg);
+  border: 1px solid var(--bg-input-border);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--bg-gray-900);
+  outline: none;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23737373' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m7 10l5 5l5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: all 0.15s ease;
+}
+
+.bg-scope .bg-form-select:focus {
+  border-color: var(--bg-orange-500);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+}
+
+/* ---- Badges ---- */
+.bg-scope .bg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.bg-scope .bg-badge-success {
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--bg-success);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+}
+
+.bg-scope .bg-badge-warning {
+  background: rgba(217, 119, 6, 0.12);
+  color: var(--bg-warning);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+}
+
+.bg-scope .bg-badge-danger {
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--bg-danger);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.bg-scope .bg-badge-muted {
+  background: var(--bg-gray-100);
+  color: var(--bg-gray-500);
+  border: 1px solid var(--bg-gray-200);
+}
+
+.bg-scope .bg-badge-orange {
+  background: rgba(249, 115, 22, 0.12);
+  color: var(--bg-orange-500);
+  border: 1px solid rgba(249, 115, 22, 0.2);
+}
+
+/* ---- Spinner ---- */
+.bg-scope .bg-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--bg-gray-200);
+  border-top-color: var(--bg-orange-500);
+  border-radius: 50%;
+  animation: bg-spin 0.6s linear infinite;
+}
+
+/* ---- Animations ---- */
+.bg-scope .bg-animate-in {
+  animation: bg-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes bg-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes bg-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Scrollbar ---- */
+.bg-scope ::-webkit-scrollbar { width: 6px; height: 6px; }
+.bg-scope ::-webkit-scrollbar-track { background: transparent; }
+.bg-scope ::-webkit-scrollbar-thumb { background: var(--bg-gray-300); border-radius: 3px; }
+

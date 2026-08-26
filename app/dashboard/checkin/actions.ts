@@ -7,61 +7,161 @@ import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import type { Database } from "@/lib/supabase/types";
 
-export type CheckinQueryType = "qr" | "phone";
+export type CheckinQueryType = "qr" | "phone" | "code";
 
 type FailReason = Database["public"]["Enums"]["checkin_fail_reason"];
 
-// ค้นหาสมาชิกสำหรับเช็คอิน — รองรับทั้ง venue_admin และ staff (getStaffContext)
-export async function findMemberForCheckin(query: string, type: CheckinQueryType) {
+export type UnifiedCheckinResult = {
+  success: boolean;
+  error?: string;
+  targetType?: "member" | "booking";
+  member?: {
+    id: string;
+    member_number: string;
+    first_name: string;
+    last_name: string | null;
+    phone: string | null;
+    status: string;
+    end_date: string | null;
+    sessions_used: number;
+    packages: {
+      id: string;
+      name: string;
+      type: string;
+      sessions_limit: number | null;
+      branch_access_all: boolean;
+      branch_access_ids: string[] | null;
+    } | null;
+  };
+  booking?: {
+    id: string;
+    booking_code: string;
+    user_name: string | null;
+    user_phone: string | null;
+    booking_date: string;
+    start_time: string;
+    end_time: string;
+    status: string;
+    total_price: number;
+    courts: {
+      name: string;
+      branch_id: string;
+    } | null;
+  };
+  isValid?: boolean;
+  failReason?: string | null;
+};
+
+// ค้นหาสมาชิกหรือตั๋วการจองสำหรับเช็คอิน
+export async function findMemberForCheckin(
+  query: string,
+  type: CheckinQueryType
+): Promise<UnifiedCheckinResult> {
   const ctx = await getStaffContext();
   if (!ctx) return { success: false, error: "ไม่มีสิทธิ์เข้าถึง" };
 
   const supabase = await createClient();
+  const trimmed = query.trim();
+
+  // 1. ลองค้นหาใน Members ก่อน
   let memberQuery = supabase
     .from("members")
     .select(
-      "id, member_number, first_name, last_name, phone, status, end_date, sessions_used, packages(id, name, type, sessions_limit, branch_access_all, branch_access_ids)",
+      "id, member_number, first_name, last_name, phone, status, end_date, sessions_used, packages(id, name, type, sessions_limit, branch_access_all, branch_access_ids)"
     )
     .eq("tenant_id", ctx.tenantId);
 
   if (type === "qr") {
-    // QR format: sport-hub:checkin:MEMBER_NUMBER หรือ member id ตรงๆ
-    if (query.startsWith("sport-hub:checkin:")) {
-      memberQuery = memberQuery.eq("member_number", query.split(":")[2]);
+    if (trimmed.startsWith("sport-hub:checkin:")) {
+      memberQuery = memberQuery.eq("member_number", trimmed.split(":")[2]);
     } else {
-      memberQuery = memberQuery.eq("id", query);
+      memberQuery = memberQuery.or(`id.eq.${trimmed},member_number.eq.${trimmed}`);
     }
+  } else if (type === "phone") {
+    memberQuery = memberQuery.eq("phone", trimmed);
   } else {
-    memberQuery = memberQuery.eq("phone", query);
+    memberQuery = memberQuery.or(`member_number.eq.${trimmed},phone.eq.${trimmed}`);
   }
 
   const { data: member } = await memberQuery.maybeSingle();
-  if (!member) return { success: false, error: "ไม่พบข้อมูลสมาชิกในระบบ" };
 
-  let isValid = true;
-  let failReason: string | null = null;
-  if (member.status === "frozen") {
-    isValid = false;
-    failReason = "สมาชิกถูกระงับชั่วคราว (Frozen)";
-  } else if (member.status !== "active") {
-    isValid = false;
-    failReason = "สมาชิกหมดอายุ กรุณาต่ออายุ";
-  } else if (member.end_date && new Date(member.end_date) < new Date()) {
-    isValid = false;
-    failReason = "แพ็กเกจหมดอายุแล้ว";
-  } else if (
-    member.packages?.type === "session_based" &&
-    member.packages.sessions_limit &&
-    member.sessions_used >= member.packages.sessions_limit
-  ) {
-    isValid = false;
-    failReason = "ใช้สิทธิ์ครบจำนวนครั้งแล้ว";
+  if (member) {
+    let isValid = true;
+    let failReason: string | null = null;
+    if (member.status === "frozen") {
+      isValid = false;
+      failReason = "สมาชิกถูกระงับชั่วคราว (Frozen)";
+    } else if (member.status !== "active") {
+      isValid = false;
+      failReason = "สมาชิกหมดอายุ กรุณาต่ออายุ";
+    } else if (member.end_date && new Date(member.end_date) < new Date()) {
+      isValid = false;
+      failReason = "แพ็กเกจหมดอายุแล้ว";
+    } else if (
+      member.packages?.type === "session_based" &&
+      member.packages.sessions_limit &&
+      member.sessions_used >= member.packages.sessions_limit
+    ) {
+      isValid = false;
+      failReason = "ใช้สิทธิ์ครบจำนวนครั้งแล้ว";
+    }
+
+    return {
+      success: true,
+      targetType: "member",
+      member: member as any,
+      isValid,
+      failReason,
+    };
   }
 
-  return { success: true, member, isValid, failReason };
+  // 2. ถ้าไม่พบสมาชิก ลองค้นหาใน Bookings (ตั๋วการจองสนาม)
+  let bookingCode = trimmed;
+  if (trimmed.startsWith("sport-hub:booking:")) {
+    bookingCode = trimmed.split(":")[2];
+  }
+
+  let bookingQuery = supabase
+    .from("bookings")
+    .select(
+      "id, booking_code, user_name, user_phone, booking_date, start_time, end_time, status, total_price, courts(name, branch_id)"
+    )
+    .eq("tenant_id", ctx.tenantId);
+
+  if (type === "phone") {
+    bookingQuery = bookingQuery.eq("user_phone", trimmed).order("booking_date", { ascending: false });
+  } else {
+    bookingQuery = bookingQuery.or(`booking_code.eq.${bookingCode},id.eq.${bookingCode}`);
+  }
+
+  const { data: bookingsData } = await bookingQuery.limit(1);
+  const booking = bookingsData?.[0];
+
+  if (booking) {
+    let isValid = true;
+    let failReason: string | null = null;
+
+    if (booking.status === "cancelled") {
+      isValid = false;
+      failReason = "รายการจองนี้ถูกยกเลิกแล้ว";
+    } else if (booking.status === "awaiting_verification") {
+      isValid = false;
+      failReason = "สลิปโอนเงินรอยืนยัน กรุณาตรวจสลิปก่อนเข้าใช้สนาม";
+    }
+
+    return {
+      success: true,
+      targetType: "booking",
+      booking: booking as any,
+      isValid,
+      failReason,
+    };
+  }
+
+  return { success: false, error: "ไม่พบข้อมูลสมาชิกหรือรหัสการจองในระบบ" };
 }
 
-// ยืนยันเช็คอิน — enforce สถานะ/สิทธิ์สาขา/สิทธิ์ครั้ง/ความจุ (§10)
+// ยืนยันเช็คอินสมาชิก — enforce สถานะ/สิทธิ์สาขา/สิทธิ์ครั้ง/ความจุ
 export async function processCheckin(memberId: string, branchId: string) {
   const ctx = await getStaffContext();
   if (!ctx) return { success: false, error: "ไม่มีสิทธิ์เข้าถึง" };
@@ -70,7 +170,7 @@ export async function processCheckin(memberId: string, branchId: string) {
   const { data: member } = await admin
     .from("members")
     .select(
-      "id, tenant_id, status, end_date, sessions_used, packages(type, sessions_limit, branch_access_all, branch_access_ids)",
+      "id, tenant_id, status, end_date, sessions_used, packages(type, sessions_limit, branch_access_all, branch_access_ids)"
     )
     .eq("id", memberId)
     .eq("tenant_id", ctx.tenantId)
@@ -89,7 +189,7 @@ export async function processCheckin(memberId: string, branchId: string) {
     });
   };
 
-  // สถานะ (§28.2 MEMBER_FROZEN / MEMBER_EXPIRED)
+  // สถานะ
   if (member.status === "frozen") {
     await recordFail("frozen");
     return { success: false, error: "สมาชิกถูกระงับชั่วคราว" };
@@ -98,7 +198,7 @@ export async function processCheckin(memberId: string, branchId: string) {
     await recordFail("expired");
     return { success: false, error: "สมาชิกหมดอายุ กรุณาต่ออายุ" };
   }
-  // สิทธิ์สาขา (§28.2 MEMBER_BRANCH_DENIED)
+  // สิทธิ์สาขา
   if (
     !member.packages?.branch_access_all &&
     !(member.packages?.branch_access_ids ?? []).includes(branchId)
@@ -115,30 +215,8 @@ export async function processCheckin(memberId: string, branchId: string) {
     await recordFail("session_limit");
     return { success: false, error: "ใช้สิทธิ์ครบจำนวนครั้งแล้ว" };
   }
-  // กันเช็คอินซ้ำ (ยังไม่เช็คเอาท์)
-  const { data: openCheckin } = await admin
-    .from("checkins")
-    .select("id")
-    .eq("member_id", memberId)
-    .eq("branch_id", branchId)
-    .eq("result", "passed")
-    .is("actual_checkout_time", null)
-    .limit(1)
-    .maybeSingle();
-  if (openCheckin) {
-    return { success: false, error: "สมาชิกเช็คอินอยู่แล้ว (ยังไม่เช็คเอาท์)" };
-  }
-  // ความจุสาขา (§10.5, §28.2 BRANCH_CAPACITY_FULL)
-  const { data: occ } = await admin
-    .from("branch_occupancy")
-    .select("current_occupancy, max_capacity")
-    .eq("branch_id", branchId)
-    .single();
-  if (occ && (occ.current_occupancy ?? 0) >= (occ.max_capacity ?? 0)) {
-    await recordFail("capacity_full");
-    return { success: false, error: "สาขาเต็มแล้ว กรุณารอสักครู่" };
-  }
 
+  // บันทึก checkin
   const { error: checkinErr } = await admin.from("checkins").insert({
     tenant_id: ctx.tenantId,
     branch_id: branchId,
@@ -172,7 +250,54 @@ export async function processCheckin(memberId: string, branchId: string) {
   return { success: true };
 }
 
-// เช็คเอาท์ด้วยตนเอง (ลด occupancy) — §10.4
+// ยืนยันเช็คอินการจองสนาม (Court Booking Check-in)
+export async function processBookingCheckin(bookingId: string, branchId: string) {
+  const ctx = await getStaffContext();
+  if (!ctx) return { success: false, error: "ไม่มีสิทธิ์เข้าถึง" };
+
+  const admin = createAdminClient();
+  const { data: booking, error: bErr } = await admin
+    .from("bookings")
+    .select("id, booking_code, status, total_price, courts(name)")
+    .eq("id", bookingId)
+    .eq("tenant_id", ctx.tenantId)
+    .single();
+
+  if (bErr || !booking) {
+    return { success: false, error: "ไม่พบข้อมูลการจอง" };
+  }
+
+  if (booking.status === "cancelled") {
+    return { success: false, error: "รายการจองนี้ถูกยกเลิกแล้ว" };
+  }
+
+  // อัปเดตสถานะการเช็คอิน
+  const { error: updateErr } = await admin
+    .from("bookings")
+    .update({ status: "confirmed" })
+    .eq("id", bookingId);
+
+  if (updateErr) {
+    return { success: false, error: "อัปเดตสถานะไม่สำเร็จ: " + updateErr.message };
+  }
+
+  await logAudit({
+    tenantId: ctx.tenantId,
+    actorId: ctx.userId,
+    actorRole: ctx.role,
+    action: "checkin_booking",
+    module: "bookings",
+    referenceId: bookingId,
+    after: { branch_id: branchId, booking_code: booking.booking_code },
+  });
+
+  revalidatePath("/dashboard/checkin");
+  revalidatePath("/dashboard/bookings");
+  revalidatePath("/dashboard/schedule");
+  return { success: true };
+}
+
+// เช็คเอาท์ด้วยตนเอง (ลด occupancy)
 export async function checkoutMember(checkinId: string) {
   const ctx = await getStaffContext();
   if (!ctx) return { success: false, error: "ไม่มีสิทธิ์เข้าถึง" };

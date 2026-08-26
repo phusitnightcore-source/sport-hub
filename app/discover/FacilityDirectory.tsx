@@ -168,29 +168,46 @@ export function FacilityDirectory() {
         </div>
 
         {/* Filters Bar */}
-        <div className="flex flex-wrap items-center gap-3 rounded-radius-md bg-surface p-4 ring-1 ring-inset ring-line">
-          <SlidersHorizontal className="h-5 w-5 text-ink-soft mr-2 hidden sm:block" />
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-surface p-4 border border-line shadow-xs">
+          <SlidersHorizontal className="h-5 w-5 text-brand mr-1 hidden sm:block" />
           
-          <select value={sport} onChange={(event) => setSport(event.target.value)} className="rounded-sm border-line bg-white px-3 py-2 text-body-sm outline-none ring-1 ring-inset ring-line">
+          <select
+            value={sport}
+            onChange={(event) => setSport(event.target.value)}
+            className="rounded-xl border border-line bg-surface px-3.5 py-2.5 text-body-sm font-semibold text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 cursor-pointer [&>option]:bg-surface [&>option]:text-ink"
+          >
             <option value="">กีฬาทั้งหมด</option>
             {sports.map((value) => <option key={value} value={value}>{value}</option>)}
           </select>
 
-          <select value={ratingFilter} onChange={(event) => setRatingFilter(event.target.value)} className="rounded-sm border-line bg-white px-3 py-2 text-body-sm outline-none ring-1 ring-inset ring-line">
+          <select
+            value={ratingFilter}
+            onChange={(event) => setRatingFilter(event.target.value)}
+            className="rounded-xl border border-line bg-surface px-3.5 py-2.5 text-body-sm font-semibold text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 cursor-pointer [&>option]:bg-surface [&>option]:text-ink"
+          >
             <option value="0">คะแนนรีวิวทั้งหมด</option>
             <option value="4">4 ดาวขึ้นไป</option>
             <option value="3">3 ดาวขึ้นไป</option>
           </select>
 
-          <select value={indoorFilter} onChange={(event) => setIndoorFilter(event.target.value)} className="rounded-sm border-line bg-white px-3 py-2 text-body-sm outline-none ring-1 ring-inset ring-line">
+          <select
+            value={indoorFilter}
+            onChange={(event) => setIndoorFilter(event.target.value)}
+            className="rounded-xl border border-line bg-surface px-3.5 py-2.5 text-body-sm font-semibold text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 cursor-pointer [&>option]:bg-surface [&>option]:text-ink"
+          >
             <option value="">ในร่ม/กลางแจ้ง</option>
             <option value="indoor">ในร่ม (Indoor)</option>
             <option value="outdoor">กลางแจ้ง (Outdoor)</option>
           </select>
 
-          <label className="flex items-center gap-2 cursor-pointer ml-auto">
-            <input type="checkbox" checked={openNowFilter} onChange={(e) => setOpenNowFilter(e.target.checked)} className="h-4 w-4 text-brand rounded border-line focus:ring-brand" />
-            <span className="text-body-sm text-ink flex items-center gap-1"><Clock className="h-4 w-4" />เปิดอยู่ตอนนี้</span>
+          <label className="flex items-center gap-2 cursor-pointer ml-auto text-body-sm font-semibold text-ink">
+            <input
+              type="checkbox"
+              checked={openNowFilter}
+              onChange={(e) => setOpenNowFilter(e.target.checked)}
+              className="h-4 w-4 accent-brand rounded border-line cursor-pointer"
+            />
+            <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-brand" />เปิดอยู่ตอนนี้</span>
           </label>
         </div>
       </section>

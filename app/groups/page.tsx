@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PublicNav } from "@/components/ui/PublicNav";
+import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import {
   Users,
@@ -35,17 +36,29 @@ export default async function GroupsPage() {
     status: string;
   }[] = [];
 
+  let facilitySessions: any[] = [];
+
   try {
-    const { data } = await admin
-      .from("groups")
-      .select(
-        "id, sport, title, description, play_date, start_time, end_time, max_players, current_players, skill_level, cost_per_person, status",
-      )
-      .in("status", ["open", "full"])
-      .gte("play_date", new Date().toISOString().split("T")[0])
-      .order("play_date")
-      .limit(50);
-    groups = data ?? [];
+    const [{ data: gData }, { data: sData }] = await Promise.all([
+      admin
+        .from("groups")
+        .select(
+          "id, sport, title, description, play_date, start_time, end_time, max_players, current_players, skill_level, cost_per_person, status",
+        )
+        .in("status", ["open", "full"])
+        .gte("play_date", new Date().toISOString().split("T")[0])
+        .order("play_date")
+        .limit(50),
+      admin
+        .from("group_sessions")
+        .select("*, group_session_players(id)")
+        .in("status", ["open", "in_progress"])
+        .gte("session_date", new Date().toISOString().split("T")[0])
+        .order("session_date")
+        .limit(20),
+    ]);
+    groups = gData ?? [];
+    facilitySessions = sData ?? [];
   } catch {
     // Table may not exist yet
   }
@@ -56,18 +69,76 @@ export default async function GroupsPage() {
   return (
     <div className="min-h-screen">
       <PublicNav />
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
-        <header className="mb-10 text-center">
+      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12 space-y-10">
+        <header className="text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-brand/20 to-brand/5">
             <Users className="h-8 w-8 text-brand" />
           </div>
           <h1 className="font-display text-display-lg font-bold text-ink">
-            ก๊วน & หาคู่แข่ง
+            ก๊วนกีฬา & จัดก๊วนแบดมินตัน
           </h1>
           <p className="mt-2 text-body text-ink-soft">
-            หาเพื่อนเล่นกีฬา เข้าร่วมก๊วน หรือสร้างก๊วนของคุณเอง
+            หาเพื่อนเล่นกีฬา เข้าร่วมก๊วนแบดมินตันประจำวัน หรือดูกระดานคิวสด Real-time
           </p>
         </header>
+
+        {/* Official Facility Badminton Group Sessions */}
+        {facilitySessions.length > 0 && (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-body-lg font-bold text-ink flex items-center gap-2">
+                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>รอบก๊วนแบดมินตันที่เปิดรับสมัคร ({facilitySessions.length})</span>
+              </h2>
+              <span className="text-[12px] font-semibold text-brand">ระบบคิวสด & หารค่าลูก</span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {facilitySessions.map((s: any) => {
+                const playerCount = s.group_session_players?.length ?? 0;
+                return (
+                  <div
+                    key={s.id}
+                    className="card-floating flex flex-col justify-between rounded-3xl border border-line bg-surface p-5 transition-all hover:border-brand shadow-sm space-y-4"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="rounded-lg bg-brand-soft px-2.5 py-0.5 text-[11px] font-bold text-brand uppercase">
+                          🏸 ก๊วนแบดมินตัน
+                        </span>
+                        <span className="font-mono text-body-sm font-bold text-ink">
+                          {s.session_date}
+                        </span>
+                      </div>
+
+                      <h3 className="font-display text-body-lg font-bold text-ink mt-2">
+                        {s.title}
+                      </h3>
+
+                      <p className="text-body-sm text-ink-soft mt-1 flex flex-wrap items-center gap-2">
+                        <span>⏰ {s.start_time.slice(0, 5)} - {s.end_time.slice(0, 5)}</span>
+                        <span>•</span>
+                        <span>🏸 {s.shuttlecock_brand} (฿{s.shuttlecock_price}/ลูก)</span>
+                        {s.entry_fee > 0 && <span>• 🎟️ ฿{s.entry_fee}</span>}
+                      </p>
+
+                      <div className="mt-3 flex items-center gap-2 text-[12px] text-ink-soft">
+                        <Users className="h-3.5 w-3.5 text-brand" />
+                        <span>ผู้เล่นเข้าร่วมแล้ว <strong className="text-ink font-mono">{playerCount}</strong> คน</span>
+                      </div>
+                    </div>
+
+                    <Link href={`/queue/${s.id}`}>
+                      <Button className="w-full rounded-2xl font-bold bg-brand text-white shadow-xs">
+                        🏸 ดูกระดานคิว & กดเข้าร่วมก๊วน
+                      </Button>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {groups.length === 0 ? (
           <div className="card-floating p-16 text-center">

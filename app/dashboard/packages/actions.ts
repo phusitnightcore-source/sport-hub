@@ -16,6 +16,7 @@ export async function createPackage(data: {
   sessions_limit: number | null;
   sessions_carryover: boolean;
   branch_access_all: boolean;
+  branch_access_ids?: string[] | null;
   freeze_max_times: number;
   freeze_max_days: number;
   freeze_auto_approve: boolean;
@@ -36,6 +37,7 @@ export async function createPackage(data: {
       sessions_limit: data.sessions_limit,
       sessions_carryover: data.sessions_carryover,
       branch_access_all: data.branch_access_all,
+      branch_access_ids: data.branch_access_ids ?? [],
       freeze_max_times: data.freeze_max_times,
       freeze_max_days: data.freeze_max_days,
       freeze_auto_approve: data.freeze_auto_approve,
@@ -72,11 +74,12 @@ export async function updatePackage(
     sessions_limit: number | null;
     sessions_carryover: boolean;
     branch_access_all: boolean;
+    branch_access_ids?: string[] | null;
     freeze_max_times: number;
     freeze_max_days: number;
     freeze_auto_approve: boolean;
     benefits: string;
-  },
+  }
 ) {
   const ctx = await getStaffContext();
   if (!ctx) return { success: false, error: "Unauthorized" };
@@ -92,6 +95,7 @@ export async function updatePackage(
       sessions_limit: data.sessions_limit,
       sessions_carryover: data.sessions_carryover,
       branch_access_all: data.branch_access_all,
+      branch_access_ids: data.branch_access_ids ?? [],
       freeze_max_times: data.freeze_max_times,
       freeze_max_days: data.freeze_max_days,
       freeze_auto_approve: data.freeze_auto_approve,

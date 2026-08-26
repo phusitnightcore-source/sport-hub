@@ -14,21 +14,34 @@ export default async function EditPackagePage({
   const resolvedParams = await params;
 
   const supabase = await createClient();
-  const { data: pkg } = await supabase
-    .from("packages")
-    .select("*")
-    .eq("id", resolvedParams.id)
-    .eq("tenant_id", ctx.tenantId)
-    .single();
+  const [{ data: pkg }, { data: branches }] = await Promise.all([
+    supabase
+      .from("packages")
+      .select("*")
+      .eq("id", resolvedParams.id)
+      .eq("tenant_id", ctx.tenantId)
+      .single(),
+    supabase
+      .from("branches")
+      .select("id, name")
+      .eq("tenant_id", ctx.tenantId)
+      .order("created_at"),
+  ]);
 
   if (!pkg) notFound();
 
   return (
     <main className="flex flex-col gap-6">
-      <h1 className="font-display text-display-md font-semibold text-ink">
-        จัดการแพ็กเกจ: {pkg.name}
-      </h1>
-      <PackageForm initialData={pkg} />
+      <div className="flex flex-col gap-1">
+        <h1 className="font-display text-display-md font-bold text-ink">
+          จัดการแพ็กเกจ: {pkg.name}
+        </h1>
+        <p className="text-body-sm text-ink-soft">
+          แก้ไขข้อมูล ราคา สิทธิ์สาขา และนโยบายการพักสมาชิก
+        </p>
+      </div>
+
+      <PackageForm initialData={pkg} branches={branches ?? []} />
     </main>
   );
 }

@@ -1,0 +1,507 @@
+/* ============================================================
+   🏸 Badminton Group — SportHub Design System
+   Theme: SportHub Royal Blue & Slate
+   Full Dark / Light Mode Support with High Contrast & Depth
+   ============================================================ */
+
+:root {
+  /* -- SportHub Brand Colors (Light Mode) -- */
+  --brand: 46 119 245;         /* #2E77F5 */
+  --brand-dark: 27 95 224;     /* #1B5FE0 */
+  --brand-soft: 234 242 254;   /* #EAF2FE */
+  
+  /* Remap legacy orange tokens to SportHub Brand Blue */
+  --orange-400: #60a5fa;
+  --orange-500: #2e77f5;
+  --orange-600: #1b5fe0;
+  --orange-700: #1d4ed8;
+
+  /* -- Neutrals (Light Mode) -- */
+  --white: #ffffff;
+  --gray-50: #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --gray-900: #0f172a;
+  --black: #020617;
+
+  /* -- Semantic Surfaces & Text -- */
+  --surface: #ffffff;
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+  --muted: #64748b;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --card-elevated: #f8fafc;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+
+  /* -- Status -- */
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --violet: #8b5cf6;
+}
+
+.dark,
+html.dark,
+:root[data-theme='dark'],
+[data-theme='dark'] {
+  /* -- SportHub Brand Colors (Dark Mode) -- */
+  --brand: 96 165 250;         /* #60A5FA */
+  --brand-dark: 59 130 246;    /* #3B82F6 */
+  --brand-soft: 30 42 74;      /* #1E2A4A */
+
+  /* Remap legacy orange tokens to SportHub Brand Blue */
+  --orange-400: #93c5fd;
+  --orange-500: #3b82f6;
+  --orange-600: #60a5fa;
+  --orange-700: #93c5fd;
+
+  /* -- Neutrals (Dark Mode) -- */
+  --white: #1b2540;
+  --gray-50: #0b1120;
+  --gray-100: #16213e;
+  --gray-200: #2a3756;
+  --gray-300: #3a4b6e;
+  --gray-400: #64748b;
+  --gray-500: #94a3b8;
+  --gray-600: #cbd5e1;
+  --gray-700: #e2e8f0;
+  --gray-800: #f1f5f9;
+  --gray-900: #f8fafc;
+  --black: #ffffff;
+
+  /* -- Semantic Surfaces & Text -- */
+  --surface: #1b2540;
+  --background: #0b1120;
+  --foreground: #f8fafc;
+  --muted: #94a3b8;
+  --card-bg: #1b2540;
+  --card-border: #2a3756;
+  --card-elevated: #151d32;
+  --input-bg: #151d32;
+  --input-border: #2a3756;
+}
+
+/* ============================================================
+   Remap Orange Utility Classes to SportHub Blue Palette
+   ============================================================ */
+.text-orange-500,
+.text-orange-600 {
+  color: var(--orange-500) !important;
+}
+
+.text-orange-400 {
+  color: var(--orange-400) !important;
+}
+
+.text-orange-700,
+.text-orange-800,
+.text-orange-900 {
+  color: var(--orange-600) !important;
+}
+
+.bg-orange-500,
+.bg-orange-600 {
+  background-color: var(--orange-500) !important;
+}
+
+.bg-orange-50 {
+  background-color: rgba(46, 119, 245, 0.08) !important;
+}
+
+.bg-orange-100 {
+  background-color: rgba(46, 119, 245, 0.14) !important;
+}
+
+.border-orange-500 {
+  border-color: var(--orange-500) !important;
+}
+
+.border-orange-100,
+.border-orange-200,
+.border-orange-300 {
+  border-color: rgba(46, 119, 245, 0.25) !important;
+}
+
+.ring-orange-500 {
+  --tw-ring-color: var(--orange-500) !important;
+}
+
+.ring-orange-50 {
+  --tw-ring-color: rgba(46, 119, 245, 0.15) !important;
+}
+
+.shadow-orange-500\/20,
+.shadow-orange-500\/25,
+.shadow-orange-500\/30 {
+  --tw-shadow-color: rgba(46, 119, 245, 0.25) !important;
+}
+
+[data-theme='dark'] .bg-orange-50,
+.dark .bg-orange-50 {
+  background-color: rgba(96, 165, 250, 0.12) !important;
+}
+
+[data-theme='dark'] .bg-orange-100,
+.dark .bg-orange-100 {
+  background-color: rgba(96, 165, 250, 0.18) !important;
+}
+
+[data-theme='dark'] .border-orange-100,
+[data-theme='dark'] .border-orange-200,
+.dark .border-orange-100,
+.dark .border-orange-200 {
+  border-color: rgba(96, 165, 250, 0.3) !important;
+}
+
+[data-theme='dark'] .text-orange-900,
+.dark .text-orange-900 {
+  color: #e2e8f0 !important;
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 3px;
+  }
+}
+
+/* ============================================================
+   Components
+   ============================================================ */
+@layer components {
+
+  /* ---- Cards ---- */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card:hover {
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.09);
+    border-color: var(--orange-400);
+  }
+
+  .card-flat {
+    background: var(--card-elevated);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+  }
+
+  /* ---- Buttons ---- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    line-height: 1.4;
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--orange-500) 0%, var(--orange-600) 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 14px 0 rgba(46, 119, 245, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    box-shadow: 0 6px 20px 0 rgba(46, 119, 245, 0.45);
+    transform: translateY(-2px) scale(1.02);
+  }
+
+  .btn-secondary {
+    background: var(--card-elevated);
+    color: var(--foreground);
+    border: 1px solid var(--card-border);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--gray-100);
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--foreground);
+    border: 1.5px solid var(--card-border);
+  }
+
+  .btn-outline:hover:not(:disabled) {
+    background: var(--card-elevated);
+    border-color: var(--orange-500);
+    color: var(--orange-500);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    padding: 8px 12px;
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--gray-100);
+    color: var(--foreground);
+  }
+
+  .btn-sm {
+    padding: 6px 14px;
+    font-size: 13px;
+    border-radius: 10px;
+  }
+
+  @media (pointer: coarse) {
+    .btn-sm { min-height: 40px; }
+    .btn-ghost { min-height: 40px; }
+  }
+
+  /* ---- Form Controls ---- */
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  .form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--foreground);
+    margin-bottom: 6px;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 11px 16px;
+    padding-left: 40px;
+    background: var(--input-bg);
+    border: 1.5px solid var(--input-border);
+    border-radius: 12px;
+    font-size: 14px;
+    color: var(--foreground);
+    transition: all 0.2s ease;
+    outline: none;
+    font-family: inherit;
+  }
+
+  .form-input:focus {
+    border-color: var(--orange-500);
+    box-shadow: 0 0 0 3px rgba(46, 119, 245, 0.18);
+  }
+
+  .form-input::placeholder {
+    color: var(--muted);
+    opacity: 0.8;
+  }
+
+  .form-input-plain {
+    padding-left: 16px;
+  }
+
+  .form-select {
+    width: 100%;
+    padding: 11px 16px;
+    padding-right: 40px;
+    background: var(--input-bg);
+    border: 1.5px solid var(--input-border);
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--foreground);
+    outline: none;
+    font-family: inherit;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m7 10l5 5l5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    transition: all 0.2s ease;
+  }
+
+  .form-select:focus {
+    border-color: var(--orange-500);
+    box-shadow: 0 0 0 3px rgba(46, 119, 245, 0.18);
+  }
+
+  /* ---- Badges ---- */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+    border: 1px solid transparent;
+  }
+
+  .badge-success {
+    background: rgba(22, 163, 74, 0.12);
+    color: #16a34a;
+    border-color: rgba(22, 163, 74, 0.25);
+  }
+
+  .badge-warning {
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.25);
+  }
+
+  .badge-danger {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.25);
+  }
+
+  .badge-muted {
+    background: var(--gray-100);
+    color: var(--muted);
+    border-color: var(--card-border);
+  }
+
+  .badge-orange {
+    background: rgba(46, 119, 245, 0.12);
+    color: var(--orange-500);
+    border-color: rgba(46, 119, 245, 0.25);
+  }
+
+  /* ---- Stat Cards ---- */
+  .stat-card {
+    padding: 18px;
+    border-radius: 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  }
+
+  /* ---- Spinner ---- */
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--gray-200);
+    border-top-color: var(--orange-500);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  /* ---- Animations ---- */
+  .animate-in {
+    animation: fadeIn 0.3s ease-out both;
+  }
+
+  /* ---- Responsive Container ---- */
+  .container-page {
+    width: 100%;
+    padding: 0 16px;
+  }
+
+  @media (min-width: 640px) {
+    .container-page {
+      padding: 0 24px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-page {
+      padding: 0 32px;
+    }
+  }
+}
+
+/* ============================================================
+   Keyframes
+   ============================================================ */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce-slow {
+  0%,
+  100% {
+    transform: translateY(-8%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+
+  50% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+@keyframes scan {
+  from {
+    background-position: -200% 0;
+  }
+
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 40px 0;
+  }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s infinite;
+}
+
+.animate-scan {
+  animation: scan 3s linear infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+}

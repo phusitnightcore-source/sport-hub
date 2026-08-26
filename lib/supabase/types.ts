@@ -3214,6 +3214,189 @@ export type Database = {
         }
         Relationships: []
       }
+      group_sessions: {
+        Row: {
+          id: string
+          tenant_id: string
+          branch_id: string | null
+          title: string
+          session_date: string
+          start_time: string
+          end_time: string
+          shuttlecock_brand: string
+          shuttlecock_price: number
+          entry_fee: number
+          court_ids: string[]
+          court_names: string[]
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          branch_id?: string | null
+          title: string
+          session_date?: string
+          start_time?: string
+          end_time?: string
+          shuttlecock_brand?: string
+          shuttlecock_price?: number
+          entry_fee?: number
+          court_ids?: string[]
+          court_names?: string[]
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          branch_id?: string | null
+          title?: string
+          session_date?: string
+          start_time?: string
+          end_time?: string
+          shuttlecock_brand?: string
+          shuttlecock_price?: number
+          entry_fee?: number
+          court_ids?: string[]
+          court_names?: string[]
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      group_session_players: {
+        Row: {
+          id: string
+          session_id: string
+          profile_id: string | null
+          player_name: string
+          player_phone: string | null
+          skill_level: string
+          mmr: number
+          is_guest: boolean
+          is_checked_in: boolean
+          discount: number
+          additional_cost: number
+          payment_status: "pending" | "paid"
+          payment_method: "cash" | "transfer" | null
+          slip_image_url: string | null
+          games_played: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          profile_id?: string | null
+          player_name: string
+          player_phone?: string | null
+          skill_level?: string
+          mmr?: number
+          is_guest?: boolean
+          is_checked_in?: boolean
+          discount?: number
+          additional_cost?: number
+          payment_status?: "pending" | "paid"
+          payment_method?: "cash" | "transfer" | null
+          slip_image_url?: string | null
+          games_played?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          profile_id?: string | null
+          player_name?: string
+          player_phone?: string | null
+          skill_level?: string
+          mmr?: number
+          is_guest?: boolean
+          is_checked_in?: boolean
+          discount?: number
+          additional_cost?: number
+          payment_status?: "pending" | "paid"
+          payment_method?: "cash" | "transfer" | null
+          slip_image_url?: string | null
+          games_played?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      group_session_matches: {
+        Row: {
+          id: string
+          session_id: string
+          court_name: string
+          court_id: string | null
+          match_number: number
+          status: "waiting" | "playing" | "finished" | "cancelled"
+          team_a_score: number
+          team_b_score: number
+          shuttlecock_count: number
+          shuttlecock_numbers: string[]
+          started_at: string | null
+          completed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          court_name: string
+          court_id?: string | null
+          match_number?: number
+          status?: "waiting" | "playing" | "finished" | "cancelled"
+          team_a_score?: number
+          team_b_score?: number
+          shuttlecock_count?: number
+          shuttlecock_numbers?: string[]
+          started_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          court_name?: string
+          court_id?: string | null
+          match_number?: number
+          status?: "waiting" | "playing" | "finished" | "cancelled"
+          team_a_score?: number
+          team_b_score?: number
+          shuttlecock_count?: number
+          shuttlecock_numbers?: string[]
+          started_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      group_session_match_players: {
+        Row: {
+          id: string
+          match_id: string
+          session_player_id: string
+          team: "A" | "B"
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          match_id: string
+          session_player_id: string
+          team: "A" | "B"
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          match_id?: string
+          session_player_id?: string
+          team?: "A" | "B"
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       branch_occupancy: {

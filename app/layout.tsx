@@ -40,7 +40,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full font-body">
+      <body className="min-h-full font-body" suppressHydrationWarning>
         <BfcacheGuard />
         <PageViewTracker />
         {children}

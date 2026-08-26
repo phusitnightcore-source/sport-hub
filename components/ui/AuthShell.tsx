@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Activity, CheckCircle2 } from "lucide-react";
+import Image from "next/image";
+import { CheckCircle2 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 
 const BULLETS = [
@@ -31,8 +32,14 @@ export function AuthShell({
         </div>
 
         <Link href="/" className="relative flex w-fit items-center gap-2">
-          <Activity className="h-7 w-7" />
-          <span className="font-display text-2xl font-bold">SportHub</span>
+          <Image
+            src="/Dark.png"
+            alt="SportHub Logo"
+            width={130}
+            height={38}
+            className="h-9 w-auto object-contain"
+            priority
+          />
         </Link>
 
         <div className="relative flex flex-col gap-7">
@@ -73,9 +80,23 @@ export function AuthShell({
           <ThemeToggle />
         </div>
 
-        <Link href="/" className="mb-8 flex items-center gap-2 lg:hidden">
-          <Activity className="h-6 w-6 text-brand" />
-          <span className="font-display text-xl font-bold text-ink">SportHub</span>
+        <Link href="/" className="mb-8 flex items-center justify-center lg:hidden">
+          <Image
+            src="/light.png"
+            alt="SportHub Logo"
+            width={120}
+            height={34}
+            className="h-8 w-auto object-contain dark:hidden [data-theme=dark]_&]:hidden block"
+            priority
+          />
+          <Image
+            src="/Dark.png"
+            alt="SportHub Logo"
+            width={120}
+            height={34}
+            className="h-8 w-auto object-contain hidden dark:block [data-theme=dark]_&:block"
+            priority
+          />
         </Link>
 
         <div className="w-full max-w-md animate-fade-up">

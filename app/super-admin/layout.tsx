@@ -1,53 +1,57 @@
 import Link from "next/link";
-import { LayoutDashboard, Building2, SlidersHorizontal, TrendingUp, Newspaper, Megaphone } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformBellData } from "@/lib/notify/bell-data";
+import { SuperAdminNav, type SuperAdminNavItem } from "@/components/super-admin/SuperAdminNav";
 
-const NAV_ITEMS = [
-  { href: "/super-admin", label: "ภาพรวม", icon: LayoutDashboard },
-  { href: "/super-admin/tenants", label: "สนามทั้งหมด", icon: Building2 },
-  { href: "/super-admin/plans", label: "แพลน & สิทธิ์", icon: SlidersHorizontal },
-  { href: "/super-admin/traffic", label: "การเข้าชม", icon: TrendingUp },
-  { href: "/super-admin/blog", label: "บทความ", icon: Newspaper },
-  { href: "/super-admin/banners", label: "แบนเนอร์", icon: Megaphone },
-];
-
-// Shell ฝั่งทีม SportHub (super_admin)
 export default async function SuperAdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const bell = await getPlatformBellData(createAdminClient());
+  const admin = createAdminClient();
+  const bell = await getPlatformBellData(admin);
+
+  // Check pending coach applications
+  const { count: pendingCoachesCount } = await admin
+    .from("coach_profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("approval_status", "pending");
+
+  const navItems: SuperAdminNavItem[] = [
+    { href: "/super-admin", label: "ภาพรวมระบบ", iconName: "LayoutDashboard" },
+    { href: "/super-admin/tenants", label: "สนามทั้งหมด", iconName: "Building2" },
+    { href: "/super-admin/coaches", label: "โค้ช & อนุมัติ", iconName: "GraduationCap", badge: pendingCoachesCount },
+    { href: "/super-admin/groups", label: "ก๊วนกีฬา", iconName: "Users" },
+    { href: "/super-admin/tournaments", label: "การแข่งขัน", iconName: "Trophy" },
+    { href: "/super-admin/plans", label: "แพลน & สิทธิ์", iconName: "SlidersHorizontal" },
+    { href: "/super-admin/traffic", label: "การเข้าชม", iconName: "TrendingUp" },
+    { href: "/super-admin/blog", label: "บทความ", iconName: "Newspaper" },
+    { href: "/super-admin/banners", label: "แบนเนอร์", iconName: "Megaphone" },
+  ];
+
   return (
     <div className="flex min-h-screen bg-surface/50 pb-16 md:pb-0">
-      <aside className="hidden sticky top-0 md:flex h-screen w-64 flex-col border-r border-line bg-surface px-4 py-6">
-        <div className="mb-8 px-2">
-          <span className="font-display text-2xl font-bold text-brand">
-            SportHub <span className="text-body-sm font-normal text-ink-soft">Admin</span>
-          </span>
+      {/* Sidebar (Desktop) */}
+      <aside className="hidden sticky top-0 md:flex h-screen w-64 flex-col border-r border-line bg-surface px-4 py-6 shadow-xs">
+        <div className="mb-6 px-3 flex items-center justify-between">
+          <Link href="/super-admin" className="font-display text-2xl font-bold text-brand hover:opacity-90 transition-opacity">
+            SportHub <span className="text-body-sm font-bold text-ink-soft">Admin</span>
+          </Link>
         </div>
-        <nav className="flex flex-1 flex-col gap-1">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className="flex items-center gap-3 rounded-md px-3 py-2.5 text-body-sm font-medium text-ink-soft transition-colors duration-fast hover:bg-brand-soft hover:text-brand"
-            >
-              <Icon aria-hidden className="h-5 w-5" />
-              <span>{label}</span>
-            </Link>
-          ))}
-        </nav>
-        <div className="mt-auto px-2">
+
+        {/* Super Admin Navigation */}
+        <SuperAdminNav items={navItems} />
+
+        <div className="mt-auto pt-4 border-t border-line/60 px-2">
           <LogoutButton />
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col">
+      {/* Main Content */}
+      <div className="flex flex-1 flex-col min-w-0">
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-line bg-surface/80 px-4 md:px-8 backdrop-blur-md">
           <div className="md:hidden font-display text-lg font-bold text-brand">
             SportHub <span className="text-body-sm font-normal text-ink-soft">Admin</span>
@@ -60,13 +64,14 @@ export default async function SuperAdminLayout({
               href="/super-admin"
             />
             <ThemeToggle />
-            <span className="hidden md:inline">Super Admin</span>
+            <span className="hidden md:inline font-bold">Super Admin</span>
             <div className="md:hidden">
               <LogoutButton />
             </div>
           </div>
         </header>
-        <main className="flex-1 overflow-auto p-4 md:p-8">
+
+        <main className="flex-1 overflow-auto p-4 md:p-8 no-scrollbar">
           <div className="mx-auto max-w-6xl">
             {children}
           </div>
@@ -74,15 +79,14 @@ export default async function SuperAdminLayout({
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t border-line bg-surface px-2 md:hidden">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t border-line bg-surface/95 px-2 backdrop-blur-lg md:hidden overflow-x-auto no-scrollbar">
+        {navItems.slice(0, 5).map(({ href, label }) => (
           <Link
             key={href}
             href={href}
-            className="flex flex-col items-center justify-center gap-1 text-ink-soft hover:text-brand"
+            className="flex flex-col items-center justify-center gap-1 text-ink-soft hover:text-brand px-2 py-1"
           >
-            <Icon aria-hidden className="h-5 w-5" />
-            <span className="text-[10px] font-medium">{label}</span>
+            <span className="text-[11px] font-bold truncate max-w-[60px]">{label}</span>
           </Link>
         ))}
       </nav>

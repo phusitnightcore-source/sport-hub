@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getSuperAdminContext } from "@/lib/auth";
 import { bangkokToday } from "@/lib/api";
 import { PLANS, effectivePlan } from "@/lib/plans";
@@ -7,8 +9,20 @@ import { formatBaht, formatBahtFromDb, toSatang } from "@/lib/money";
 import { StatCard } from "@/components/ui/StatCard";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { MarkPaidButton } from "./MarkPaidButton";
+import {
+  Building2,
+  GraduationCap,
+  Users,
+  Trophy,
+  AlertCircle,
+  Clock,
+  ArrowRight,
+  TrendingUp,
+  Receipt,
+  ShieldCheck,
+} from "lucide-react";
+import { Button } from "@/components/ui/Button";
 
-// ป้ายกำกับ action ในกิจกรรมล่าสุด (§24.3 Super Admin ดู audit ทุก tenant)
 const ACTION_LABEL: Record<string, string> = {
   signup: "สมัครสนามใหม่",
   create_invoice: "ออก Invoice",
@@ -26,12 +40,12 @@ const ACTION_LABEL: Record<string, string> = {
   unfreeze: "เลิกระงับสมาชิก",
 };
 
-// Dashboard ภาพรวมทั้งระบบสำหรับทีม SportHub (§3.1, §11.6)
 export default async function SuperAdminPage() {
   const ctx = await getSuperAdminContext();
   if (!ctx) redirect("/login");
 
   const supabase = await createClient();
+  const admin = createAdminClient();
   const today = bangkokToday();
   const monthStartIso = new Date(`${today.slice(0, 7)}-01T00:00:00+07:00`).toISOString();
 
@@ -45,6 +59,10 @@ export default async function SuperAdminPage() {
     { data: activity },
     bookingCount,
     memberCount,
+    coachApprovedCount,
+    coachPendingCount,
+    groupCount,
+    tournamentCount,
   ] = await Promise.all([
     supabase.from("subscriptions").select("plan, status, trial_end, grace_period_end"),
     supabase.from("tenants").select("id, status, created_at"),
@@ -76,6 +94,10 @@ export default async function SuperAdminPage() {
       .limit(12),
     supabase.from("bookings").select("id", { count: "exact", head: true }),
     supabase.from("members").select("id", { count: "exact", head: true }),
+    admin.from("coach_profiles").select("id", { count: "exact", head: true }).eq("approval_status", "approved"),
+    admin.from("coach_profiles").select("id", { count: "exact", head: true }).eq("approval_status", "pending"),
+    admin.from("groups").select("id", { count: "exact", head: true }),
+    admin.from("tournaments").select("id", { count: "exact", head: true }),
   ]);
 
   const all = subs ?? [];
@@ -93,14 +115,37 @@ export default async function SuperAdminPage() {
     0,
   );
 
+  const pendingCoaches = coachPendingCount.count ?? 0;
+
   return (
     <main className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-display text-display-md font-semibold text-ink">ภาพรวมระบบ</h1>
-        <p className="text-body-sm text-ink-soft">สถิติรวมทุกสนามในแพลตฟอร์ม SportHub</p>
+      <div className="flex flex-col gap-1">
+        <h1 className="font-display text-display-md font-bold text-ink">ภาพรวมระบบ SportHub</h1>
+        <p className="text-body-sm text-ink-soft">ศูนย์ควบคุม สถิติธุรกิจ และการดูแลแพลตฟอร์มทั้งระบบ</p>
       </div>
 
-      {/* ภาพรวมธุรกิจ */}
+      {/* 1. URGENT PENDING ACTIONS */}
+      {pendingCoaches > 0 && (
+        <div className="rounded-2xl border border-warning/40 bg-warning/10 p-5 text-warning-dark dark:text-warning flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <Clock className="h-6 w-6 text-warning shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-bold text-body">มีใบสมัครโค้ชรอการอนุมัติ {pendingCoaches} รายการ</h3>
+              <p className="text-body-sm text-ink-soft mt-0.5">
+                กรุณาตรวจสอบเอกสารและประวัติของโค้ชเพื่อให้สามารถแสดงผลใน Coach Marketplace
+              </p>
+            </div>
+          </div>
+          <Link href="/super-admin/coaches">
+            <Button size="sm" className="rounded-xl font-bold bg-warning text-white hover:bg-warning/90 shrink-0">
+              ไปตรวจใบสมัคร
+              <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      )}
+
+      {/* 2. PLATFORM REVENUE & MRR */}
       <StatCard
         stats={[
           { label: "MRR (รายได้ประจำเดือน)", value: `฿${formatBaht(mrrSatang)}` },
@@ -110,51 +155,46 @@ export default async function SuperAdminPage() {
         ]}
       />
 
-      {/* สนามในระบบแยกตามสถานะ */}
+      {/* 3. ECOSYSTEM TOTALS (Tenants, Coaches, Groups, Tournaments) */}
       <StatCard
         stats={[
           { label: "สนามทั้งหมด", value: totalTenants, unit: "สนาม" },
-          { label: "Active (จ่ายเงิน)", value: countSub((s) => s.status === "active" && s.plan !== "free"), unit: "สนาม" },
-          { label: "Trial", value: countSub((s) => s.status === "trial"), unit: "สนาม" },
-          { label: "Free", value: countSub((s) => effectivePlan(s) === "free"), unit: "สนาม" },
-          { label: "ถูกระงับ", value: suspendedCount, unit: "สนาม" },
+          { label: "โค้ชที่อนุมัติแล้ว", value: coachApprovedCount.count ?? 0, unit: "คน" },
+          { label: "ก๊วนกีฬาในระบบ", value: groupCount.count ?? 0, unit: "ก๊วน" },
+          { label: "การแข่งขันทั้งหมด", value: tournamentCount.count ?? 0, unit: "รายการ" },
+          { label: "การจองสนามสะสม", value: (bookingCount.count ?? 0).toLocaleString("th-TH"), unit: "ครั้ง" },
         ]}
       />
 
-      {/* การใช้งานรวมทั้งระบบ */}
+      {/* 4. SUBSCRIPTION PLANS BREAKDOWN */}
       <StatCard
         stats={[
-          { label: "Growth", value: countSub((s) => s.status === "active" && s.plan === "growth"), unit: "สนาม" },
-          { label: "Pro", value: countSub((s) => s.status === "active" && s.plan === "pro"), unit: "สนาม" },
-          { label: "การจองทั้งหมด", value: (bookingCount.count ?? 0).toLocaleString("th-TH"), unit: "รายการ" },
-          { label: "สมาชิกทั้งหมด", value: (memberCount.count ?? 0).toLocaleString("th-TH"), unit: "คน" },
-          { label: "Invoice ค้างชำระ", value: (pendingInvoices ?? []).length, unit: "ใบ" },
+          { label: "สนาม Active (จ่ายเงิน)", value: countSub((s) => s.status === "active" && s.plan !== "free"), unit: "สนาม" },
+          { label: "Growth Plan", value: countSub((s) => s.status === "active" && s.plan === "growth"), unit: "สนาม" },
+          { label: "Pro Plan", value: countSub((s) => s.status === "active" && s.plan === "pro"), unit: "สนาม" },
+          { label: "Trial (ทดลองใช้)", value: countSub((s) => s.status === "trial"), unit: "สนาม" },
+          { label: "ถูกระงับ (Suspended)", value: suspendedCount, unit: "สนาม" },
         ]}
       />
 
-      {/* Invoice รอตรวจสอบยอด — จุดที่ Super Admin เป็นตัวกลาง */}
-      <div className="card-floating p-6">
-        <h2 className="mb-4 text-body font-medium text-ink">Invoice รอตรวจสอบยอดโอน</h2>
+      {/* 5. INVOICE AWAITING VERIFICATION */}
+      <div className="card-floating p-6 border border-line">
+        <h2 className="mb-4 text-body font-bold text-ink">Invoice ค่าบริการรอตรวจสอบยอดโอน</h2>
         {(pendingInvoices ?? []).length === 0 ? (
           <p className="text-body-sm text-ink-soft">ไม่มีรายการค้างชำระ</p>
         ) : (
-          <div className="flex flex-col gap-3">
-            {(pendingInvoices ?? []).map((inv) => (
-              <div
-                key={inv.id}
-                className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3 first:border-t-0 first:pt-0"
-              >
+          <div className="divide-y divide-line">
+            {pendingInvoices!.map((inv: any) => (
+              <div key={inv.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-body font-medium text-ink">
-                    {inv.tenants?.name} · {inv.plan_name}
-                  </p>
+                  <span className="font-medium text-ink">{inv.tenants?.name ?? "ไม่ระบุ"}</span>
+                  <span className="ml-2 font-mono text-mono-sm text-ink-soft">{inv.invoice_number}</span>
                   <p className="text-body-sm text-ink-soft">
-                    <span className="font-mono text-mono-sm">{inv.invoice_number}</span> · ครบกำหนด{" "}
-                    {inv.due_date}
+                    แพลน {inv.plan_name} · ครบกำหนด {inv.due_date}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="font-display font-bold text-brand">
+                  <span className="font-mono text-body font-bold text-ink">
                     ฿{formatBahtFromDb(inv.total_amount)}
                   </span>
                   <MarkPaidButton invoiceId={inv.id} />
@@ -165,78 +205,26 @@ export default async function SuperAdminPage() {
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* ประวัติการชำระ */}
-        <div className="card-floating p-6">
-          <h2 className="mb-4 text-body font-medium text-ink">การชำระล่าสุด</h2>
-          {(recentPaid ?? []).length === 0 ? (
-            <p className="text-body-sm text-ink-soft">ยังไม่มีรายการ</p>
-          ) : (
-            <ul className="flex flex-col gap-2 text-body-sm">
-              {(recentPaid ?? []).map((inv) => (
-                <li key={inv.id} className="flex items-center justify-between gap-2">
-                  <span className="truncate text-ink">
-                    {inv.tenants?.name} · {inv.plan_name}
-                  </span>
-                  <span className="shrink-0 text-ink-soft">฿{formatBahtFromDb(inv.total_amount)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* ประวัติเปลี่ยนแพลน */}
-        <div className="card-floating p-6">
-          <h2 className="mb-4 text-body font-medium text-ink">Upgrade / Downgrade ล่าสุด</h2>
-          {(planLogs ?? []).length === 0 ? (
-            <p className="text-body-sm text-ink-soft">ยังไม่มีรายการ</p>
-          ) : (
-            <ul className="flex flex-col gap-2 text-body-sm">
-              {(planLogs ?? []).map((log) => (
-                <li key={log.id} className="flex items-center justify-between gap-2">
-                  <span className="truncate text-ink">{log.tenants?.name}</span>
-                  <StatusPill
-                    tone={
-                      PLANS[log.to_plan].priceSatang >= PLANS[log.from_plan].priceSatang
-                        ? "success"
-                        : "warning"
-                    }
-                  >
-                    {PLANS[log.from_plan].name} → {PLANS[log.to_plan].name}
-                  </StatusPill>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      {/* กิจกรรมล่าสุดทั้งระบบ (§24.3) */}
-      <div className="card-floating p-6">
-        <h2 className="mb-4 text-body font-medium text-ink">กิจกรรมล่าสุดทั้งระบบ</h2>
+      {/* 6. RECENT ACTIVITY AUDIT LOG */}
+      <div className="card-floating p-6 border border-line">
+        <h2 className="mb-4 text-body font-bold text-ink">กิจกรรมล่าสุดในระบบ (Audit Log)</h2>
         {(activity ?? []).length === 0 ? (
           <p className="text-body-sm text-ink-soft">ยังไม่มีกิจกรรม</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-line">
-            {(activity ?? []).map((a) => (
-              <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-body-sm">
-                <span className="min-w-0 flex-1 truncate text-ink">
-                  <span className="text-ink-soft">{a.tenants?.name ?? "ระบบ"}</span> ·{" "}
-                  {ACTION_LABEL[a.action] ?? a.action}
-                  <span className="text-ink-soft"> ({a.module})</span>
+          <div className="divide-y divide-line">
+            {activity!.map((act: any) => (
+              <div key={act.id} className="flex items-center justify-between py-2.5 text-body-sm">
+                <div>
+                  <span className="font-medium text-ink">{act.tenants?.name ?? "Platform"}</span>
+                  <span className="ml-2 text-ink-soft">{ACTION_LABEL[act.action] ?? act.action}</span>
+                  <span className="ml-2 text-[12px] text-ink-soft/70">({act.module})</span>
+                </div>
+                <span className="font-mono text-[12px] text-ink-soft">
+                  {new Date(act.created_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
                 </span>
-                <span className="shrink-0 font-mono text-mono-sm text-ink-soft">
-                  {new Date(a.created_at).toLocaleString("th-TH", {
-                    timeZone: "Asia/Bangkok",
-                    day: "2-digit",
-                    month: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </div>
     </main>

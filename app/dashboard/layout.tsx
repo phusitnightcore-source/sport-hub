@@ -1,31 +1,5 @@
 import Link from "next/link";
-import {
-  LayoutDashboard,
-  CalendarDays,
-  ReceiptText,
-  RotateCcw,
-  CreditCard,
-  Package,
-  Users,
-  Building,
-  UserCog,
-  Ticket,
-  CalendarClock,
-  LayoutGrid,
-  ScanLine,
-  BarChart3,
-  LineChart,
-  Bell,
-  ScrollText,
-  Image as ImageIcon,
-  Settings,
-  TicketCheck,
-  Lock,
-  Megaphone,
-  ListChecks,
-  ShoppingCart,
-  Boxes,
-} from "lucide-react";
+import Image from "next/image";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { GlobalSearch } from "@/components/ui/GlobalSearch";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -45,7 +19,7 @@ type LockFeature = "analytics" | "member_system" | "guest_pass" | "broadcast";
 type NavItemConfig = {
   href: string;
   label: string;
-  icon: typeof LayoutDashboard;
+  iconName: string;
   permission?: Permission;
   feature?: LockFeature;
 };
@@ -54,45 +28,46 @@ const NAV_GROUPS: { title: string; items: NavItemConfig[] }[] = [
   {
     title: "ดำเนินงาน",
     items: [
-      { href: "/dashboard", label: "ภาพรวม", icon: LayoutDashboard },
-      { href: "/dashboard/bookings", label: "การจอง", icon: CalendarDays, permission: "view_bookings_own" },
-      { href: "/dashboard/schedule", label: "ตารางสนาม", icon: CalendarClock, permission: "view_bookings_own" },
-      { href: "/dashboard/waitlist", label: "คิวรอ", icon: ListChecks, permission: "view_bookings_own" },
-      { href: "/dashboard/checkin", label: "เช็คอิน", icon: ScanLine, permission: "checkin_member" },
-      { href: "/dashboard/guest-passes", label: "บัตรชั่วคราว", icon: TicketCheck, permission: "issue_guest_pass", feature: "guest_pass" },
-      { href: "/dashboard/payments", label: "ตรวจสลิป", icon: ReceiptText, permission: "verify_slip" },
-      { href: "/dashboard/refunds", label: "คืนเงิน", icon: RotateCcw, permission: "confirm_refund" },
-      { href: "/pos", label: "POS หน้าร้าน", icon: ShoppingCart, permission: "use_pos" },
-      { href: "/dashboard/inventory", label: "คลังสินค้า", icon: Boxes, permission: "manage_inventory" },
-      { href: "/dashboard/notifications", label: "แจ้งเตือน", icon: Bell },
+      { href: "/dashboard", label: "ภาพรวม", iconName: "LayoutDashboard" },
+      { href: "/dashboard/bookings", label: "การจอง", iconName: "CalendarDays", permission: "view_bookings_own" },
+      { href: "/dashboard/schedule", label: "ตารางสนาม", iconName: "CalendarClock", permission: "view_bookings_own" },
+      { href: "/dashboard/group-sessions", label: "ระบบก๊วนแบดมินตัน", iconName: "Sparkles" },
+      { href: "/dashboard/waitlist", label: "คิวรอ", iconName: "ListChecks", permission: "view_bookings_own" },
+      { href: "/dashboard/checkin", label: "เช็คอิน", iconName: "ScanLine", permission: "checkin_member" },
+      { href: "/dashboard/guest-passes", label: "บัตรชั่วคราว", iconName: "TicketCheck", permission: "issue_guest_pass", feature: "guest_pass" },
+      { href: "/dashboard/payments", label: "ตรวจสลิป", iconName: "ReceiptText", permission: "verify_slip" },
+      { href: "/dashboard/refunds", label: "คืนเงิน", iconName: "RotateCcw", permission: "confirm_refund" },
+      { href: "/pos", label: "POS หน้าร้าน", iconName: "ShoppingCart", permission: "use_pos" },
+      { href: "/dashboard/inventory", label: "คลังสินค้า", iconName: "Boxes", permission: "manage_inventory" },
+      { href: "/dashboard/notifications", label: "แจ้งเตือน", iconName: "Bell" },
     ],
   },
   {
     title: "สมาชิก & การตลาด",
     items: [
-      { href: "/dashboard/members", label: "สมาชิก", icon: Users, permission: "add_member", feature: "member_system" },
-      { href: "/dashboard/packages", label: "แพ็กเกจ", icon: Package, permission: "manage_package", feature: "member_system" },
-      { href: "/dashboard/broadcast", label: "Broadcast", icon: Megaphone, permission: "broadcast", feature: "broadcast" },
-      { href: "/dashboard/coupons", label: "ส่วนลด", icon: Ticket, permission: "manage_coupon" },
-      { href: "/dashboard/media", label: "คลังสื่อ", icon: ImageIcon, permission: "manage_settings" },
+      { href: "/dashboard/members", label: "สมาชิก", iconName: "Users", permission: "add_member", feature: "member_system" },
+      { href: "/dashboard/packages", label: "แพ็กเกจ", iconName: "Package", permission: "manage_package", feature: "member_system" },
+      { href: "/dashboard/broadcast", label: "Broadcast", iconName: "Megaphone", permission: "broadcast", feature: "broadcast" },
+      { href: "/dashboard/coupons", label: "ส่วนลด", iconName: "Ticket", permission: "manage_coupon" },
+      { href: "/dashboard/media", label: "คลังสื่อ", iconName: "ImageIcon", permission: "manage_settings" },
     ],
   },
   {
     title: "รายงาน & วิเคราะห์",
     items: [
-      { href: "/dashboard/reports", label: "รายงาน & ยอดขาย", icon: BarChart3, permission: "view_revenue" },
-      { href: "/dashboard/analytics", label: "วิเคราะห์ธุรกิจ", icon: LineChart, permission: "view_revenue", feature: "analytics" },
+      { href: "/dashboard/reports", label: "รายงาน & ยอดขาย", iconName: "BarChart3", permission: "view_revenue" },
+      { href: "/dashboard/analytics", label: "วิเคราะห์ธุรกิจ", iconName: "LineChart", permission: "view_revenue", feature: "analytics" },
     ],
   },
   {
     title: "ตั้งค่าระบบ",
     items: [
-      { href: "/dashboard/courts", label: "สนาม", icon: LayoutGrid, permission: "manage_court" },
-      { href: "/dashboard/branches", label: "สาขา", icon: Building, permission: "manage_branch" },
-      { href: "/dashboard/staff", label: "พนักงาน", icon: UserCog, permission: "manage_staff" },
-      { href: "/dashboard/audit", label: "Audit Log", icon: ScrollText, permission: "view_audit" },
-      { href: "/dashboard/settings", label: "ตั้งค่า", icon: Settings, permission: "manage_settings" },
-      { href: "/dashboard/subscription", label: "แพลน", icon: CreditCard, permission: "manage_settings" },
+      { href: "/dashboard/courts", label: "สนาม", iconName: "LayoutGrid", permission: "manage_court" },
+      { href: "/dashboard/branches", label: "สาขา", iconName: "Building", permission: "manage_branch" },
+      { href: "/dashboard/staff", label: "พนักงาน", iconName: "UserCog", permission: "manage_staff" },
+      { href: "/dashboard/audit", label: "Audit Log", iconName: "ScrollText", permission: "view_audit" },
+      { href: "/dashboard/settings", label: "ตั้งค่า", iconName: "Settings", permission: "manage_settings" },
+      { href: "/dashboard/subscription", label: "แพลน", iconName: "CreditCard", permission: "manage_settings" },
     ],
   },
 ];
@@ -119,7 +94,7 @@ export default async function DashboardLayout({
     items: g.items.filter(canAccess).map((item) => ({
       href: item.href,
       label: item.label,
-      icon: item.icon,
+      iconName: item.iconName,
       isLocked: isLocked(item.feature),
     })),
   })).filter((g) => g.items.length > 0);
@@ -133,8 +108,26 @@ export default async function DashboardLayout({
       {/* Sidebar (Desktop) */}
       <aside className="hidden sticky top-0 md:flex h-screen w-64 flex-col border-r border-line bg-surface px-4 py-6 shadow-xs">
         <div className="mb-6 px-3 flex items-center justify-between">
-          <Link href="/dashboard" className="font-display text-2xl font-bold text-brand hover:opacity-90 transition-opacity">
-            SportHub
+          <Link href="/dashboard" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+            <Image
+              src="/light.png"
+              alt="SportHub Logo"
+              width={34}
+              height={34}
+              className="h-8 w-auto object-contain dark:hidden [data-theme=dark]_&]:hidden block"
+              priority
+            />
+            <Image
+              src="/Dark.png"
+              alt="SportHub Logo"
+              width={34}
+              height={34}
+              className="h-8 w-auto object-contain hidden dark:block [data-theme=dark]_&:block"
+              priority
+            />
+            <span className="font-display text-xl font-bold tracking-tight text-brand">
+              SportHub
+            </span>
           </Link>
         </div>
 
@@ -150,8 +143,28 @@ export default async function DashboardLayout({
       <div className="flex flex-1 flex-col min-w-0">
         {/* Header */}
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-line bg-surface/80 px-4 md:px-8 backdrop-blur-md">
-          <div className="md:hidden font-display text-lg font-bold text-brand">
-            SportHub
+          <div className="md:hidden flex items-center">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <Image
+                src="/light.png"
+                alt="SportHub Logo"
+                width={28}
+                height={28}
+                className="h-7 w-auto object-contain dark:hidden [data-theme=dark]_&]:hidden block"
+                priority
+              />
+              <Image
+                src="/Dark.png"
+                alt="SportHub Logo"
+                width={28}
+                height={28}
+                className="h-7 w-auto object-contain hidden dark:block [data-theme=dark]_&:block"
+                priority
+              />
+              <span className="font-display text-lg font-bold text-brand">
+                SportHub
+              </span>
+            </Link>
           </div>
           <div className="hidden flex-1 md:block max-w-md">
             <GlobalSearch />

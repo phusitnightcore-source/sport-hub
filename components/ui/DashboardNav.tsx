@@ -2,12 +2,69 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Lock, type LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  CalendarDays,
+  ReceiptText,
+  RotateCcw,
+  CreditCard,
+  Package,
+  Users,
+  Building,
+  UserCog,
+  Ticket,
+  CalendarClock,
+  LayoutGrid,
+  ScanLine,
+  BarChart3,
+  LineChart,
+  Bell,
+  ScrollText,
+  Image as ImageIcon,
+  Settings,
+  TicketCheck,
+  Lock,
+  Megaphone,
+  ListChecks,
+  ShoppingCart,
+  Boxes,
+  Sparkles,
+  HelpCircle,
+  type LucideIcon,
+} from "lucide-react";
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  LayoutDashboard,
+  CalendarDays,
+  ReceiptText,
+  RotateCcw,
+  CreditCard,
+  Package,
+  Users,
+  Building,
+  UserCog,
+  Ticket,
+  CalendarClock,
+  LayoutGrid,
+  ScanLine,
+  BarChart3,
+  LineChart,
+  Bell,
+  ScrollText,
+  ImageIcon,
+  Settings,
+  TicketCheck,
+  Megaphone,
+  ListChecks,
+  ShoppingCart,
+  Boxes,
+  Sparkles,
+};
 
 export type NavItem = {
   href: string;
   label: string;
-  icon: LucideIcon;
+  iconName: string;
   isLocked?: boolean;
 };
 
@@ -33,8 +90,9 @@ export function DashboardNav({ groups }: { groups: NavGroup[] }) {
           <p className="px-3.5 pb-1.5 pt-4 text-[11px] font-bold uppercase tracking-wider text-ink-soft/70">
             {group.title}
           </p>
-          {group.items.map(({ href, label, icon: Icon, isLocked }) => {
+          {group.items.map(({ href, label, iconName, isLocked }) => {
             const active = isActive(href);
+            const Icon = ICON_MAP[iconName] ?? HelpCircle;
             return (
               <Link
                 key={href}
