@@ -70,14 +70,18 @@ export default function Navbar({ profile }: NavbarProps) {
                     key={item.href}
                     href={item.href}
                     onClick={closeMobile ? () => setMobileOpen(false) : undefined}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-bold transition-all mb-1 ${
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-bold transition-all mb-1 ${
                         active
-                            ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-extrabold border border-blue-500/20 shadow-xs'
-                            : 'text-[var(--muted)] hover:bg-[var(--gray-100)] hover:text-[var(--foreground)]'
+                            ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 font-black border border-blue-500/30 shadow-xs ring-1 ring-blue-500/20'
+                            : 'text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white'
                     }`}
                 >
-                    <Icon icon={item.icon} width={20} className={active ? 'text-blue-600 dark:text-blue-400' : 'opacity-70'} />
-                    <span>{item.label}</span>
+                    <Icon
+                        icon={item.icon}
+                        width={20}
+                        className={active ? 'text-blue-600 dark:text-blue-400 shrink-0' : 'text-slate-400 dark:text-slate-400 shrink-0'}
+                    />
+                    <span className="truncate">{item.label}</span>
                 </Link>
             );
         })
@@ -106,16 +110,16 @@ export default function Navbar({ profile }: NavbarProps) {
                 </div>
 
                 {/* Nav Items */}
-                <nav className="flex-1 py-6 px-4 overflow-y-auto">
-                    <p className="px-4 text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--muted)' }}>
+                <nav className="flex-1 py-5 px-3.5 overflow-y-auto">
+                    <p className="px-3.5 text-[10px] font-extrabold uppercase tracking-widest mb-2 text-slate-400 dark:text-slate-400">
                         เมนูหลัก
                     </p>
                     {renderNavItems(userMenuItems)}
 
                     {isAdmin && (
                         <>
-                            <div className="my-5 mx-4 h-px" style={{ background: 'var(--card-border)' }} />
-                            <p className="px-4 text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--muted)' }}>
+                            <div className="my-4 mx-3.5 h-px" style={{ background: 'var(--card-border)' }} />
+                            <p className="px-3.5 text-[10px] font-extrabold uppercase tracking-widest mb-2 text-slate-400 dark:text-slate-400">
                                 ผู้จัดก๊วน (Admin)
                             </p>
                             {renderNavItems(adminMenuItems)}
@@ -202,15 +206,15 @@ export default function Navbar({ profile }: NavbarProps) {
                                 </button>
                             </div>
 
-                            <nav className="py-6 px-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
-                                <p className="px-4 text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--muted)' }}>
+                            <nav className="py-5 px-3.5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+                                <p className="px-3.5 text-[10px] font-extrabold uppercase tracking-widest mb-2 text-slate-400 dark:text-slate-400">
                                     เมนูหลัก
                                 </p>
                                 {renderNavItems(userMenuItems, true)}
                                 {isAdmin && (
                                     <>
-                                        <div className="my-5 mx-4 h-px" style={{ background: 'var(--card-border)' }} />
-                                        <p className="px-4 text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--muted)' }}>
+                                        <div className="my-4 mx-3.5 h-px" style={{ background: 'var(--card-border)' }} />
+                                        <p className="px-3.5 text-[10px] font-extrabold uppercase tracking-widest mb-2 text-slate-400 dark:text-slate-400">
                                             ผู้จัดก๊วน (Admin)
                                         </p>
                                         {renderNavItems(adminMenuItems, true)}

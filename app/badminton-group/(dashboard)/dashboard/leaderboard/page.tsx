@@ -544,10 +544,10 @@ export default function LeaderboardPage() {
                         <div className="relative">
                             <button
                                 onClick={() => setSeasonDropdownOpen(!seasonDropdownOpen)}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white border border-gray-200 text-gray-700 hover:border-orange-500 transition-all min-w-[160px] justify-between"
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--foreground)] hover:border-blue-500 transition-all min-w-[160px] justify-between shadow-xs"
                             >
                                 <div className="flex items-center gap-2">
-                                    <Icon icon="solar:medal-bold-duotone" width={18} className="text-orange-500" />
+                                    <Icon icon="solar:medal-bold-duotone" width={18} className="text-blue-500" />
                                     <span>
                                         {selectedSeason === 'current'
                                             ? 'ซีซันปัจจุบัน'
@@ -559,22 +559,22 @@ export default function LeaderboardPage() {
                             </button>
 
                             {seasonDropdownOpen && (
-                                <div className="absolute right-0 mt-2 w-full min-w-[200px] bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="absolute right-0 mt-2 w-full min-w-[200px] bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                     <button
                                         onClick={() => { setSelectedSeason('current'); setSeasonDropdownOpen(false); }}
-                                        className={`w-full text-left px-4 py-3 text-sm font-semibold hover:bg-gray-50 flex items-center justify-between ${selectedSeason === 'current' ? 'text-orange-500 bg-orange-50' : 'text-gray-700'}`}
+                                        className={`w-full text-left px-4 py-3 text-sm font-semibold hover:bg-[var(--card-elevated)] flex items-center justify-between transition-colors ${selectedSeason === 'current' ? 'text-blue-500 bg-blue-500/10' : 'text-[var(--foreground)]'}`}
                                     >
                                         ซีซันปัจจุบัน {selectedSeason === 'current' && <Icon icon="solar:check-circle-bold" />}
                                     </button>
-                                    {[...pastSeasons].reverse().map((s, idx) => (
+                                    {[...pastSeasons].reverse().map((s) => (
                                         <button
                                             key={s.resetId}
                                             onClick={() => { setSelectedSeason(s.label); setSeasonDropdownOpen(false); }}
-                                            className={`w-full text-left px-4 py-3 text-sm font-semibold hover:bg-gray-50 flex items-center justify-between ${selectedSeason === s.label ? 'text-orange-500 bg-orange-50' : 'text-gray-700'}`}
+                                            className={`w-full text-left px-4 py-3 text-sm font-semibold hover:bg-[var(--card-elevated)] flex items-center justify-between transition-colors ${selectedSeason === s.label ? 'text-blue-500 bg-blue-500/10' : 'text-[var(--foreground)]'}`}
                                         >
                                             <div className="flex flex-col leading-tight">
                                                 <span>{s.label}</span>
-                                                <span className="text-[10px] font-medium opacity-50">
+                                                <span className="text-[10px] font-medium opacity-60">
                                                     {new Date(s.resetAt).toLocaleDateString('th-TH', { dateStyle: 'medium' })}
                                                 </span>
                                             </div>
@@ -590,10 +590,10 @@ export default function LeaderboardPage() {
                 {data.length === 0 ? (
                     <div className="card text-center" style={{ padding: '64px 24px' }}>
                         <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'var(--card-elevated)' }}>
-                            <Icon icon="solar:cup-star-linear" width={32} style={{ color: 'var(--gray-400)' }} />
+                            <Icon icon="solar:cup-star-linear" width={32} style={{ color: 'var(--muted)' }} />
                         </div>
-                        <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--gray-900)' }}>ยังไม่มีข้อมูล</h2>
-                        <p className="text-sm" style={{ color: 'var(--gray-500)' }}>เล่นแมตช์ให้จบเพื่อเริ่มสร้างสถิติ</p>
+                        <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--foreground)' }}>ยังไม่มีข้อมูล</h2>
+                        <p className="text-sm" style={{ color: 'var(--muted)' }}>เล่นแมตช์ให้จบเพื่อเริ่มสร้างสถิติ</p>
                     </div>
                 ) : (
                     <>
@@ -706,11 +706,11 @@ export default function LeaderboardPage() {
             {
                 showRankLegend && (
                     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-xl animate-in fade-in duration-300" onClick={() => setShowRankLegend(false)} />
-                        <div className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 ring-1 ring-black/5">
-                            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white/50 backdrop-blur-md">
-                                <h3 className="text-lg font-black text-gray-900">เกณฑ์ระดับแรงค์</h3>
-                                <button onClick={() => setShowRankLegend(false)} className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 text-gray-400 hover:text-gray-900 transition-colors">
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-xl animate-in fade-in duration-300" onClick={() => setShowRankLegend(false)} />
+                        <div className="relative w-full max-w-md bg-[var(--card-bg)] text-[var(--foreground)] border border-[var(--card-border)] rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 ring-1 ring-black/10">
+                            <div className="p-6 border-b border-[var(--card-border)] flex items-center justify-between bg-[var(--card-bg)]/80 backdrop-blur-md">
+                                <h3 className="text-lg font-black text-[var(--foreground)]">เกณฑ์ระดับแรงค์</h3>
+                                <button onClick={() => setShowRankLegend(false)} className="w-8 h-8 rounded-full flex items-center justify-center bg-[var(--card-elevated)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
                                     <Icon icon="solar:close-circle-bold" width={20} />
                                 </button>
                             </div>
@@ -735,8 +735,8 @@ export default function LeaderboardPage() {
                                     </div>
                                 ))}
                             </div>
-                            <div className="p-6 bg-gray-50/50 text-center border-t border-gray-100">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">
+                            <div className="p-6 bg-[var(--card-elevated)] text-center border-t border-[var(--card-border)]">
+                                <p className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest leading-relaxed">
                                     สะสมเเต้มจากการเล่นเพื่อเลื่อนระดับ <br />
                                     ยิ่งชนะคนเก่ง ยิ่งได้เเต้มเยอะ!
                                 </p>
@@ -811,7 +811,7 @@ function PodiumCard({ entry, rank, statValue, unit, isMe }: PodiumCardProps) {
 
     return (
         <Link
-            href={isMe ? "/dashboard/profile" : `/dashboard/profile/${entry.user_id}`}
+            href={isMe ? "/badminton-group/dashboard/profile" : `/badminton-group/dashboard/profile/${entry.user_id}`}
             className={`${config.height} card flex flex-col items-center justify-center text-center relative overflow-hidden transition-all duration-300 hover:scale-[1.02] shadow-2xl group`}
             style={{
                 background: config.bg,
@@ -873,7 +873,7 @@ function PodiumCard({ entry, rank, statValue, unit, isMe }: PodiumCardProps) {
 
             {/* User Info */}
             <div className="flex flex-col items-center gap-1 w-full max-w-full">
-                <p className={`${config.textSize} font-black truncate w-full tracking-tight px-1 group-hover:text-orange-500 transition-colors`} style={{ color: 'var(--gray-900)' }}>
+                <p className={`${config.textSize} font-black truncate w-full tracking-tight px-1 text-slate-900 group-hover:text-blue-600 transition-colors`}>
                     {entry.display_name}
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-1.5 mt-1">
@@ -894,17 +894,17 @@ function PodiumCard({ entry, rank, statValue, unit, isMe }: PodiumCardProps) {
             </div>
 
             {isMe && (
-                <div className="mt-2 bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full text-[10px] font-black uppercase">
+                <div className="mt-2 bg-blue-600 text-white px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase shadow-xs">
                     คุณเอง
                 </div>
             )}
 
             {/* Stats */}
-            <div className="mt-4 pt-3 border-t border-black/5 w-full">
-                <p className={`${config.statSize} font-black leading-none`} style={{ color: 'var(--gray-900)' }}>
+            <div className="mt-4 pt-3 border-t border-black/10 w-full">
+                <p className={`${config.statSize} font-black leading-none text-slate-900`}>
                     {statValue}
                 </p>
-                <p className="text-[10px] font-bold uppercase tracking-widest mt-1 opacity-50" style={{ color: 'var(--gray-600)' }}>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest mt-1 text-slate-600">
                     {unit}
                 </p>
             </div>

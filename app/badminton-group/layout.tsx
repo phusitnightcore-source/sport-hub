@@ -30,7 +30,7 @@ export default function BadmintonGroupLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className={`${outfit.variable} ${prompt.variable} antialiased`}>
+    <div className={`${outfit.variable} ${prompt.variable} antialiased bg-[var(--background)] text-[var(--foreground)] min-h-screen transition-colors duration-200`}>
       <ConfirmProvider>
         {children}
         <Toaster

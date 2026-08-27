@@ -65,7 +65,7 @@ html.dark,
 
   /* -- Neutrals (Dark Mode) -- */
   --white: #1b2540;
-  --gray-50: #0b1120;
+  --gray-50: #0f172a;
   --gray-100: #16213e;
   --gray-200: #2a3756;
   --gray-300: #3a4b6e;
@@ -79,7 +79,7 @@ html.dark,
 
   /* -- Semantic Surfaces & Text -- */
   --surface: #1b2540;
-  --background: #0b1120;
+  --background: #0f172a;
   --foreground: #f8fafc;
   --muted: #94a3b8;
   --card-bg: #1b2540;
@@ -164,6 +164,71 @@ html.dark,
 [data-theme='dark'] .text-orange-900,
 .dark .text-orange-900 {
   color: #e2e8f0 !important;
+}
+
+/* ============================================================
+   Dark Mode Universal Overrides for Consistent Colors
+   ============================================================ */
+[data-theme='dark'] .bg-white,
+.dark .bg-white {
+  background-color: var(--card-bg) !important;
+}
+
+[data-theme='dark'] .text-gray-900,
+.dark .text-gray-900,
+[data-theme='dark'] .text-gray-800,
+.dark .text-gray-800,
+[data-theme='dark'] .text-gray-700,
+.dark .text-gray-700 {
+  color: var(--foreground) !important;
+}
+
+[data-theme='dark'] .text-gray-600,
+.dark .text-gray-600,
+[data-theme='dark'] .text-gray-500,
+.dark .text-gray-500 {
+  color: var(--muted) !important;
+}
+
+[data-theme='dark'] .bg-gray-50,
+.dark .bg-gray-50,
+[data-theme='dark'] .bg-gray-100,
+.dark .bg-gray-100 {
+  background-color: var(--card-elevated) !important;
+}
+
+[data-theme='dark'] .bg-gray-200,
+.dark .bg-gray-200 {
+  background-color: var(--gray-200) !important;
+}
+
+[data-theme='dark'] .border-gray-50,
+.dark .border-gray-50,
+[data-theme='dark'] .border-gray-100,
+.dark .border-gray-100,
+[data-theme='dark'] .border-gray-200,
+.dark .border-gray-200,
+[data-theme='dark'] .border-gray-300,
+.dark .border-gray-300 {
+  border-color: var(--card-border) !important;
+}
+
+[data-theme='dark'] .divide-gray-50 > * + *,
+.dark .divide-gray-50 > * + *,
+[data-theme='dark'] .divide-gray-100 > * + *,
+.dark .divide-gray-100 > * + *,
+[data-theme='dark'] .divide-gray-200 > * + *,
+.dark .divide-gray-200 > * + * {
+  border-color: var(--card-border) !important;
+}
+
+[data-theme='dark'] .shadow-md,
+.dark .shadow-md,
+[data-theme='dark'] .shadow-lg,
+.dark .shadow-lg,
+[data-theme='dark'] .shadow-xl,
+.dark .shadow-xl {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
 }
 
 /* ============================================================

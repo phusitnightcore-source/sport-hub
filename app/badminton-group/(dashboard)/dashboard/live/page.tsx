@@ -365,59 +365,55 @@ export default function LiveBoardPage() {
 
                 {/* My Bill Summary */}
                 {myBill && (
-                    <div className={`card p-6 border-none shadow-xl transition-all duration-500 animate-in ${eventPlayers.find(ep => ep.user_id === currentUserId)?.payment_status === 'paid'
-                        ? 'bg-gradient-to-br from-green-50 to-white ring-1 ring-green-100'
-                        : 'bg-gradient-to-br from-blue-50 to-white ring-1 ring-blue-100'
-                        }`}>
+                    <div className={`card p-6 border border-[var(--card-border)] bg-[var(--card-bg)] shadow-xl transition-all duration-500 animate-in`}>
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-inner transition-colors duration-500 ${eventPlayers.find(ep => ep.user_id === currentUserId)?.payment_status === 'paid' ? 'bg-green-500' : 'bg-blue-500'
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-inner transition-colors duration-500 ${eventPlayers.find(ep => ep.user_id === currentUserId)?.payment_status === 'paid' ? 'bg-emerald-600' : 'bg-blue-600'
                                     }`}>
                                     <Icon icon="solar:wallet-bold-duotone" width={22} />
                                 </div>
                                 <div>
-                                    <h2 className="text-lg font-black tracking-tight text-gray-900">ค่าใช้จ่ายของฉัน</h2>
-                                    <p className="text-xs font-bold text-gray-500">รวมค่าสนามและค่าลูกแบด</p>
+                                    <h2 className="text-lg font-black tracking-tight text-[var(--foreground)]">ค่าใช้จ่ายของฉัน</h2>
+                                    <p className="text-xs font-bold text-[var(--muted)]">รวมค่าสนามและค่าลูกแบด</p>
                                 </div>
                             </div>
                             {eventPlayers.find(ep => ep.user_id === currentUserId)?.payment_status === 'paid' && (
-                                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-500 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-200 animate-in fade-in zoom-in">
+                                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest shadow-md animate-in fade-in zoom-in">
                                     <Icon icon="solar:check-circle-bold" width={14} />
                                     จ่ายแล้ว
                                 </span>
                             )}
                         </div>
 
-
-                        <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-2xl p-4 shadow-sm mb-4">
-                            <div className="flex items-baseline gap-2 mb-3 border-b border-gray-100 pb-3">
+                        <div className="bg-[var(--card-elevated)] border border-[var(--card-border)] rounded-2xl p-4 shadow-sm mb-4">
+                            <div className="flex items-baseline gap-2 mb-3 border-b border-[var(--card-border)] pb-3">
                                 {myBill.discount > 0 && (
-                                    <span className="text-lg font-bold text-gray-300 line-through tracking-tighter">
+                                    <span className="text-lg font-bold text-[var(--muted)] line-through tracking-tighter">
                                         ฿{myBill.originalAmount.toLocaleString()}
                                     </span>
                                 )}
-                                <span className={`text-3xl font-black tracking-tighter ${myBill.discount > 0 ? 'text-purple-600' : 'text-gray-900'}`}>
+                                <span className={`text-3xl font-black tracking-tighter ${myBill.discount > 0 ? 'text-purple-500' : 'text-[var(--foreground)]'}`}>
                                     ฿{myBill.amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                                 </span>
-                                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">ยอดรวม</span>
+                                <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest">ยอดรวม</span>
                             </div>
 
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="font-bold text-gray-500">ค่าสนาม</span>
-                                    <span className="font-black text-gray-900">฿{event.entry_fee}</span>
+                                    <span className="font-bold text-[var(--muted)]">ค่าสนาม</span>
+                                    <span className="font-black text-[var(--foreground)]">฿{event.entry_fee}</span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="font-bold text-gray-500">ค่าลูกแบด <span className="text-xs font-bold text-gray-400">({myBill.totalShuttlecocks} ลูก)</span></span>
-                                    <span className="font-black text-blue-600">+ ฿{(event.shuttlecock_price * myBill.totalShuttlecocks).toLocaleString()}</span>
+                                    <span className="font-bold text-[var(--muted)]">ค่าลูกแบด <span className="text-xs font-bold text-[var(--muted)]">({myBill.totalShuttlecocks} ลูก)</span></span>
+                                    <span className="font-black text-blue-600 dark:text-blue-400">+ ฿{(event.shuttlecock_price * myBill.totalShuttlecocks).toLocaleString()}</span>
                                 </div>
                                 {myBill.additionalCost > 0 && (
                                     <div className="flex items-center justify-between text-sm">
-                                        <span className="font-bold text-red-500 flex items-center gap-1">
+                                        <span className="font-bold text-rose-500 flex items-center gap-1">
                                             <Icon icon="solar:add-circle-bold" width={14} />
                                             ค่าใช้จ่ายเพิ่มเติม
                                         </span>
-                                        <span className="font-black text-red-500">+ ฿{myBill.additionalCost.toLocaleString()}</span>
+                                        <span className="font-black text-rose-500">+ ฿{myBill.additionalCost.toLocaleString()}</span>
                                     </div>
                                 )}
                                 {myBill.discount > 0 && (
@@ -426,21 +422,21 @@ export default function LiveBoardPage() {
                                             <Icon icon="solar:tag-price-bold" width={14} />
                                             ส่วนลด
                                         </span>
-                                        <span className="font-black text-purple-600">- ฿{myBill.discount.toLocaleString()}</span>
+                                        <span className="font-black text-purple-500">- ฿{myBill.discount.toLocaleString()}</span>
                                     </div>
                                 )}
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="font-bold text-gray-500">จำนวนเกมที่เล่น</span>
-                                    <span className="font-black text-gray-900">{myBill.totalGames} เกม</span>
+                                    <span className="font-bold text-[var(--muted)]">จำนวนเกมที่เล่น</span>
+                                    <span className="font-black text-[var(--foreground)]">{myBill.totalGames} เกม</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
-                            <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                            <div className="w-7 h-7 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                                 <Icon icon="solar:info-circle-bold" width={16} />
                             </div>
-                            <span className="text-xs font-bold text-amber-800">กรุณาชำระเงินที่เคาน์เตอร์หน้าสนาม</span>
+                            <span className="text-xs font-bold text-amber-700 dark:text-amber-300">กรุณาชำระเงินที่เคาน์เตอร์หน้าสนาม</span>
                         </div>
                     </div>
                 )}

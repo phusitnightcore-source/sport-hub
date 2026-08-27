@@ -911,35 +911,35 @@ export default function AdminBillingPage() {
 
             {/* Payment Method Selector Modal */}
             {paymentModalBill && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 animate-in fade-in" style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }} onClick={() => setPaymentModalBill(null)}>
-                    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-gray-100 overflow-hidden p-6 animate-in slide-in-from-bottom-4" onClick={(e) => e.stopPropagation()}>
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 animate-in fade-in" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)' }} onClick={() => setPaymentModalBill(null)}>
+                    <div className="bg-[var(--card-bg)] text-[var(--foreground)] w-full max-w-md rounded-2xl shadow-2xl border border-[var(--card-border)] overflow-hidden p-6 animate-in slide-in-from-bottom-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center text-green-600 shrink-0">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
                                 <Icon icon="solar:wallet-money-bold" width={22} />
                             </div>
                             <div>
-                                <h3 className="text-base font-bold text-gray-950">เลือกวิธีการชำระเงิน</h3>
-                                <p className="text-xs text-gray-500 font-medium">
+                                <h3 className="text-base font-bold text-[var(--foreground)]">เลือกวิธีการชำระเงิน</h3>
+                                <p className="text-xs text-[var(--muted)] font-medium">
                                     {paymentModalBill.displayName} • ยอดชำระ ฿{paymentModalBill.amount.toLocaleString()}
                                 </p>
                             </div>
                         </div>
 
-                        <p className="text-sm font-medium text-gray-600 mb-6 leading-relaxed">
+                        <p className="text-sm font-medium text-[var(--muted)] mb-6 leading-relaxed">
                             กรุณาระบุช่องทางการชำระเงินสำหรับยอดคิวของรอบนี้ เพื่อนำไปจัดเก็บสถิติและแสดงผลข้อมูลทางการเงินของก๊วน
                         </p>
 
                         <div className="grid grid-cols-2 gap-3 mb-4">
                             <button
                                 onClick={() => handleConfirmPayment(paymentModalBill, 'transfer')}
-                                className="flex flex-col items-center justify-center p-4 rounded-xl border border-blue-200 bg-blue-50/20 text-blue-600 hover:bg-blue-50/50 transition-all font-bold gap-2 text-sm shadow-sm"
+                                className="flex flex-col items-center justify-center p-4 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-all font-bold gap-2 text-sm shadow-sm"
                             >
                                 <Icon icon="solar:smartphone-line-duotone" width={32} />
                                 โอนเงิน (Transfer)
                             </button>
                             <button
                                 onClick={() => handleConfirmPayment(paymentModalBill, 'cash')}
-                                className="flex flex-col items-center justify-center p-4 rounded-xl border border-emerald-200 bg-emerald-50/20 text-emerald-600 hover:bg-emerald-50/50 transition-all font-bold gap-2 text-sm shadow-sm"
+                                className="flex flex-col items-center justify-center p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-all font-bold gap-2 text-sm shadow-sm"
                             >
                                 <Icon icon="solar:notes-line-duotone" width={32} />
                                 เงินสด (Cash)

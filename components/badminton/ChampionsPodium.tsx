@@ -57,7 +57,7 @@ export function ChampionFrame({ entry, rank, isMe }: { entry: Champion; rank: 1 
     const f = PODIUM_FRAME[rank];
     return (
         <Link
-            href={isMe ? '/dashboard/profile' : `/dashboard/profile/${entry.user_id}`}
+            href={isMe ? '/badminton-group/dashboard/profile' : `/badminton-group/dashboard/profile/${entry.user_id}`}
             className="relative flex items-center gap-3 rounded-2xl p-3 border-2 overflow-hidden group transition-transform hover:scale-[1.02]"
             style={{ borderColor: f.border, background: f.gradient, boxShadow: f.glow }}
         >
@@ -87,8 +87,8 @@ export function ChampionFrame({ entry, rank, isMe }: { entry: Champion; rank: 1 
             {/* ชื่อ + แรงค์ */}
             <div className="flex-1 min-w-0 relative z-10">
                 <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-black truncate" style={{ color: 'var(--gray-900)' }}>{entry.display_name}</p>
-                    {isMe && <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-orange-500 text-white shrink-0">คุณ</span>}
+                    <p className="text-sm font-black truncate text-slate-900">{entry.display_name}</p>
+                    {isMe && <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-blue-600 text-white shrink-0 shadow-xs">คุณ</span>}
                 </div>
                 <div className="mt-1">
                     <RankBadge mmr={entry.mmr || 1000} size="sm" showName showMMR={false} />
@@ -151,7 +151,7 @@ export default function ChampionsPodium({ currentUserId }: { currentUserId?: str
             `}</style>
 
             {/* Header */}
-            <div className="p-5 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #111827, #1f2937)' }}>
+            <div className="p-5 relative overflow-hidden bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950">
                 <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full" style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.4), transparent 70%)' }} />
                 <div className="flex items-center gap-3 relative z-10">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)' }}>
@@ -159,13 +159,13 @@ export default function ChampionsPodium({ currentUserId }: { currentUserId?: str
                     </div>
                     <div>
                         <h3 className="text-white font-black tracking-tight leading-none">แชมป์ประจำก๊วน</h3>
-                        <p className="text-gray-400 text-xs font-bold mt-1">3 อันดับ MMR สูงสุด 🏆</p>
+                        <p className="text-slate-300 text-xs font-bold mt-1">3 อันดับ MMR สูงสุด 🏆</p>
                     </div>
                 </div>
             </div>
 
             {/* Frames */}
-            <div className="p-4 bg-white flex flex-col gap-3">
+            <div className="p-4 bg-[var(--card-bg)] flex flex-col gap-3">
                 {top.map((entry, i) => (
                     <ChampionFrame key={entry.user_id} entry={entry} rank={(i + 1) as 1 | 2 | 3} isMe={entry.user_id === currentUserId} />
                 ))}

@@ -301,10 +301,10 @@ export default function ProfileView({ targetUserId }: ProfileViewProps) {
         <div className="animate-in max-w-xl mx-auto space-y-6">
             <div className="flex items-center justify-between mb-2">
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight" style={{ color: 'var(--gray-900)' }}>
+                    <h1 className="text-3xl font-black tracking-tight" style={{ color: 'var(--foreground)' }}>
                         {isOwnProfile ? 'โปรไฟล์ของฉัน' : `โปรไฟล์ของ ${profile.display_name}`}
                     </h1>
-                    <p className="text-sm text-gray-500">{isOwnProfile ? 'จัดการข้อมูลส่วนตัวและดูสถิติของคุณ' : 'ดูสถิติและผลงานการเล่น'}</p>
+                    <p className="text-sm text-[var(--muted)]">{isOwnProfile ? 'จัดการข้อมูลส่วนตัวและดูสถิติของคุณ' : 'ดูสถิติและผลงานการเล่น'}</p>
                 </div>
                 {isOwnProfile && !isEditing && (
                     <button onClick={() => setIsEditing(true)} className="btn btn-secondary btn-sm flex items-center gap-1.5 rounded-xl font-bold">
@@ -315,31 +315,31 @@ export default function ProfileView({ targetUserId }: ProfileViewProps) {
 
             {/* Profile Card */}
             <div className="card overflow-hidden border-none shadow-xl" style={{ padding: 0 }}>
-                <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-6 relative">
+                <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 p-6 relative">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full pointer-events-none" />
                     <div className="flex items-start gap-5 relative z-10">
-                        <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg bg-orange-500 text-white border-2 border-white/20 shrink-0">
+                        <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg bg-blue-600 text-white border-2 border-white/20 shrink-0">
                             {profile.display_name.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
                             {isEditing && isOwnProfile ? (
                                 <div className="space-y-3">
                                     <div>
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">ชื่อที่ใช้แสดง (Display Name)</label>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">ชื่อที่ใช้แสดง (Display Name)</label>
                                         <input value={editForm.display_name} onChange={e => setEditForm(f => ({ ...f, display_name: e.target.value }))} className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none placeholder:text-gray-500" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">ชื่อ-นามสกุลจริง (สำหรับใบเสร็จ)</label>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">ชื่อ-นามสกุลจริง (สำหรับใบเสร็จ)</label>
                                         <input value={editForm.full_name} onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))} className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none placeholder:text-gray-500" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 block">วันเกิด (Birthday)</label>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">วันเกิด (Birthday)</label>
                                         <input type="date" value={editForm.birth_date} onChange={e => setEditForm(f => ({ ...f, birth_date: e.target.value }))} className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none [color-scheme:dark]" />
                                     </div>
                                     <CustomSelect label="ระดับมือ" value={editForm.skill_level || ''} onChangeAction={(val) => setEditForm(f => ({ ...f, skill_level: (val || null) as Profile['skill_level'] }))} options={SKILL_OPTIONS} icon="solar:medal-star-bold" />
                                     <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/10">
                                         <button onClick={() => setIsEditing(false)} className="btn btn-sm bg-white/10 text-white border-white/20 flex-1">ยกเลิก</button>
-                                        <button onClick={saveProfile} disabled={saving} className="btn btn-sm bg-orange-500 text-white flex-1">{saving ? <div className="spinner spinner-sm" /> : 'บันทึก'}</button>
+                                        <button onClick={saveProfile} disabled={saving} className="btn btn-sm bg-blue-600 text-white flex-1">{saving ? <div className="spinner spinner-sm" /> : 'บันทึก'}</button>
                                     </div>
                                 </div>
                             ) : (
@@ -347,9 +347,9 @@ export default function ProfileView({ targetUserId }: ProfileViewProps) {
                                     <h2 className="text-xl font-black text-white">{profile.display_name}</h2>
                                     {isOwnProfile && (
                                         <div className="flex flex-col gap-0.5">
-                                            <p className="text-sm font-medium text-gray-400">{profile.full_name}</p>
+                                            <p className="text-sm font-medium text-slate-300">{profile.full_name}</p>
                                             {profile.birth_date && (
-                                                <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                                                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                                                     <Icon icon="lucide:cake" width={12} className="text-pink-400" />
                                                     {new Date(profile.birth_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
                                                 </div>
@@ -357,11 +357,11 @@ export default function ProfileView({ targetUserId }: ProfileViewProps) {
                                         </div>
                                     )}
                                     <div className="flex items-center gap-2 mt-3">
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/10 text-white border border-white/10">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/15 text-white border border-white/20">
                                             {profile.role === 'venue_admin' ? 'ผู้จัดก๊วน' : 'ผู้เล่น'}
                                         </span>
                                         {profile.skill_level && (
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-orange-500/20 text-orange-300 border border-orange-500/20">
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-500/30 text-blue-200 border border-blue-400/30">
                                                 ระดับมือ {profile.skill_level}
                                             </span>
                                         )}
@@ -377,7 +377,7 @@ export default function ProfileView({ targetUserId }: ProfileViewProps) {
                                                         {nextRank && <span className="text-[9px] font-bold text-white/60">Next: {nextRank.name}</span>}
                                                     </div>
                                                     <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5 p-[1px]">
-                                                        <div className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 shadow-[0_0_8px_rgba(249,115,22,0.5)]" style={{ width: `${progress}%` }} />
+                                                        <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-400 shadow-[0_0_8px_rgba(59,130,246,0.5)]" style={{ width: `${progress}%` }} />
                                                     </div>
                                                 </div>
                                             );
@@ -401,18 +401,18 @@ export default function ProfileView({ targetUserId }: ProfileViewProps) {
                     </div>
                 </div>
 
-                <div className="p-4 sm:p-6 bg-white">
+                <div className="p-4 sm:p-6 bg-[var(--card-bg)]">
                     <div className="grid grid-cols-4 gap-2 sm:gap-4">
                         {[
-                            { label: 'เกม', value: stats.totalGames, icon: 'solar:gamepad-bold-duotone', color: 'text-blue-500', bg: 'bg-blue-50' },
-                            { label: 'ชนะ', value: stats.wins, icon: 'solar:cup-star-bold-duotone', color: 'text-emerald-500', bg: 'bg-emerald-50' },
-                            { label: 'Win Rate', value: `${winRate}%`, icon: 'solar:graph-up-bold-duotone', color: 'text-purple-500', bg: 'bg-purple-50' },
-                            { label: 'แต้ม', value: stats.totalPoints, icon: 'solar:star-bold-duotone', color: 'text-amber-500', bg: 'bg-amber-50' },
+                            { label: 'เกม', value: stats.totalGames, icon: 'solar:gamepad-bold-duotone', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                            { label: 'ชนะ', value: stats.wins, icon: 'solar:cup-star-bold-duotone', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                            { label: 'Win Rate', value: `${winRate}%`, icon: 'solar:graph-up-bold-duotone', color: 'text-purple-500', bg: 'bg-purple-500/10' },
+                            { label: 'แต้ม', value: stats.totalPoints, icon: 'solar:star-bold-duotone', color: 'text-amber-500', bg: 'bg-amber-500/10' },
                         ].map((stat, i) => (
-                            <div key={i} className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border border-gray-100 bg-gray-50/50">
+                            <div key={i} className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border border-[var(--card-border)] bg-[var(--card-elevated)]">
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${stat.bg} ${stat.color}`}><Icon icon={stat.icon} width={18} /></div>
-                                <p className="text-lg font-black text-gray-900 leading-none mb-1">{stat.value}</p>
-                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
+                                <p className="text-lg font-black text-[var(--foreground)] leading-none mb-1">{stat.value}</p>
+                                <p className="text-[9px] font-bold text-[var(--muted)] uppercase tracking-wider">{stat.label}</p>
                             </div>
                         ))}
                     </div>
@@ -421,11 +421,11 @@ export default function ProfileView({ targetUserId }: ProfileViewProps) {
 
             {isOwnProfile && (
                 <div className="card border-none shadow-md" style={{ padding: '20px' }}>
-                    <h2 className="text-sm font-black mb-4 uppercase text-gray-400">การตั้งค่า</h2>
-                    <Link href="/reset-password" className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors group">
-                        <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-500 group-hover:text-orange-500 transition-colors"><Icon icon="solar:key-bold-duotone" width={20} /></div>
-                        <div><p className="text-sm font-bold text-gray-900">เปลี่ยนรหัสผ่าน</p><p className="text-xs text-gray-500">อัปเดตรหัสผ่านใหม่เพื่อความปลอดภัย</p></div>
-                        <Icon icon="solar:alt-arrow-right-linear" width={20} className="ml-auto text-gray-400 group-hover:text-orange-500" />
+                    <h2 className="text-sm font-black mb-4 uppercase text-[var(--muted)]">การตั้งค่า</h2>
+                    <Link href="/reset-password" className="flex items-center gap-4 p-4 rounded-2xl bg-[var(--card-elevated)] hover:bg-[var(--card-border)]/30 transition-colors group border border-[var(--card-border)]">
+                        <div className="w-10 h-10 rounded-xl bg-[var(--card-bg)] shadow-sm flex items-center justify-center text-[var(--muted)] group-hover:text-blue-500 transition-colors"><Icon icon="solar:key-bold-duotone" width={20} /></div>
+                        <div><p className="text-sm font-bold text-[var(--foreground)]">เปลี่ยนรหัสผ่าน</p><p className="text-xs text-[var(--muted)]">อัปเดตรหัสผ่านใหม่เพื่อความปลอดภัย</p></div>
+                        <Icon icon="solar:alt-arrow-right-linear" width={20} className="ml-auto text-[var(--muted)] group-hover:text-blue-500" />
                     </Link>
                 </div>
             )}
@@ -434,31 +434,31 @@ export default function ProfileView({ targetUserId }: ProfileViewProps) {
             <div className="card border-none shadow-md p-6 overflow-hidden relative">
                 <div className="flex items-center justify-between mb-8 z-10 relative">
                     <div>
-                        <h2 className="text-sm font-black tracking-tight uppercase text-gray-400 flex items-center gap-2"><Icon icon="solar:chart-2-bold" width={16} /> Rating Progress</h2>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">อ้างอิงจากแมตช์ล่าสุด</p>
+                        <h2 className="text-sm font-black tracking-tight uppercase text-[var(--muted)] flex items-center gap-2"><Icon icon="solar:chart-2-bold" width={16} /> Rating Progress</h2>
+                        <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest mt-1">อ้างอิงจากแมตช์ล่าสุด</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-2xl font-black text-gray-900 leading-none">{profile.mmr || 1000}</p>
+                        <p className="text-2xl font-black text-[var(--foreground)] leading-none">{profile.mmr || 1000}</p>
                         <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1">Current Rating</p>
                     </div>
                 </div>
                 <div className="h-40 w-full z-10 relative">
-                    {mmrPoints.length > 1 ? <Sparkline data={mmrPoints} color="var(--orange-500)" /> : <div className="flex flex-col items-center justify-center h-full gap-2 text-gray-300"><Icon icon="solar:chart-square-linear" width={40} /><p className="text-xs font-bold">ยังมีการแข่งไม่เพียงพอสำหรับการสร้างกราฟ</p></div>}
+                    {mmrPoints.length > 1 ? <Sparkline data={mmrPoints} color="var(--orange-500)" /> : <div className="flex flex-col items-center justify-center h-full gap-2 text-[var(--muted)]"><Icon icon="solar:chart-square-linear" width={40} /><p className="text-xs font-bold">ยังมีการแข่งไม่เพียงพอสำหรับการสร้างกราฟ</p></div>}
                 </div>
             </div>
 
             {/* MMR History */}
             <div className="space-y-4">
-                <div className="flex items-center gap-2 px-1"><Icon icon="solar:history-bold" width={18} className="text-gray-400" /><h2 className="text-sm font-black uppercase text-gray-400">Rating History</h2></div>
+                <div className="flex items-center gap-2 px-1"><Icon icon="solar:history-bold" width={18} className="text-[var(--muted)]" /><h2 className="text-sm font-black uppercase text-[var(--muted)]">Rating History</h2></div>
                 <div className="card border-none shadow-md overflow-hidden" style={{ padding: 0 }}>
-                    <div className="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
+                    <div className="divide-y divide-[var(--card-border)] max-h-[400px] overflow-y-auto">
                         {mmrHistory.map((h, i) => (
-                            <div key={i} className="p-4 flex items-center justify-between hover:bg-gray-50">
+                            <div key={i} className="p-4 flex items-center justify-between hover:bg-[var(--card-elevated)] transition-colors">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${h.change > 0 ? 'bg-emerald-50 text-emerald-600' : h.change < 0 ? 'bg-rose-50 text-rose-600' : 'bg-gray-100 text-gray-400'}`}><Icon icon={h.change > 0 ? 'solar:trending-up-bold' : h.change < 0 ? 'solar:trending-down-bold' : 'solar:minus-circle-bold'} width={20} /></div>
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${h.change > 0 ? 'bg-emerald-500/10 text-emerald-500' : h.change < 0 ? 'bg-rose-500/10 text-rose-500' : 'bg-[var(--card-elevated)] text-[var(--muted)]'}`}><Icon icon={h.change > 0 ? 'solar:trending-up-bold' : h.change < 0 ? 'solar:trending-down-bold' : 'solar:minus-circle-bold'} width={20} /></div>
                                     <div>
                                         <div className="flex items-center gap-2">
-                                            <p className="text-xs font-black text-gray-900">{h.change > 0 ? '+' : ''}{h.change} แต้ม</p>
+                                            <p className="text-xs font-black text-[var(--foreground)]">{h.change > 0 ? '+' : ''}{h.change} แต้ม</p>
                                             <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
                                                 h.reason?.startsWith('absence_penalty:') 
                                                     ? 'bg-rose-600 text-white' 
@@ -467,14 +467,14 @@ export default function ProfileView({ targetUserId }: ProfileViewProps) {
                                                 {h.reason?.startsWith('absence_penalty:') ? 'ขาดก๊วน' : h.result}
                                             </span>
                                         </div>
-                                        <p className="text-[10px] font-medium text-gray-400">
+                                        <p className="text-[10px] font-medium text-[var(--muted)]">
                                             {h.reason?.startsWith('absence_penalty:') 
                                                 ? formatAbsenceReason(h.reason, allClosedEvents, userRegistrations) 
                                                 : (h.event_name || 'Match') + ` • ${new Date(h.change_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}`}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="text-right"><p className="text-sm font-black text-gray-900">{h.new_mmr}</p><p className="text-[9px] font-bold text-gray-400 uppercase">Rating</p></div>
+                                <div className="text-right"><p className="text-sm font-black text-[var(--foreground)]">{h.new_mmr}</p><p className="text-[9px] font-bold text-[var(--muted)] uppercase">Rating</p></div>
                             </div>
                         ))}
                     </div>
@@ -484,26 +484,26 @@ export default function ProfileView({ targetUserId }: ProfileViewProps) {
             {/* Season History */}
             {seasonHistory.length > 0 && (
                 <div className="space-y-4">
-                    <div className="flex items-center gap-2 px-1"><Icon icon="solar:medal-ribbons-star-bold" width={18} className="text-amber-500" /><h2 className="text-sm font-black uppercase text-gray-400">ประวัติซีซัน</h2></div>
+                    <div className="flex items-center gap-2 px-1"><Icon icon="solar:medal-ribbons-star-bold" width={18} className="text-amber-500" /><h2 className="text-sm font-black uppercase text-[var(--muted)]">ประวัติซีซัน</h2></div>
                     <div className="card border-none shadow-md overflow-hidden" style={{ padding: 0 }}>
-                        <div className="divide-y divide-gray-50">
+                        <div className="divide-y divide-[var(--card-border)]">
                             {seasonHistory.map((s) => {
                                 const rank = getRankFromMMR(s.final_mmr);
                                 return (
-                                    <div key={s.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                    <div key={s.id} className="p-4 flex items-center justify-between hover:bg-[var(--card-elevated)] transition-colors">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${rank.bg} ${rank.text}`}>
                                                 <Icon icon={rank.icon} width={20} style={{ color: rank.color }} />
                                             </div>
                                             <div>
-                                                <p className="text-xs font-black text-gray-900">{s.season_label}</p>
-                                                <p className="text-[10px] font-bold text-gray-400">
+                                                <p className="text-xs font-black text-[var(--foreground)]">{s.season_label}</p>
+                                                <p className="text-[10px] font-bold text-[var(--muted)]">
                                                     {s.total_games} เกม · {s.total_wins} ชนะ · {new Date(s.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}
                                                 </p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-sm font-black text-gray-900">{s.final_mmr}</p>
+                                            <p className="text-sm font-black text-[var(--foreground)]">{s.final_mmr}</p>
                                             <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: rank.color }}>{s.final_rank_name}</p>
                                         </div>
                                     </div>
@@ -516,15 +516,15 @@ export default function ProfileView({ targetUserId }: ProfileViewProps) {
 
             {isOwnProfile && billingHistory.length > 0 && (
                 <div className="space-y-4">
-                    <div className="flex items-center gap-2 px-1"><Icon icon="solar:history-bold-duotone" width={20} className="text-gray-400" /><h2 className="text-sm font-black uppercase text-gray-400">ประวัติบิลรายเดือน</h2></div>
+                    <div className="flex items-center gap-2 px-1"><Icon icon="solar:history-bold-duotone" width={20} className="text-[var(--muted)]" /><h2 className="text-sm font-black uppercase text-[var(--muted)]">ประวัติบิลรายเดือน</h2></div>
                     {groupedHistory.map((group, idx) => (
                         <div key={idx} className="card border-none shadow-md overflow-hidden" style={{ padding: 0 }}>
-                            <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between"><h3 className="text-sm font-black text-gray-900">{group.monthYear}</h3><p className="text-sm font-black text-emerald-600">฿{group.totalPaid.toLocaleString()}</p></div>
-                            <div className="divide-y divide-gray-50">
+                            <div className="bg-[var(--card-elevated)] px-4 py-3 border-b border-[var(--card-border)] flex items-center justify-between"><h3 className="text-sm font-black text-[var(--foreground)]">{group.monthYear}</h3><p className="text-sm font-black text-emerald-500">฿{group.totalPaid.toLocaleString()}</p></div>
+                            <div className="divide-y divide-[var(--card-border)]">
                                 {group.items.map((item, i) => (
-                                    <div key={i} className="p-4 flex items-center justify-between hover:bg-gray-50">
-                                        <div className="flex-1 min-w-0"><div className="flex items-center gap-2 mb-1"><p className="text-xs font-bold text-gray-900 truncate">{item.event_name}</p><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${item.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>{item.payment_status}</span></div><p className="text-[10px] font-medium text-gray-400">{new Date(item.event_date).toLocaleDateString()} • {item.games_played} เกม</p></div>
-                                        <div className="text-right pl-4"><p className="text-sm font-black text-gray-900">฿{Number(item.total_amount).toLocaleString()}</p></div>
+                                    <div key={i} className="p-4 flex items-center justify-between hover:bg-[var(--card-elevated)] transition-colors">
+                                        <div className="flex-1 min-w-0"><div className="flex items-center gap-2 mb-1"><p className="text-xs font-bold text-[var(--foreground)] truncate">{item.event_name}</p><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${item.payment_status === 'paid' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>{item.payment_status}</span></div><p className="text-[10px] font-medium text-[var(--muted)]">{new Date(item.event_date).toLocaleDateString()} • {item.games_played} เกม</p></div>
+                                        <div className="text-right pl-4"><p className="text-sm font-black text-[var(--foreground)]">฿{Number(item.total_amount).toLocaleString()}</p></div>
                                     </div>
                                 ))}
                             </div>

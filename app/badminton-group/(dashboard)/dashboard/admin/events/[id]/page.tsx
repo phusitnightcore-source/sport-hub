@@ -187,23 +187,23 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
                                     <Icon icon="solar:calendar-date-bold-duotone" width={22} />
                                 </div>
-                                <h1 className="text-lg font-black tracking-tight text-gray-900 leading-tight">𝗦𝗽𝗼𝗿𝘁𝗛𝘂𝗯 𝗚𝗿𝗼𝘂𝗽 · {new Date(event.event_date).toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</h1>
+                                <h1 className="text-lg font-black tracking-tight text-[var(--foreground)] leading-tight">𝗦𝗽𝗼𝗿𝘁𝗛𝘂𝗯 𝗚𝗿𝗼𝘂𝗽 · {new Date(event.event_date).toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</h1>
                                 <span className={`badge ${event.status === 'open' ? 'badge-success' : 'badge-muted'}`}>
                                     {event.status === 'open' ? 'เปิด' : 'ปิด'}
                                 </span>
                             </div>
-                            <p className="text-sm" style={{ color: 'var(--gray-500)' }}>
+                            <p className="text-sm text-[var(--muted)]">
                                 {event.shuttlecock_brand} · ฿{event.shuttlecock_price}/ลูก · ค่าสนาม ฿{event.entry_fee} · {eventPlayers.length} ผู้เล่น
                                 {event.courts && event.courts.length > 0 && ` · คอร์ท ${event.courts.join(', ')}`}
                                 {event.start_time && event.end_time && ` · ${event.start_time} - ${event.end_time}`}
                             </p>
 
-                            <div className="mt-6 p-4 rounded-2xl bg-gray-50 border border-gray-100">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">ลิงก์บอร์ดสดสำหรับขาจร</label>
+                            <div className="mt-6 p-4 rounded-2xl bg-[var(--card-elevated)] border border-[var(--card-border)]">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)] mb-2 block">ลิงก์บอร์ดสดสำหรับขาจร</label>
                                 <div className="flex items-center gap-2">
                                     <input
                                         readOnly
-                                        className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-[11px] font-bold text-blue-600 focus:outline-none"
+                                        className="flex-1 bg-[var(--input-bg)] border border-[var(--card-border)] rounded-lg px-3 py-1.5 text-[11px] font-bold text-blue-500 focus:outline-none"
                                         value={publicLiveUrl}
                                     />
                                     <button
@@ -211,7 +211,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                                             navigator.clipboard.writeText(publicLiveUrl);
                                             toast.success('คัดลอกลิงก์แล้ว');
                                         }}
-                                        className="p-1.5 rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-blue-500 transition-colors"
+                                        className="p-1.5 rounded-lg bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--muted)] hover:text-blue-500 transition-colors"
                                         title="คัดลอกลิงก์"
                                     >
                                         <Icon icon="solar:copy-bold" width={18} />
@@ -219,13 +219,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                                     <Link
                                         href={`/live/${eventId}`}
                                         target="_blank"
-                                        className="p-1.5 rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-orange-500 transition-colors"
+                                        className="p-1.5 rounded-lg bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--muted)] hover:text-orange-500 transition-colors"
                                         title="เปิดดู"
                                     >
                                         <Icon icon="solar:eye-bold" width={18} />
                                     </Link>
                                 </div>
-                                <p className="text-[10px] font-bold text-gray-400 mt-2 flex items-center gap-1">
+                                <p className="text-[10px] font-bold text-[var(--muted)] mt-2 flex items-center gap-1">
                                     <Icon icon="solar:info-circle-bold" width={12} />
                                     ขาจรไม่ต้องล็อกอิน สามารถสแกน QR เพื่อดูบอร์ดได้ทันที
                                 </p>

@@ -28,6 +28,11 @@ export function ThemeToggle({ className }: { className?: string }) {
   function toggle() {
     const next = theme === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
+    if (next === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
     try {
       localStorage.setItem("theme", next);
     } catch {

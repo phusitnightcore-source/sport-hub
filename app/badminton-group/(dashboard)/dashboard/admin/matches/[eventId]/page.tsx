@@ -817,38 +817,38 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
     return (
         <>
             <div className="animate-in">
-                <Link href={`/badminton-group/dashboard/admin/events/${eventId}`} className="inline-flex items-center gap-1.5 text-sm mb-6" style={{ color: 'var(--gray-500)' }}>
+                <Link href={`/badminton-group/dashboard/admin/events/${eventId}`} className="inline-flex items-center gap-1.5 text-sm mb-6 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
                     <Icon icon="solar:arrow-left-linear" width={16} /> กลับหน้าก๊วน
                 </Link>
 
-                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 sticky z-[30] bg-gray-50/95 backdrop-blur-sm pb-4 pt-2 -mx-4 px-4 border-b border-gray-200 shadow-sm top-16 lg:top-0" style={{ marginTop: '-16px' }}>
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 sticky z-[30] bg-[var(--background)]/90 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 border-b border-[var(--card-border)] shadow-xs top-16 lg:top-0" style={{ marginTop: '-16px' }}>
                     <div>
                         <div className="flex items-center gap-3 mb-2">
                             <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
                                 <Icon icon="solar:sort-horizontal-bold-duotone" width={22} />
                             </div>
-                            <h1 className="text-2xl font-bold" style={{ color: 'var(--gray-900)' }}>จัดแมตช์</h1>
+                            <h1 className="text-2xl font-bold text-[var(--foreground)]">จัดแมตช์</h1>
                         </div>
 
                         {/* Event Summary Box */}
                         <div className="flex flex-wrap items-center gap-2 mt-1">
-                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--card-elevated)] border border-[var(--card-border)]">
                                 <Icon icon="solar:users-group-rounded-linear" width={16} className="text-blue-500" />
-                                <span className="text-xs font-semibold text-gray-700">{players.length} ผู้เล่น</span>
+                                <span className="text-xs font-semibold text-[var(--foreground)]">{players.length} ผู้เล่น</span>
                             </div>
 
-                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--card-elevated)] border border-[var(--card-border)]">
                                 <Icon icon="solar:sort-horizontal-linear" width={16} className="text-purple-500" />
-                                <span className="text-xs font-semibold text-gray-700">{matches.length} แมตช์</span>
+                                <span className="text-xs font-semibold text-[var(--foreground)]">{matches.length} แมตช์</span>
                             </div>
 
                             {Array.from(allUsedShuttlecocks).length > 0 && (
-                                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-50 border border-orange-100">
+                                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20">
                                     <Icon icon="solar:shuttlecock-linear" width={16} className="text-orange-500" />
-                                    <span className="text-xs font-semibold text-orange-700">ใช้ {Array.from(allUsedShuttlecocks).length} ลูก</span>
-                                    <div className="flex items-center gap-1 ml-1 border-l border-orange-200 pl-2">
+                                    <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">ใช้ {Array.from(allUsedShuttlecocks).length} ลูก</span>
+                                    <div className="flex items-center gap-1 ml-1 border-l border-orange-500/30 pl-2">
                                         {Array.from(allUsedShuttlecocks).slice(0, 5).map(num => (
-                                            <span key={num} className="text-[10px] font-bold bg-white text-orange-600 px-1 py-0.5 rounded shadow-sm">
+                                            <span key={num} className="text-[10px] font-bold bg-[var(--card-bg)] text-orange-600 dark:text-orange-400 px-1 py-0.5 rounded border border-orange-500/30 shadow-xs">
                                                 {num}
                                             </span>
                                         ))}
@@ -859,23 +859,23 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                 </div>
                             )}
 
-                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-green-50 border border-green-100" title={`โอนเงิน: ฿${transferTotal.toLocaleString()} | เงินสด: ฿${cashTotal.toLocaleString()}`}>
-                                <Icon icon="solar:wallet-money-linear" width={16} className="text-green-500" />
-                                <span className="text-xs font-semibold text-green-700">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20" title={`โอนเงิน: ฿${transferTotal.toLocaleString()} | เงินสด: ฿${cashTotal.toLocaleString()}`}>
+                                <Icon icon="solar:wallet-money-linear" width={16} className="text-emerald-500" />
+                                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                                     เก็บแล้ว ฿{players.reduce((sum, p) => sum + (p.payment_status === 'paid' ? (userBills[p.user_id] || 0) : 0), 0).toLocaleString()}
-                                    <span className="text-gray-400 mx-1">/</span>
-                                    <span className="text-blue-700">฿{players.reduce((sum, p) => sum + (userBills[p.user_id] || 0), 0).toLocaleString()}</span>
-                                    <span className="text-[10px] font-medium text-green-600 opacity-90 ml-1">(โอน ฿{transferTotal.toLocaleString()} · สด ฿{cashTotal.toLocaleString()})</span>
+                                    <span className="text-[var(--muted)] mx-1">/</span>
+                                    <span className="text-blue-600 dark:text-blue-400">฿{players.reduce((sum, p) => sum + (userBills[p.user_id] || 0), 0).toLocaleString()}</span>
+                                    <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 opacity-90 ml-1">(โอน ฿{transferTotal.toLocaleString()} · สด ฿{cashTotal.toLocaleString()})</span>
                                 </span>
                             </div>
 
                             {eventCourts.length > 0 && (
-                                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100">
+                                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
                                     <Icon icon="solar:clapperboard-edit-linear" width={16} className="text-indigo-500" />
-                                    <span className="text-xs font-semibold text-indigo-700">คอร์ท:</span>
+                                    <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">คอร์ท:</span>
                                     <div className="flex items-center gap-1 ml-0.5">
                                         {eventCourts.map(num => (
-                                            <span key={num} className={`text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm transition-colors ${activeCourtsSet.has(num) ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                                            <span key={num} className={`text-[10px] font-black px-1.5 py-0.5 rounded shadow-xs transition-colors ${activeCourtsSet.has(num) ? 'bg-indigo-600 text-white' : 'bg-[var(--card-elevated)] text-[var(--muted)] border border-[var(--card-border)]'}`}>
                                                 {num}
                                             </span>
                                         ))}
@@ -990,10 +990,10 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                         />
                                     </div>
                                     <div className="form-group" style={{ marginBottom: 0 }}>
-                                        <label className="form-label text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">
+                                        <label className="form-label text-xs font-bold text-[var(--muted)] uppercase tracking-wider mb-1.5 block">
                                             ลำดับแมตช์ *
                                             {!matchSeq.trim() && (
-                                                <span className="normal-case font-semibold ml-1" style={{ color: 'var(--warning)' }}>• ยังไม่ได้กรอก</span>
+                                                <span className="normal-case font-semibold ml-1 text-amber-500">• ยังไม่ได้กรอก</span>
                                             )}
                                         </label>
                                         <input
@@ -1006,10 +1006,10 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                         />
                                     </div>
                                     <div className="form-group md:col-span-1 col-span-2" style={{ marginBottom: 0 }}>
-                                        <label className="form-label text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">
+                                        <label className="form-label text-xs font-bold text-[var(--muted)] uppercase tracking-wider mb-1.5 block">
                                             หมายเลขลูก *
                                             {!shuttlecockNumber.trim() && (
-                                                <span className="normal-case font-semibold ml-1" style={{ color: 'var(--warning)' }}>• ยังไม่ได้กรอก</span>
+                                                <span className="normal-case font-semibold ml-1 text-amber-500">• ยังไม่ได้กรอก</span>
                                             )}
                                         </label>
                                         <input
@@ -1020,7 +1020,7 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                             style={!shuttlecockNumber.trim() ? { borderColor: 'var(--warning)', background: 'rgba(245,158,11,0.05)' } : undefined}
                                         />
                                         {!shuttlecockNumber.trim() && (
-                                            <p className="text-[10px] mt-1" style={{ color: 'var(--warning)' }}>มีผลต่อการคิดค่าลูก</p>
+                                            <p className="text-[10px] mt-1 text-amber-500">มีผลต่อการคิดค่าลูก</p>
                                         )}
                                     </div>
                                 </div>
@@ -1051,11 +1051,11 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                     <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}
                                         onClick={() => { setSidebarTeam(null); setSearchQuery(''); }} />
                                     {/* Right Panel */}
-                                    <div className="relative h-full w-full max-w-md flex flex-col bg-white shadow-2xl"
+                                    <div className="relative h-full w-full max-w-md flex flex-col bg-[var(--card-bg)] text-[var(--foreground)] border-l border-[var(--card-border)] shadow-2xl"
                                         style={{ animation: 'sidebarSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)' }}
                                     >
                                         {/* Sidebar Header */}
-                                        <div className="flex flex-col gap-3 px-5 py-4 shrink-0 border-b border-gray-100">
+                                        <div className="flex flex-col gap-3 px-5 py-4 shrink-0 border-b border-[var(--card-border)]">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm" style={{
@@ -1066,33 +1066,33 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                                         }} />
                                                     </div>
                                                     <div>
-                                                        <h3 className="text-base font-bold text-gray-900">เลือกผู้เล่น — ทีม {sidebarTeam}</h3>
-                                                        <p className="text-xs text-gray-500 font-medium">
+                                                        <h3 className="text-base font-bold text-[var(--foreground)]">เลือกผู้เล่น — ทีม {sidebarTeam}</h3>
+                                                        <p className="text-xs text-[var(--muted)] font-medium">
                                                             เลือกแล้ว {(sidebarTeam === 'A' ? teamA : teamB).length}/2 คน
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <button onClick={() => { setSidebarTeam(null); setSearchQuery(''); }} className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                                                <button onClick={() => { setSidebarTeam(null); setSearchQuery(''); }} className="p-2 rounded-xl text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-elevated)] transition-colors">
                                                     <Icon icon="solar:close-circle-linear" width={24} />
                                                 </button>
                                             </div>
 
                                             {/* Search Box */}
                                             <div className="relative">
-                                                <Icon icon="solar:magnifer-linear" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                <Icon icon="solar:magnifer-linear" width={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
                                                 <input
                                                     type="text"
                                                     placeholder="ค้นหาชื่อผู้เล่น..."
                                                     value={searchQuery}
                                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-gray-200 text-sm font-medium focus:outline-none focus:ring-2 focus:border-transparent transition-all"
+                                                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--input-bg)] text-[var(--foreground)] text-sm font-medium focus:outline-none focus:ring-2 focus:border-transparent transition-all"
                                                     style={{ '--tw-ring-color': sidebarTeam === 'A' ? 'var(--orange-500)' : '#3b82f6' } as React.CSSProperties}
                                                     autoFocus
                                                 />
                                                 {searchQuery && (
                                                     <button
                                                         onClick={() => setSearchQuery('')}
-                                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-elevated)]"
                                                     >
                                                         <Icon icon="solar:close-circle-bold" width={16} />
                                                     </button>
@@ -1100,16 +1100,16 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                             </div>
 
                                             {/* Team Toggle */}
-                                            <div className="flex bg-gray-100 p-1 rounded-xl">
+                                            <div className="flex bg-[var(--card-elevated)] p-1 rounded-xl border border-[var(--card-border)]">
                                                 <button
                                                     onClick={() => setSidebarTeam('A')}
-                                                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${sidebarTeam === 'A' ? 'bg-white shadow-sm text-orange-500' : 'text-gray-500 hover:text-gray-700'}`}
+                                                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${sidebarTeam === 'A' ? 'bg-[var(--card-bg)] shadow-xs text-orange-500 border border-[var(--card-border)]' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}
                                                 >
                                                     ทีม A
                                                 </button>
                                                 <button
                                                     onClick={() => setSidebarTeam('B')}
-                                                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${sidebarTeam === 'B' ? 'bg-white shadow-sm text-blue-500' : 'text-gray-500 hover:text-gray-700'}`}
+                                                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${sidebarTeam === 'B' ? 'bg-[var(--card-bg)] shadow-xs text-blue-500 border border-[var(--card-border)]' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}
                                                 >
                                                     ทีม B
                                                 </button>
@@ -1117,11 +1117,11 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                         </div>
 
                                         {/* Player List */}
-                                        <div className="flex-1 overflow-y-auto px-4 py-3 bg-gray-50/50">
+                                        <div className="flex-1 overflow-y-auto px-4 py-3 bg-[var(--background)]">
                                             <div className="space-y-4">
                                                 {/* Regular Players Section */}
                                                 <div>
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-2">สมาชิก ({players.filter(p => p.is_checked_in && !p.is_substitute).length})</p>
+                                                    <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-widest px-2 mb-2">สมาชิก ({players.filter(p => p.is_checked_in && !p.is_substitute).length})</p>
                                                     <div className="space-y-2">
                                                         {players
                                                             .filter(ep => {
@@ -1141,42 +1141,40 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                                                 const isPaid = ep.payment_status === 'paid';
                                                                 const isDisabled = isPaid && !inThis;
 
-                                                                const skillColor = getSkillColor(prof.skill_level);
-
                                                                 return (
                                                                     <button key={ep.user_id} onClick={() => !isDisabled && togglePlayer(ep.user_id, team)}
                                                                         className="w-full flex items-center justify-between p-3.5 rounded-xl border-2 text-left text-sm transition-all"
                                                                         disabled={isDisabled}
                                                                         style={{
-                                                                            background: isDisabled ? 'var(--card-elevated)' : inThis ? (team === 'A' ? 'rgba(46,119,245,0.06)' : 'rgba(59,130,246,0.06)') : 'var(--card-elevated)',
-                                                                            borderColor: inThis ? clr : 'transparent',
-                                                                            boxShadow: inThis ? 'none' : '0 1px 2px rgba(0,0,0,0.05)',
+                                                                            background: isDisabled ? 'var(--card-elevated)' : inThis ? (team === 'A' ? 'rgba(249,115,22,0.12)' : 'rgba(59,130,246,0.12)') : 'var(--card-elevated)',
+                                                                            borderColor: inThis ? clr : 'var(--card-border)',
                                                                             opacity: isDisabled ? 0.6 : inOther ? 0.5 : 1,
                                                                             cursor: isDisabled ? 'not-allowed' : 'pointer',
                                                                         }}>
                                                                         <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                                                                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 shadow-sm"
+                                                                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 shadow-xs"
                                                                                 style={{
-                                                                                    background: inThis ? clr : 'var(--gray-900)',
-                                                                                    color: '#ffffff'
+                                                                                    background: inThis ? clr : 'var(--card-bg)',
+                                                                                    color: inThis ? '#ffffff' : 'var(--foreground)',
+                                                                                    border: '1px solid var(--card-border)'
                                                                                 }}>
                                                                                 {inThis ? <Icon icon="solar:check-read-linear" width={20} /> : prof?.display_name?.charAt(0)?.toUpperCase()}
                                                                             </div>
                                                                             <div className="min-w-0 pr-2">
-                                                                                <p className="font-bold text-gray-900 truncate tracking-tight leading-tight mb-1">
+                                                                                <p className="font-bold text-[var(--foreground)] truncate tracking-tight leading-tight mb-1">
                                                                                     {truncateName(prof?.display_name, 20)}
                                                                                 </p>
                                                                                 <div className="flex flex-wrap items-center gap-1.5">
                                                                                     <RankBadge mmr={prof?.mmr || 1000} size="sm" showName={false} showMMR={false} />
-                                                                                    <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                                                                    <span className="text-[10px] font-medium text-[var(--muted)] bg-[var(--card-bg)] border border-[var(--card-border)] px-1.5 py-0.5 rounded">
                                                                                         มือ {prof?.skill_level || 'N/A'}
                                                                                     </span>
-                                                                                    <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                                                                    <span className="text-[10px] font-medium text-[var(--muted)] bg-[var(--card-bg)] border border-[var(--card-border)] px-1.5 py-0.5 rounded">
                                                                                         {pstat?.total || 0} เกม
                                                                                     </span>
-                                                                                    {inOther && <span className="text-[10px] font-medium text-red-500 bg-red-50 px-1.5 py-0.5 rounded">อยู่ทีม {team === 'A' ? 'B' : 'A'}</span>}
+                                                                                    {inOther && <span className="text-[10px] font-medium text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded">อยู่ทีม {team === 'A' ? 'B' : 'A'}</span>}
                                                                                     {pstat?.playing && (
-                                                                                        <span className="text-[10px] font-medium text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
+                                                                                        <span className="text-[10px] font-medium text-orange-600 bg-orange-500/10 px-1.5 py-0.5 rounded">
                                                                                             ติดคิว
                                                                                         </span>
                                                                                     )}
@@ -1186,7 +1184,7 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
 
                                                                         {/* Right Side */}
                                                                         {isPaid && !inThis ? (
-                                                                            <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-full shrink-0 shadow-sm border border-green-100" style={{ background: '#f0fdf4', color: '#16a34a' }}>
+                                                                            <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-full shrink-0 shadow-xs border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                                                                                 <Icon icon="solar:check-circle-bold" width={14} />
                                                                                 จ่ายแล้ว
                                                                             </span>
@@ -1195,7 +1193,7 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                                                                 <Icon icon="solar:check-bold" width={14} />
                                                                             </div>
                                                                         ) : (
-                                                                            <div className="w-5 h-5 rounded-full border-2 border-gray-200 shrink-0" />
+                                                                            <div className="w-5 h-5 rounded-full border-2 border-[var(--card-border)] shrink-0" />
                                                                         )}
                                                                     </button>
                                                                 );
@@ -1225,21 +1223,18 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                                                 const isPaid = ep.payment_status === 'paid';
                                                                 const isDisabled = isPaid && !inThis;
 
-                                                                const skillColor = getSkillColor(prof.skill_level);
-
                                                                 return (
                                                                     <button key={ep.user_id} onClick={() => !isDisabled && togglePlayer(ep.user_id, team)}
                                                                         className="w-full flex items-center justify-between p-3.5 rounded-xl border-2 text-left text-sm transition-all"
                                                                         disabled={isDisabled}
                                                                         style={{
-                                                                            background: isDisabled ? 'var(--card-elevated)' : inThis ? (team === 'A' ? 'rgba(46,119,245,0.06)' : 'rgba(59,130,246,0.06)') : 'var(--card-elevated)',
-                                                                            borderColor: inThis ? clr : 'transparent',
-                                                                            boxShadow: inThis ? 'none' : '0 1px 2px rgba(0,0,0,0.05)',
+                                                                            background: isDisabled ? 'var(--card-elevated)' : inThis ? (team === 'A' ? 'rgba(249,115,22,0.12)' : 'rgba(59,130,246,0.12)') : 'var(--card-elevated)',
+                                                                            borderColor: inThis ? clr : 'var(--card-border)',
                                                                             opacity: isDisabled ? 0.6 : inOther ? 0.5 : 1,
                                                                             cursor: isDisabled ? 'not-allowed' : 'pointer',
                                                                         }}>
                                                                         <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                                                                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 shadow-sm"
+                                                                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 shadow-xs"
                                                                                 style={{
                                                                                     background: inThis ? clr : 'rgba(59,130,246,0.1)',
                                                                                     color: inThis ? '#ffffff' : '#3b82f6'
@@ -1247,25 +1242,25 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                                                                 {inThis ? <Icon icon="solar:check-read-linear" width={20} /> : prof?.display_name?.charAt(0)?.toUpperCase()}
                                                                             </div>
                                                                             <div className="min-w-0 pr-2">
-                                                                                <p className="font-bold text-gray-900 truncate tracking-tight leading-tight mb-1">
+                                                                                <p className="font-bold text-[var(--foreground)] truncate tracking-tight leading-tight mb-1">
                                                                                     {truncateName(prof?.display_name, 20)}
                                                                                 </p>
                                                                                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                                                                     <RankBadge mmr={prof?.mmr || 1000} size="sm" showName={false} showMMR={false} />
-                                                                                    <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                                                                    <span className="text-[10px] font-medium text-[var(--muted)] bg-[var(--card-bg)] border border-[var(--card-border)] px-1.5 py-0.5 rounded">
                                                                                         มือ {prof?.skill_level || 'N/A'}
                                                                                     </span>
-                                                                                    <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                                                                    <span className="text-[10px] font-medium text-[var(--muted)] bg-[var(--card-bg)] border border-[var(--card-border)] px-1.5 py-0.5 rounded">
                                                                                         {pstat?.total || 0} เกม
                                                                                     </span>
-                                                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-500 border border-blue-100">สำรอง</span>
+                                                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">สำรอง</span>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
 
                                                                         {/* Right Side */}
                                                                         {isPaid && !inThis ? (
-                                                                            <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-full shrink-0 shadow-sm border border-green-100" style={{ background: '#f0fdf4', color: '#16a34a' }}>
+                                                                            <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-full shrink-0 shadow-xs border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                                                                                 <Icon icon="solar:check-circle-bold" width={14} />
                                                                                 จ่ายแล้ว
                                                                             </span>
@@ -1274,7 +1269,7 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                                                                 <Icon icon="solar:check-bold" width={14} />
                                                                             </div>
                                                                         ) : (
-                                                                            <div className="w-5 h-5 rounded-full border-2 border-gray-200 shrink-0" />
+                                                                            <div className="w-5 h-5 rounded-full border-2 border-[var(--card-border)] shrink-0" />
                                                                         )}
                                                                     </button>
                                                                 );
@@ -1309,14 +1304,13 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                                                         className="w-full flex items-center justify-between p-3.5 rounded-xl border-2 text-left text-sm transition-all"
                                                                         disabled={isDisabled}
                                                                         style={{
-                                                                            background: isDisabled ? 'var(--card-elevated)' : inThis ? (team === 'A' ? 'rgba(46,119,245,0.06)' : 'rgba(59,130,246,0.06)') : 'var(--card-elevated)',
-                                                                            borderColor: inThis ? clr : 'transparent',
-                                                                            boxShadow: inThis ? 'none' : '0 1px 2px rgba(0,0,0,0.05)',
+                                                                            background: isDisabled ? 'var(--card-elevated)' : inThis ? (team === 'A' ? 'rgba(249,115,22,0.12)' : 'rgba(59,130,246,0.12)') : 'var(--card-elevated)',
+                                                                            borderColor: inThis ? clr : 'var(--card-border)',
                                                                             opacity: isDisabled ? 0.6 : inOther ? 0.5 : 1,
                                                                             cursor: isDisabled ? 'not-allowed' : 'pointer',
                                                                         }}>
                                                                         <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                                                                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 shadow-sm"
+                                                                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 shadow-xs"
                                                                                 style={{
                                                                                     background: inThis ? clr : 'var(--purple-600)',
                                                                                     color: '#ffffff'
@@ -1324,26 +1318,26 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                                                                 {inThis ? <Icon icon="solar:check-read-linear" width={20} /> : <Icon icon="solar:ghost-bold" width={20} />}
                                                                             </div>
                                                                             <div className="min-w-0 pr-2">
-                                                                                <p className="font-bold text-gray-900 truncate tracking-tight leading-tight mb-1">
+                                                                                <p className="font-bold text-[var(--foreground)] truncate tracking-tight leading-tight mb-1">
                                                                                     {truncateName(prof?.display_name, 20)}
-                                                                                    {prof?.is_guest && <span className="text-[10px] font-bold text-orange-500 ml-1 bg-orange-50 px-1 py-0.5 rounded">ขาจร</span>}
+                                                                                    {prof?.is_guest && <span className="text-[10px] font-bold text-orange-500 ml-1 bg-orange-500/10 px-1 py-0.5 rounded">ขาจร</span>}
                                                                                 </p>
                                                                                 <div className="flex flex-wrap items-center gap-1.5">
                                                                                     <RankBadge mmr={prof?.mmr || 1000} size="sm" showName={false} showMMR={false} />
-                                                                                    <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                                                                    <span className="text-[10px] font-medium text-[var(--muted)] bg-[var(--card-bg)] border border-[var(--card-border)] px-1.5 py-0.5 rounded">
                                                                                         มือ {prof?.skill_level || 'N/A'}
                                                                                     </span>
-                                                                                    <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                                                                    <span className="text-[10px] font-medium text-[var(--muted)] bg-[var(--card-bg)] border border-[var(--card-border)] px-1.5 py-0.5 rounded">
                                                                                         {pstat?.total || 0} เกม
                                                                                     </span>
-                                                                                    {inOther && <span className="text-[10px] font-medium text-red-500 bg-red-50 px-1.5 py-0.5 rounded">อยู่ทีม {team === 'A' ? 'B' : 'A'}</span>}
+                                                                                    {inOther && <span className="text-[10px] font-medium text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded">อยู่ทีม {team === 'A' ? 'B' : 'A'}</span>}
                                                                                 </div>
                                                                             </div>
                                                                         </div>
 
                                                                         {/* Right Side */}
                                                                         {isPaid && !inThis ? (
-                                                                            <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-full shrink-0 shadow-sm border border-green-100" style={{ background: '#f0fdf4', color: '#16a34a' }}>
+                                                                            <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-full shrink-0 shadow-xs border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                                                                                 <Icon icon="solar:check-circle-bold" width={14} />
                                                                                 จ่ายแล้ว
                                                                             </span>
@@ -1352,7 +1346,7 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                                                                 <Icon icon="solar:check-bold" width={14} />
                                                                             </div>
                                                                         ) : (
-                                                                            <div className="w-5 h-5 rounded-full border-2 border-gray-200 shrink-0" />
+                                                                            <div className="w-5 h-5 rounded-full border-2 border-[var(--card-border)] shrink-0" />
                                                                         )}
                                                                     </button>
                                                                 );
@@ -1365,21 +1359,21 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                                     return ep.is_checked_in && (!searchQuery || prof.display_name.toLowerCase().includes(searchQuery.toLowerCase()));
                                                 }).length === 0 && (
                                                         <div className="text-center py-10">
-                                                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                                                                <Icon icon="solar:user-cross-linear" width={24} className="text-gray-400" />
+                                                            <div className="w-12 h-12 rounded-full bg-[var(--card-elevated)] border border-[var(--card-border)] flex items-center justify-center mx-auto mb-3">
+                                                                <Icon icon="solar:user-cross-linear" width={24} className="text-[var(--muted)]" />
                                                             </div>
-                                                            <p className="text-sm font-medium text-gray-900">ไม่พบผู้เล่น</p>
-                                                            <p className="text-xs text-gray-500 mt-1">ลองค้นหาด้วยชื่ออื่น</p>
+                                                            <p className="text-sm font-medium text-[var(--foreground)]">ไม่พบผู้เล่น</p>
+                                                            <p className="text-xs text-[var(--muted)] mt-1">ลองค้นหาด้วยชื่ออื่น</p>
                                                         </div>
                                                     )}
                                             </div>
                                         </div>
 
                                         {/* Sidebar Footer */}
-                                        <div className="px-5 py-4 shrink-0 bg-white border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                                        <div className="px-5 py-4 shrink-0 bg-[var(--card-bg)] border-t border-[var(--card-border)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
                                             <button
                                                 onClick={() => { setSidebarTeam(null); setSearchQuery(''); }}
-                                                className="btn w-full shadow-sm text-white"
+                                                className="btn w-full shadow-xs text-white"
                                                 style={{ background: sidebarTeam === 'A' ? 'var(--orange-500)' : '#3b82f6', border: 'none' }}
                                             >
                                                 <Icon icon="solar:check-circle-bold" width={18} />
@@ -1392,10 +1386,10 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                             document.body
                         )}
 
-                                                {/* Matches */}
+                        {/* Matches */}
                         {matches.length > 0 && (
                             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-                                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-gray-100/80 border border-gray-200/50 backdrop-blur-sm shadow-sm shrink-0">
+                                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[var(--card-elevated)] border border-[var(--card-border)] backdrop-blur-sm shadow-xs shrink-0">
                                     {[
                                         { id: 'all', label: 'ทั้งหมด', icon: 'solar:hamburger-menu-bold-duotone', count: matches.length },
                                         { id: 'waiting', label: 'รอคิว', icon: 'solar:hourglass-bold-duotone', count: matches.filter(m => m.status === 'waiting').length, color: 'var(--warning)' },
@@ -1409,43 +1403,44 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                                 onClick={() => setMatchFilter(tab.id as any)}
                                                 className={`flex items-center gap-2 px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 ${
                                                     isSelected 
-                                                        ? 'bg-white shadow-sm text-gray-900 scale-[1.02]' 
-                                                        : 'text-gray-500 hover:text-gray-900 hover:bg-white/40'
+                                                        ? 'bg-[var(--card-bg)] shadow-xs text-[var(--foreground)] border border-[var(--card-border)] scale-[1.02]' 
+                                                        : 'text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card-bg)]/50'
                                                 }`}
                                             >
                                                 <Icon icon={tab.icon} width={14} style={{ color: isSelected && tab.color ? tab.color : 'inherit' }} />
-                                                <span>{tab.label}</span>
-                                                {tab.count > 0 && (
-                                                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                                                        isSelected ? 'bg-gray-100 text-gray-700' : 'bg-gray-200/60 text-gray-500'
-                                                    }`}>
-                                                        {tab.count}
-                                                    </span>
-                                                )}
+                                                {tab.label}
+                                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold transition-colors ${
+                                                    isSelected 
+                                                        ? 'bg-[var(--card-elevated)] text-[var(--foreground)]' 
+                                                        : 'bg-[var(--card-bg)] text-[var(--muted)]'
+                                                }`}>
+                                                    {tab.count}
+                                                </span>
                                             </button>
                                         );
                                     })}
                                 </div>
-                                <div className="text-xs font-semibold text-gray-400">
+                                {/* Sort Indicator */}
+                                <div className="text-xs font-semibold text-[var(--muted)]">
                                     เรียงลำดับ: แมทช์ใหม่สุดอยู่บน 🕒
                                 </div>
                             </div>
                         )}
 
                         {matches.length === 0 ? (
-                            <div className="card text-center shadow-sm" style={{ padding: '64px 32px' }}>
-                                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-sm" style={{ background: 'var(--card-elevated)' }}>
-                                    <Icon icon="solar:sort-horizontal-linear" width={28} style={{ color: 'var(--gray-500)' }} />
+                            <div className="card text-center shadow-xs" style={{ padding: '64px 32px' }}>
+                                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-xs" style={{ background: 'var(--card-elevated)' }}>
+                                    <Icon icon="solar:sort-horizontal-linear" width={28} className="text-[var(--muted)]" />
                                 </div>
-                                <h2 className="text-xl font-bold mb-2 tracking-tight" style={{ color: 'var(--gray-900)' }}>ยังไม่มีแมตช์</h2>
-                                <p className="text-sm font-medium mb-8" style={{ color: 'var(--gray-500)' }}>กดปุ่ม "สร้างแมตช์ใหม่" เพื่อเริ่มต้นความสนุก</p>
+                                <h2 className="text-xl font-bold mb-2 tracking-tight text-[var(--foreground)]">ยังไม่มีแมตช์</h2>
+                                <p className="text-sm font-medium mb-8 text-[var(--muted)]">กดปุ่ม "สร้างแมตช์ใหม่" เพื่อเริ่มต้นความสนุก</p>
                             </div>
                         ) : sortedMatches.length === 0 ? (
-                            <div className="card text-center shadow-sm" style={{ padding: '48px 32px' }}>
-                                <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 bg-gray-50 border">
-                                    <Icon icon="solar:box-minimalistic-linear" width={24} className="text-gray-400" />
+                            <div className="card text-center shadow-xs" style={{ padding: '48px 32px' }}>
+                                <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 bg-[var(--card-elevated)] border border-[var(--card-border)]">
+                                    <Icon icon="solar:box-minimalistic-linear" width={24} className="text-[var(--muted)]" />
                                 </div>
-                                <p className="text-sm font-bold text-gray-900">ไม่มีแมตช์ในหมวดหมู่นี้</p>
+                                <p className="text-sm font-bold text-[var(--foreground)]">ไม่มีแมตช์ในหมวดหมู่นี้</p>
                             </div>
                         ) : (
                             <div className="space-y-3">
@@ -2097,47 +2092,47 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                         )}
                     </div > {/* end main content */}
 
-                    {/* Check-in Side Panel (inline) Add back the inactive sections as requested */}
+                    {/* Check-in Side Panel (inline) */}
                     {showPlayersSidebar && (
                         <div className="w-full lg:w-80 xl:w-96 shrink-0">
                             <div className="card shadow-sm sticky top-4 overflow-hidden" style={{ maxHeight: 'calc(100vh - 100px)' }}>
                                 {/* Header */}
-                                <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--gray-200)', background: 'var(--card-elevated)' }}>
+                                <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--card-border)', background: 'var(--card-elevated)' }}>
                                     <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(249,115,22,0.08)' }}>
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(249,115,22,0.1)' }}>
                                             <Icon icon="solar:users-group-rounded-bold" width={18} style={{ color: 'var(--orange-500)' }} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold" style={{ color: 'var(--gray-900)' }}>รายชื่อผู้เล่น</p>
-                                            <p className="text-[10px]" style={{ color: 'var(--gray-500)' }}>เช็คอินแล้ว {players.filter(p => p.is_checked_in).length}/{players.length} คน</p>
+                                            <p className="text-sm font-bold text-[var(--foreground)]">รายชื่อผู้เล่น</p>
+                                            <p className="text-[10px] text-[var(--muted)]">เช็คอินแล้ว {players.filter(p => p.is_checked_in).length}/{players.length} คน</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                        <button onClick={() => setShowAddGuestModal(true)} className="px-2 py-1.5 rounded-lg transition-colors bg-white hover:bg-purple-50/50 border border-gray-200 text-[10px] font-black flex items-center gap-1" style={{ color: 'var(--purple-600)' }}>
+                                        <button onClick={() => setShowAddGuestModal(true)} className="px-2 py-1.5 rounded-lg transition-colors bg-[var(--card-bg)] hover:bg-purple-500/10 border border-[var(--card-border)] text-[10px] font-black flex items-center gap-1 text-purple-600 dark:text-purple-400">
                                             <Icon icon="solar:user-plus-bold" width={14} />
                                             แอดขาจร
                                         </button>
-                                        <button onClick={() => { setShowAddPlayerModal(true); searchUnjoinedPlayers(''); }} className="px-2 py-1.5 rounded-lg transition-colors bg-white hover:bg-orange-50/50 border border-gray-200 text-[10px] font-black flex items-center gap-1" style={{ color: 'var(--orange-500)' }}>
+                                        <button onClick={() => { setShowAddPlayerModal(true); searchUnjoinedPlayers(''); }} className="px-2 py-1.5 rounded-lg transition-colors bg-[var(--card-bg)] hover:bg-orange-500/10 border border-[var(--card-border)] text-[10px] font-black flex items-center gap-1 text-orange-600 dark:text-orange-400">
                                             <Icon icon="solar:users-group-rounded-bold" width={14} />
                                             เพิ่ม
                                         </button>
-                                        <button onClick={() => setShowPlayersSidebar(false)} className="p-1.5 rounded-lg transition-colors hover:bg-gray-100">
-                                            <Icon icon="solar:close-circle-linear" width={20} style={{ color: 'var(--gray-400)' }} />
+                                        <button onClick={() => setShowPlayersSidebar(false)} className="p-1.5 rounded-lg transition-colors hover:bg-[var(--card-elevated)] text-[var(--muted)] hover:text-[var(--foreground)]">
+                                            <Icon icon="solar:close-circle-linear" width={20} />
                                         </button>
                                     </div>
                                 </div>
 
                                 {/* Summary badges */}
-                                <div className="flex items-center gap-2 px-4 py-2" style={{ borderBottom: '1px solid var(--gray-100)' }}>
-                                    <div className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(249,115,22,0.08)', color: 'var(--orange-500)' }}>
+                                <div className="flex items-center gap-2 px-4 py-2" style={{ borderBottom: '1px solid var(--card-border)' }}>
+                                    <div className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400">
                                         <Icon icon="solar:check-read-linear" width={10} />
                                         เช็คอิน {players.filter(p => p.is_checked_in).length}
                                     </div>
-                                    <div className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(22,163,74,0.08)', color: 'var(--success)' }}>
+                                    <div className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                                         <Icon icon="solar:check-circle-bold" width={10} />
                                         จ่าย {players.filter(p => p.payment_status === 'paid').length}
                                     </div>
-                                    <div className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(234,88,12,0.08)', color: 'var(--warning)' }}>
+                                    <div className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
                                         <Icon icon="solar:clock-circle-linear" width={10} />
                                         ค้าง {players.filter(p => p.payment_status === 'pending').length}
                                     </div>
@@ -2148,8 +2143,8 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
 
                                     {/* 1. Checked-in Friends (Regular) */}
                                     {players.filter(p => p.is_checked_in && !p.is_substitute && !(p.profiles as unknown as Profile)?.is_guest).length > 0 && (
-                                        <div className="px-3 py-1.5" style={{ background: 'rgba(249,115,22,0.03)' }}>
-                                            <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--orange-500)' }}>เช็คอินแล้ว</p>
+                                        <div className="px-3 py-1.5 bg-orange-500/5">
+                                            <p className="text-[9px] font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400">เช็คอินแล้ว</p>
                                         </div>
                                     )}
                                     {players.filter(p => p.is_checked_in && !p.is_substitute && !(p.profiles as unknown as Profile)?.is_guest).map(ep => {
@@ -2162,10 +2157,10 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
 
                                         return (
                                             <div key={ep.id}
-                                                className={`flex items-center gap-2.5 px-3 py-2 transition-all group cursor-pointer ${sidebarTeam ? 'hover:bg-opacity-80' : 'hover:bg-gray-50'}`}
+                                                className={`flex items-center gap-2.5 px-3 py-2 transition-all group cursor-pointer ${sidebarTeam ? 'hover:bg-opacity-80' : 'hover:bg-blue-500/5'}`}
                                                 style={{
-                                                    borderBottom: '1px solid var(--gray-50)',
-                                                    background: isSelected ? (sidebarTeam === 'A' ? 'rgba(249,115,22,0.08)' : 'rgba(59,130,246,0.08)') : 'transparent',
+                                                    borderBottom: '1px solid var(--card-border)',
+                                                    background: isSelected ? (sidebarTeam === 'A' ? 'rgba(249,115,22,0.12)' : 'rgba(59,130,246,0.12)') : 'transparent',
                                                     borderLeft: isSelected ? `3px solid ${sidebarTeam === 'A' ? 'var(--orange-500)' : '#3b82f6'}` : '3px solid transparent'
                                                 }}
                                                 onClick={() => {
@@ -2182,30 +2177,30 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                                 </button>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <p className={`text-xs font-bold truncate ${isSelected ? 'text-gray-900' : 'text-gray-900 group-hover:text-orange-600'}`}>
+                                                        <p className={`text-xs font-bold truncate ${isSelected ? 'text-[var(--foreground)]' : 'text-[var(--foreground)] group-hover:text-blue-500'}`}>
                                                             {prof?.display_name}
                                                         </p>
-                                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500">
+                                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[var(--card-elevated)] border border-[var(--card-border)] text-[var(--muted)]">
                                                             มือ {prof?.skill_level || 'N/A'}
                                                         </span>
                                                     </div>
                                                     <div className="flex flex-wrap items-center gap-1.5">
                                                         <RankBadge mmr={prof?.mmr || 1000} size="sm" showName={false} showMMR={false} />
-                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600">
+                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[var(--card-elevated)] border border-[var(--card-border)] text-[var(--muted)]">
                                                             {pstat?.total || 0} เกม
                                                         </span>
                                                         {pstat && pstat.playing && (
-                                                            <span className="text-[9px] font-bold text-orange-500 px-1.5 py-0.5 rounded-md bg-orange-50">กำลังตี</span>
+                                                            <span className="text-[9px] font-bold text-orange-500 px-1.5 py-0.5 rounded-md bg-orange-500/10">กำลังตี</span>
                                                         )}
-                                                        {inOther && <span className="text-[9px] font-bold text-red-500">อยู่ทีม {sidebarTeam === 'A' ? 'B' : 'A'}</span>}
+                                                        {inOther && <span className="text-[9px] font-bold text-rose-500">อยู่ทีม {sidebarTeam === 'A' ? 'B' : 'A'}</span>}
                                                     </div>
                                                 </div>
                                                 {isSelected ? (
                                                     <Icon icon="solar:check-circle-bold" width={16} className={sidebarTeam === 'A' ? 'text-orange-500' : 'text-blue-500'} />
                                                 ) : isPaid ? (
-                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(22,163,74,0.08)', color: 'var(--success)' }}>จ่ายแล้ว</span>
+                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">จ่ายแล้ว</span>
                                                 ) : (
-                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(234,88,12,0.08)', color: 'var(--warning)' }}>ค้าง</span>
+                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">ค้าง</span>
                                                 )}
                                             </div>
                                         );
@@ -2213,8 +2208,8 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
 
                                     {/* 2. Checked-in Substitutes */}
                                     {players.filter(p => p.is_checked_in && p.is_substitute && !(p.profiles as unknown as Profile)?.is_guest).length > 0 && (
-                                        <div className="px-3 py-1.5" style={{ background: 'rgba(59,130,246,0.03)' }}>
-                                            <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: '#3b82f6' }}>ตัวสำรอง (เช็คอิน)</p>
+                                        <div className="px-3 py-1.5 bg-blue-500/5">
+                                            <p className="text-[9px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">ตัวสำรอง (เช็คอิน)</p>
                                         </div>
                                     )}
                                     {players.filter(p => p.is_checked_in && p.is_substitute && !(p.profiles as unknown as Profile)?.is_guest).map(ep => {
@@ -2227,10 +2222,10 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
 
                                         return (
                                             <div key={ep.id}
-                                                className={`flex items-center gap-2.5 px-3 py-2 transition-all group cursor-pointer ${sidebarTeam ? 'hover:bg-opacity-80' : 'hover:bg-blue-50/30'}`}
+                                                className={`flex items-center gap-2.5 px-3 py-2 transition-all group cursor-pointer ${sidebarTeam ? 'hover:bg-opacity-80' : 'hover:bg-blue-500/5'}`}
                                                 style={{
-                                                    borderBottom: '1px solid var(--gray-50)',
-                                                    background: isSelected ? (sidebarTeam === 'A' ? 'rgba(249,115,22,0.08)' : 'rgba(59,130,246,0.08)') : 'transparent',
+                                                    borderBottom: '1px solid var(--card-border)',
+                                                    background: isSelected ? (sidebarTeam === 'A' ? 'rgba(249,115,22,0.12)' : 'rgba(59,130,246,0.12)') : 'transparent',
                                                     borderLeft: isSelected ? `3px solid ${sidebarTeam === 'A' ? 'var(--orange-500)' : '#3b82f6'}` : '3px solid transparent'
                                                 }}
                                                 onClick={() => {
@@ -2247,34 +2242,34 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                                 </button>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <p className={`text-xs font-bold truncate ${isSelected ? 'text-gray-900' : 'text-gray-900 group-hover:text-blue-600'}`}>
+                                                        <p className={`text-xs font-bold truncate ${isSelected ? 'text-[var(--foreground)]' : 'text-[var(--foreground)] group-hover:text-blue-500'}`}>
                                                             {prof?.display_name}
                                                         </p>
-                                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: '#3b82f620', color: '#3b82f6' }}>สำรอง</span>
-                                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500">
+                                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400">สำรอง</span>
+                                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[var(--card-elevated)] border border-[var(--card-border)] text-[var(--muted)]">
                                                             มือ {prof?.skill_level || 'N/A'}
                                                         </span>
                                                     </div>
                                                     <div className="flex flex-wrap items-center gap-1.5">
                                                         <RankBadge mmr={prof?.mmr || 1000} size="sm" showName={false} showMMR={false} />
-                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600">
+                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[var(--card-elevated)] border border-[var(--card-border)] text-[var(--muted)]">
                                                             {pstat?.total || 0} เกม
                                                         </span>
                                                         {pstat && pstat.playing && (
-                                                            <span className="text-[9px] font-bold text-orange-500 px-1.5 py-0.5 rounded-md bg-orange-50">กำลังตี</span>
+                                                            <span className="text-[9px] font-bold text-orange-500 px-1.5 py-0.5 rounded-md bg-orange-500/10">กำลังตี</span>
                                                         )}
-                                                        {inOther && <span className="text-[9px] font-bold text-red-500">อยู่ทีม {sidebarTeam === 'A' ? 'B' : 'A'}</span>}
+                                                        {inOther && <span className="text-[9px] font-bold text-rose-500">อยู่ทีม {sidebarTeam === 'A' ? 'B' : 'A'}</span>}
                                                     </div>
                                                 </div>
                                                 {isSelected ? (
                                                     <Icon icon="solar:check-circle-bold" width={16} className={sidebarTeam === 'A' ? 'text-orange-500' : 'text-blue-500'} />
                                                 ) : isPaid ? (
-                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(22,163,74,0.08)', color: 'var(--success)' }}>จ่ายแล้ว</span>
+                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">จ่ายแล้ว</span>
                                                 ) : sidebarTeam ? (
-                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(234,88,12,0.08)', color: 'var(--warning)' }}>ค้าง</span>
+                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">ค้าง</span>
                                                 ) : (
-                                                    <button onClick={(e) => { e.stopPropagation(); handleRemovePlayer(ep.id, prof.display_name); }} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-red-50 text-gray-400 hover:text-red-500 ml-1">
-                                                        <Icon icon="solar:trash-bin-trash-bold" width={16} />
+                                                    <button onClick={(e) => { e.stopPropagation(); handleRemovePlayer(ep.id, prof.display_name); }} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-rose-500/10 text-[var(--muted)] hover:text-rose-500 ml-1">
+                                                        <Icon icon="solar:trash-bin-trash-linear" width={16} />
                                                     </button>
                                                 )}
                                             </div>

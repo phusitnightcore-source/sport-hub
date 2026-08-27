@@ -307,11 +307,11 @@ export default function UserManagementPage() {
                     </div>
 
                     <div className="relative flex-1 max-w-md">
-                        <Icon icon="solar:magnifer-linear" className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" width={18} />
+                        <Icon icon="solar:magnifer-linear" className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted)]" width={18} />
                         <input
                             type="text"
                             placeholder="ค้นหาตามชื่อ หรืออีเมล..."
-                            className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-gray-100 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all shadow-sm"
+                            className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--input-bg)] text-[var(--foreground)] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all shadow-sm"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -319,50 +319,50 @@ export default function UserManagementPage() {
                 </div>
 
                 {/* User List Card */}
-                <div className="card shadow-sm overflow-hidden p-0 border border-gray-100">
+                <div className="card shadow-sm overflow-hidden p-0 border border-[var(--card-border)]">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead>
-                                <tr className="bg-gray-50/50 border-b border-gray-50">
-                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">รูป/บทบาท</th>
-                                    <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">ชื่อผู้ใช้</th>
-                                    <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Rank/MMR</th>
-                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-center">ระดับฝีมือ</th>
-                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">จัดการ</th>
+                                <tr className="bg-[var(--card-elevated)] border-b border-[var(--card-border)]">
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">รูป/บทบาท</th>
+                                    <th className="px-6 py-4 text-left text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">ชื่อผู้ใช้</th>
+                                    <th className="px-6 py-4 text-left text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Rank/MMR</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-center">ระดับฝีมือ</th>
+                                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--muted)] text-right">จัดการ</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-50">
+                            <tbody className="divide-y divide-[var(--card-border)]">
                                 {filteredUsers.length > 0 ? filteredUsers.map((user) => (
                                     <tr
                                         key={user.id}
-                                        className="hover:bg-gray-50/50 transition-colors cursor-pointer group/row"
+                                        className="hover:bg-blue-500/5 transition-colors cursor-pointer group/row"
                                         onClick={() => fetchUserDetails(user)}
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-500 shrink-0 border-2 border-white shadow-sm overflow-hidden">
+                                                <div className="w-10 h-10 rounded-full bg-[var(--card-elevated)] flex items-center justify-center text-sm font-bold text-[var(--muted)] shrink-0 border-2 border-[var(--card-border)] shadow-sm overflow-hidden">
                                                     {user.avatar_url ? (
                                                         <img src={user.avatar_url} alt={user.display_name} className="w-full h-full object-cover" />
                                                     ) : (
                                                         user.display_name?.charAt(0).toUpperCase() || 'U'
                                                     )}
                                                 </div>
-                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${user.role === 'venue_admin' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${user.role === 'venue_admin' ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400' : 'bg-blue-500/15 text-blue-600 dark:text-blue-400'}`}>
                                                     {user.role}
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex flex-col gap-0.5 min-w-[120px]">
-                                                <p className="text-sm font-bold text-gray-900">{truncateName(user.display_name, 16)}</p>
-                                                <p className="text-[10px] font-medium text-gray-400 truncate max-w-[150px]">{user.email}</p>
+                                                <p className="text-sm font-bold text-[var(--foreground)]">{truncateName(user.display_name, 16)}</p>
+                                                <p className="text-[10px] font-medium text-[var(--muted)] truncate max-w-[150px]">{user.email}</p>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <RankBadge mmr={user.mmr || 1000} size="sm" />
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-gray-50 text-gray-600 border border-gray-100">
+                                            <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-[var(--card-elevated)] text-[var(--foreground)] border border-[var(--card-border)]">
                                                 {user.skill_level || 'N/A'}
                                             </span>
                                         </td>
@@ -370,14 +370,14 @@ export default function UserManagementPage() {
                                             <div className="flex items-center justify-end gap-2">
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setEditingUser(user); }}
-                                                    className="p-2 rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors"
+                                                    className="p-2 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 hover:bg-blue-500/25 transition-colors"
                                                     title="แก้ไข"
                                                 >
                                                     <Icon icon="solar:pen-bold" width={18} />
                                                 </button>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleDeleteUser(user); }}
-                                                    className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                                                    className="p-2 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 hover:bg-rose-500/25 transition-colors"
                                                     title="ลบ"
                                                 >
                                                     <Icon icon="solar:trash-bin-trash-bold" width={18} />
@@ -387,10 +387,10 @@ export default function UserManagementPage() {
                                     </tr>
                                 )) : (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-12 text-center">
+                                        <td colSpan={5} className="px-6 py-12 text-center">
                                             <div className="flex flex-col items-center gap-2">
-                                                <Icon icon="solar:users-group-rounded-linear" className="text-gray-200" width={48} />
-                                                <p className="text-sm font-bold text-gray-400">ไม่พบสมาชิกตามเงื่อนไขที่ค้นหา</p>
+                                                <Icon icon="solar:users-group-rounded-linear" className="text-[var(--muted)] opacity-30" width={48} />
+                                                <p className="text-sm font-bold text-[var(--muted)]">ไม่พบสมาชิกตามเงื่อนไขที่ค้นหา</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -405,26 +405,26 @@ export default function UserManagementPage() {
             {editingUser && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setEditingUser(null)} />
-                    <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-white">
+                    <div className="relative w-full max-w-md bg-[var(--card-bg)] text-[var(--foreground)] rounded-3xl shadow-2xl border border-[var(--card-border)] overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="px-6 py-5 border-b border-[var(--card-border)] flex items-center justify-between bg-[var(--card-bg)]">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
+                                <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center text-blue-600 dark:text-blue-400">
                                     <Icon icon="solar:user-id-bold" width={22} />
                                 </div>
-                                <h3 className="font-black text-gray-900 tracking-tight">แก้ไขข้อมูลสมาชิก</h3>
+                                <h3 className="font-black text-[var(--foreground)] tracking-tight">แก้ไขข้อมูลสมาชิก</h3>
                             </div>
-                            <button onClick={() => setEditingUser(null)} className="p-2 rounded-full hover:bg-gray-100 text-gray-400 transition-colors">
+                            <button onClick={() => setEditingUser(null)} className="p-2 rounded-full hover:bg-[var(--card-elevated)] text-[var(--muted)] transition-colors">
                                 <Icon icon="solar:close-circle-bold" width={24} />
                             </button>
                         </div>
 
                         <form onSubmit={handleUpdateUser} className="p-6 space-y-5">
                             <div className="space-y-1.5">
-                                <label className="text-[11px] font-black uppercase tracking-widest text-gray-400 ml-1">ชื่อที่แสดง (Display Name)</label>
+                                <label className="text-[11px] font-black uppercase tracking-widest text-[var(--muted)] ml-1">ชื่อที่แสดง (Display Name)</label>
                                 <input
                                     type="text"
                                     required
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                                    className="w-full px-4 py-3 rounded-xl border border-[var(--card-border)] bg-[var(--input-bg)] text-[var(--foreground)] text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
                                     value={editingUser.display_name}
                                     onChange={(e) => setEditingUser({ ...editingUser, display_name: e.target.value })}
                                 />
@@ -439,7 +439,7 @@ export default function UserManagementPage() {
                             />
 
                             <div className="space-y-1.5">
-                                <label className="text-[11px] font-black uppercase tracking-widest text-gray-400 ml-1">ระดับฝีมือ</label>
+                                <label className="text-[11px] font-black uppercase tracking-widest text-[var(--muted)] ml-1">ระดับฝีมือ</label>
                                 <div className="grid grid-cols-5 gap-2">
                                     {SKILL_LEVELS.map((lvl) => (
                                         <button
@@ -447,8 +447,8 @@ export default function UserManagementPage() {
                                             type="button"
                                             onClick={() => setEditingUser({ ...editingUser, skill_level: lvl as any })}
                                             className={`py-2.5 rounded-xl text-[11px] font-black transition-all border-2 ${editingUser.skill_level === lvl
-                                                ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20'
-                                                : 'bg-white text-gray-400 border-gray-100 hover:border-blue-200 hover:text-blue-600'
+                                                ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                                                : 'bg-[var(--card-elevated)] text-[var(--muted)] border-[var(--card-border)] hover:border-blue-500 hover:text-blue-500'
                                                 }`}
                                         >
                                             {lvl}
@@ -461,7 +461,7 @@ export default function UserManagementPage() {
                                 <button
                                     type="submit"
                                     disabled={updating}
-                                    className="btn btn-primary flex-1 shadow-lg shadow-blue-500/20 disabled:opacity-50"
+                                    className="btn btn-primary flex-1 shadow-md disabled:opacity-50"
                                 >
                                     {updating ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
                                 </button>
@@ -483,9 +483,9 @@ export default function UserManagementPage() {
             {selectedUserDetail && (
                 <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setSelectedUserDetail(null)} />
-                    <div className="relative w-full max-w-xl bg-[#F8FAFC] rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                    <div className="relative w-full max-w-xl bg-[var(--card-bg)] text-[var(--foreground)] rounded-[32px] shadow-2xl border border-[var(--card-border)] overflow-hidden animate-in zoom-in-95 duration-200">
                         {/* Header bg-gradient */}
-                        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6 relative">
+                        <div className="bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 p-6 relative">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full pointer-events-none" />
                             <button
                                 onClick={() => setSelectedUserDetail(null)}
@@ -495,7 +495,7 @@ export default function UserManagementPage() {
                             </button>
 
                             <div className="flex items-start gap-6 relative z-10 pt-2">
-                                <div className="w-20 h-20 rounded-3xl bg-orange-500 text-white flex items-center justify-center text-3xl font-black shadow-2xl border-2 border-white/20 overflow-hidden shrink-0">
+                                <div className="w-20 h-20 rounded-3xl bg-blue-600 text-white flex items-center justify-center text-3xl font-black shadow-2xl border-2 border-white/20 overflow-hidden shrink-0">
                                     {selectedUserDetail.avatar_url ? (
                                         <img src={selectedUserDetail.avatar_url} alt={selectedUserDetail.display_name} className="w-full h-full object-cover" />
                                     ) : (
@@ -504,13 +504,13 @@ export default function UserManagementPage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h2 className="text-2xl font-black text-white leading-tight mb-1">{truncateName(selectedUserDetail.display_name, 20)}</h2>
-                                    <p className="text-gray-400 text-sm font-medium mb-3">{selectedUserDetail.full_name || 'ชื่อ-นามสกุลจริงไม่ระบุ'}</p>
+                                    <p className="text-slate-300 text-sm font-medium mb-3">{selectedUserDetail.full_name || 'ชื่อ-นามสกุลจริงไม่ระบุ'}</p>
                                     <div className="flex flex-wrap gap-2">
-                                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${selectedUserDetail.role === 'venue_admin' ? 'bg-orange-500/20 text-orange-400 border-orange-500/20' : 'bg-white/10 text-gray-400 border-white/10'}`}>
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${selectedUserDetail.role === 'venue_admin' ? 'bg-orange-500/20 text-orange-300 border-orange-500/30' : 'bg-white/10 text-slate-300 border-white/10'}`}>
                                             {selectedUserDetail.role === 'venue_admin' ? 'ผู้ดูแลระบบ' : 'ผู้เล่นทั่วไป'}
                                         </span>
                                         {selectedUserDetail.skill_level && (
-                                            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-orange-500 text-white shadow-lg shadow-orange-500/20">
+                                            <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-blue-600 text-white shadow-sm">
                                                 ระดับ {selectedUserDetail.skill_level}
                                             </span>
                                         )}
@@ -520,19 +520,19 @@ export default function UserManagementPage() {
                             </div>
 
                             {/* Badges row in header */}
-                            <div className="flex flex-wrap gap-2 mt-5 relative z-10 pt-3 border-t border-white/5">
+                            <div className="flex flex-wrap gap-2 mt-5 relative z-10 pt-3 border-t border-white/10">
                                 {userDetailBadges.badge_win_streak && (
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500/20 text-orange-400 border border-orange-500/20 text-[10px] font-black uppercase tracking-wider">
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500/20 text-orange-300 border border-orange-500/30 text-[10px] font-black uppercase tracking-wider">
                                         <Icon icon="solar:fire-bold" width={14} /> ชนะต่อเนื่อง
                                     </div>
                                 )}
                                 {userDetailBadges.badge_marathon && (
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/20 text-[10px] font-black uppercase tracking-wider">
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-black uppercase tracking-wider">
                                         <Icon icon="solar:shuttlecock-bold" width={14} /> เล่นครบ 100+
                                     </div>
                                 )}
                                 {userDetailBadges.badge_patron && (
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-[10px] font-black uppercase tracking-wider">
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider">
                                         <Icon icon="solar:wallet-money-bold" width={14} /> สายเปย์
                                     </div>
                                 )}
@@ -544,49 +544,49 @@ export default function UserManagementPage() {
                             {loadingDetail ? (
                                 <div className="py-20 flex flex-col items-center justify-center gap-4">
                                     <div className="spinner" />
-                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">กำลังโหลดสถิติ...</p>
+                                    <p className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest">กำลังโหลดสถิติ...</p>
                                 </div>
                             ) : (
                                 <div className="space-y-6">
                                     {/* Stats Grid */}
                                     <div className="grid grid-cols-4 gap-3">
                                         {[
-                                            { label: 'เกม', value: userDetailStats.totalGames, icon: 'solar:gamepad-bold-duotone', color: 'text-blue-500', bg: 'bg-blue-50' },
-                                            { label: 'ชนะ', value: userDetailStats.wins, icon: 'solar:cup-star-bold-duotone', color: 'text-emerald-500', bg: 'bg-emerald-50' },
-                                            { label: 'แพ้', value: userDetailStats.losses, icon: 'solar:sad-circle-bold-duotone', color: 'text-rose-500', bg: 'bg-rose-50' },
-                                            { label: 'Win Rate', value: `${userDetailStats.totalGames > 0 ? Math.round((userDetailStats.wins / userDetailStats.totalGames) * 100) : 0}%`, icon: 'solar:graph-up-bold-duotone', color: 'text-purple-500', bg: 'bg-purple-50' },
-                                            { label: 'แต้ม', value: userDetailStats.totalPoints, icon: 'solar:star-bold-duotone', color: 'text-amber-500', bg: 'bg-amber-50' },
+                                            { label: 'เกม', value: userDetailStats.totalGames, icon: 'solar:gamepad-bold-duotone', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                                            { label: 'ชนะ', value: userDetailStats.wins, icon: 'solar:cup-star-bold-duotone', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                                            { label: 'แพ้', value: userDetailStats.losses, icon: 'solar:sad-circle-bold-duotone', color: 'text-rose-500', bg: 'bg-rose-500/10' },
+                                            { label: 'Win Rate', value: `${userDetailStats.totalGames > 0 ? Math.round((userDetailStats.wins / userDetailStats.totalGames) * 100) : 0}%`, icon: 'solar:graph-up-bold-duotone', color: 'text-purple-500', bg: 'bg-purple-500/10' },
+                                            { label: 'แต้ม', value: userDetailStats.totalPoints, icon: 'solar:star-bold-duotone', color: 'text-amber-500', bg: 'bg-amber-500/10' },
                                         ].map((stat, i) => (
-                                            <div key={i} className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-gray-100 shadow-sm transition-all hover:border-blue-100">
+                                            <div key={i} className="flex flex-col items-center justify-center p-3 rounded-2xl bg-[var(--card-elevated)] border border-[var(--card-border)] shadow-sm transition-all hover:border-blue-500">
                                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 shadow-sm ${stat.bg} ${stat.color}`}>
                                                     <Icon icon={stat.icon} width={18} />
                                                 </div>
-                                                <p className="text-base font-black text-gray-900 leading-none mb-1">{stat.value}</p>
-                                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
+                                                <p className="text-base font-black text-[var(--foreground)] leading-none mb-1">{stat.value}</p>
+                                                <p className="text-[9px] font-bold text-[var(--muted)] uppercase tracking-wider">{stat.label}</p>
                                             </div>
                                         ))}
                                     </div>
 
                                     {/* Contact Info */}
-                                    <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
-                                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">ข้อมูลติดต่อ</h3>
+                                    <div className="bg-[var(--card-elevated)] rounded-3xl p-5 border border-[var(--card-border)] shadow-sm space-y-4">
+                                        <h3 className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest px-1">ข้อมูลติดต่อ</h3>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400">
+                                                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
                                                     <Icon icon="solar:letter-bold-duotone" width={18} />
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider leading-none mb-1">อีเมล</p>
-                                                    <p className="text-xs font-bold text-gray-900 truncate">{selectedUserDetail.email}</p>
+                                                    <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-wider leading-none mb-1">อีเมล</p>
+                                                    <p className="text-xs font-bold text-[var(--foreground)] truncate">{selectedUserDetail.email}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400">
+                                                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
                                                     <Icon icon="solar:phone-bold-duotone" width={18} />
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider leading-none mb-1">เบอร์โทรศัพท์</p>
-                                                    <p className="text-xs font-bold text-gray-900 truncate">{selectedUserDetail.phone || '-'}</p>
+                                                    <p className="text-[9px] font-black text-[var(--muted)] uppercase tracking-wider leading-none mb-1">เบอร์โทรศัพท์</p>
+                                                    <p className="text-xs font-bold text-[var(--foreground)] truncate">{selectedUserDetail.phone || '-'}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -595,19 +595,19 @@ export default function UserManagementPage() {
                                     {/* MMR History */}
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-2 px-1">
-                                            <Icon icon="solar:history-bold" width={16} className="text-gray-400" />
-                                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ประวัติอันดับ (Rating History)</h3>
+                                            <Icon icon="solar:history-bold" width={16} className="text-[var(--muted)]" />
+                                            <h3 className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">ประวัติอันดับ (Rating History)</h3>
                                         </div>
-                                        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-50">
+                                        <div className="bg-[var(--card-elevated)] rounded-3xl border border-[var(--card-border)] shadow-sm overflow-hidden divide-y divide-[var(--card-border)]">
                                             {userDetailMMRHistory.length > 0 ? userDetailMMRHistory.map((h, i) => (
-                                                <div key={i} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                                <div key={i} className="p-4 flex items-center justify-between hover:bg-blue-500/5 transition-colors">
                                                     <div className="flex items-center gap-3">
-                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${h.change > 0 ? 'bg-emerald-50 text-emerald-600' : h.change < 0 ? 'bg-rose-50 text-rose-600' : 'bg-gray-100 text-gray-400'}`}>
+                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${h.change > 0 ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : h.change < 0 ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400' : 'bg-slate-500/15 text-[var(--muted)]'}`}>
                                                             <Icon icon={h.change > 0 ? 'solar:trending-up-bold' : h.change < 0 ? 'solar:trending-down-bold' : 'solar:minus-circle-bold'} width={16} />
                                                         </div>
                                                         <div>
                                                             <div className="flex items-center gap-2">
-                                                                <p className="text-[11px] font-black text-gray-900">{h.change > 0 ? '+' : ''}{h.change} แต้ม</p>
+                                                                <p className="text-[11px] font-black text-[var(--foreground)]">{h.change > 0 ? '+' : ''}{h.change} แต้ม</p>
                                                                 <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
                                                                     h.reason?.startsWith('absence_penalty:')
                                                                         ? 'bg-rose-600 text-white'
@@ -616,7 +616,7 @@ export default function UserManagementPage() {
                                                                     {h.reason?.startsWith('absence_penalty:') ? 'ขาดก๊วน' : h.result}
                                                                 </span>
                                                             </div>
-                                                            <p className="text-[9px] font-medium text-gray-400">
+                                                            <p className="text-[9px] font-medium text-[var(--muted)]">
                                                                 {h.reason?.startsWith('absence_penalty:') 
                                                                     ? formatAbsenceReason(h.reason, allClosedEvents, userDetailRegistrations) 
                                                                     : (h.event_name || 'Match') + ` • ${new Date(h.change_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}`}
@@ -624,13 +624,13 @@ export default function UserManagementPage() {
                                                         </div>
                                                     </div>
                                                     <div className="text-right">
-                                                        <p className="text-xs font-black text-gray-900">{h.new_mmr}</p>
-                                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Rating</p>
+                                                        <p className="text-xs font-black text-[var(--foreground)]">{h.new_mmr}</p>
+                                                        <p className="text-[8px] font-bold text-[var(--muted)] uppercase tracking-widest">Rating</p>
                                                     </div>
                                                 </div>
                                             )) : (
                                                 <div className="p-8 text-center">
-                                                    <p className="text-[10px] font-bold text-gray-400">ยังไม่มีประวัติอันดับ</p>
+                                                    <p className="text-[10px] font-bold text-[var(--muted)]">ยังไม่มีประวัติอันดับ</p>
                                                 </div>
                                             )}
                                         </div>
@@ -639,30 +639,30 @@ export default function UserManagementPage() {
                                     {/* Billing History */}
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between px-1">
-                                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">ประวัติการชำระเงินล่าสุด</h3>
+                                            <h3 className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">ประวัติการชำระเงินล่าสุด</h3>
                                         </div>
-                                        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-50">
+                                        <div className="bg-[var(--card-elevated)] rounded-3xl border border-[var(--card-border)] shadow-sm overflow-hidden divide-y divide-[var(--card-border)]">
                                             {userDetailHistory.length > 0 ? userDetailHistory.map((item, i) => (
-                                                <div key={i} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                                <div key={i} className="p-4 flex items-center justify-between hover:bg-blue-500/5 transition-colors">
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 mb-1">
-                                                            <p className="text-xs font-bold text-gray-900 truncate">{item.event_name || 'ก๊วนทั่วไป'}</p>
-                                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${item.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+                                                            <p className="text-xs font-bold text-[var(--foreground)] truncate">{item.event_name || 'ก๊วนทั่วไป'}</p>
+                                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${item.payment_status === 'paid' ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-orange-500/15 text-orange-600 dark:text-orange-400'}`}>
                                                                 {item.payment_status === 'paid' ? 'จ่ายแล้ว' : 'ค้างชำระ'}
                                                             </span>
                                                         </div>
-                                                        <p className="text-[10px] font-medium text-gray-400">
+                                                        <p className="text-[10px] font-medium text-[var(--muted)]">
                                                             {new Date(item.event_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} • {item.games_played} เกม
                                                         </p>
                                                     </div>
                                                     <div className="text-right pl-4">
-                                                        <p className="text-sm font-black text-gray-900">฿{Number(item.total_amount).toLocaleString()}</p>
+                                                        <p className="text-sm font-black text-[var(--foreground)]">฿{Number(item.total_amount).toLocaleString()}</p>
                                                     </div>
                                                 </div>
                                             )) : (
                                                 <div className="p-10 text-center">
-                                                    <Icon icon="solar:history-linear" width={32} className="mx-auto text-gray-200 mb-2" />
-                                                    <p className="text-xs font-bold text-gray-400">ยังไม่มีข้อมูลการเล่น</p>
+                                                    <Icon icon="solar:history-linear" width={32} className="mx-auto text-[var(--muted)] opacity-30 mb-2" />
+                                                    <p className="text-xs font-bold text-[var(--muted)]">ยังไม่มีข้อมูลการเล่น</p>
                                                 </div>
                                             )}
                                         </div>
@@ -672,8 +672,8 @@ export default function UserManagementPage() {
                         </div>
 
                         {/* Footer Action */}
-                        <div className="p-4 bg-white border-t border-gray-50 flex items-center justify-center">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Badminton Group Management System</p>
+                        <div className="p-4 bg-[var(--card-elevated)] border-t border-[var(--card-border)] flex items-center justify-center">
+                            <p className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-[0.2em]">Badminton Group Management System</p>
                         </div>
                     </div>
                 </div>

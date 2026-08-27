@@ -33,10 +33,10 @@ export default function RootLayout({
       className={`${prompt.variable} ${plexMono.variable} h-full`}
     >
       <head>
-        {/* no-FOUC: ตั้ง data-theme ก่อน paint จาก localStorage / prefers-color-scheme */}
+        {/* no-FOUC: ตั้ง data-theme และ class dark ก่อน paint จาก localStorage / prefers-color-scheme */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',t);if(t==='dark'){document.documentElement.classList.add('dark');}else{document.documentElement.classList.remove('dark');}}catch(e){}})();`,
           }}
         />
       </head>

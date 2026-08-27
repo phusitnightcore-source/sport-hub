@@ -440,11 +440,11 @@ export default function EventHistoryPage({ params }: { params: Promise<{ id: str
 
             {/* Match Results */}
             <div className="card shadow-sm mb-16" style={{ padding: '20px 24px' }}>
-                <h2 className="text-sm font-black mb-4 tracking-tight uppercase text-gray-400">ผลการแข่งขัน</h2>
+                <h2 className="text-sm font-black mb-4 tracking-tight uppercase text-[var(--muted)]">ผลการแข่งขัน</h2>
                 {finishedMatches.length === 0 ? (
                     <div className="text-center py-8">
-                        <Icon icon="solar:gamepad-bold-duotone" width={32} className="text-gray-300 mx-auto mb-2" />
-                        <p className="text-sm text-gray-400">ไม่มีแมตช์ที่ตีจบ</p>
+                        <Icon icon="solar:gamepad-bold-duotone" width={32} className="text-[var(--muted)] opacity-50 mx-auto mb-2" />
+                        <p className="text-sm text-[var(--muted)]">ไม่มีแมตช์ที่ตีจบ</p>
                     </div>
                 ) : (
                     <div className="space-y-3">
@@ -454,12 +454,12 @@ export default function EventHistoryPage({ params }: { params: Promise<{ id: str
                             const aWins = match.team_a_score > match.team_b_score;
 
                             return (
-                                <div key={match.id} className="rounded-xl border border-gray-100 overflow-hidden">
+                                <div key={match.id} className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] overflow-hidden">
                                     {/* Match Header */}
-                                    <div className="flex items-center justify-between px-4 py-2 bg-gray-50/80 border-b border-gray-100">
-                                        <span className="text-xs font-bold text-gray-400">เกม #{idx + 1} · สนาม {match.court_number}</span>
+                                    <div className="flex items-center justify-between px-4 py-2 bg-[var(--card-elevated)] border-b border-[var(--card-border)]">
+                                        <span className="text-xs font-bold text-[var(--muted)]">เกม #{idx + 1} · สนาม {match.court_number}</span>
                                         {match.shuttlecock_numbers && match.shuttlecock_numbers.length > 0 && (
-                                            <span className="text-[10px] font-bold text-gray-400">
+                                            <span className="text-[10px] font-bold text-[var(--muted)]">
                                                 🏸 ลูก #{match.shuttlecock_numbers.join(', #')}
                                             </span>
                                         )}
@@ -472,39 +472,39 @@ export default function EventHistoryPage({ params }: { params: Promise<{ id: str
                                             <div className={`flex-1 text-center ${aWins ? '' : 'opacity-60'}`}>
                                                 <div className="flex flex-wrap items-center justify-center gap-1 mb-2">
                                                     {teamA.map(mp => (
-                                                        <span key={mp.id} className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                        <span key={mp.id} className="text-xs font-bold text-[var(--foreground)] bg-[var(--card-elevated)] border border-[var(--card-border)] px-2 py-0.5 rounded-full">
                                                             {mp.profiles?.display_name}
                                                         </span>
                                                     ))}
                                                     {Array.from({ length: Math.max(0, 2 - teamA.length) }).map((_, idx) => (
-                                                        <span key={`empty-A-${idx}`} className="text-xs font-bold text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full italic opacity-70">
+                                                        <span key={`empty-A-${idx}`} className="text-xs font-bold text-[var(--muted)] bg-[var(--card-elevated)] border border-[var(--card-border)] px-2 py-0.5 rounded-full italic opacity-70">
                                                             (ขาจร)
                                                         </span>
                                                     ))}
                                                 </div>
-                                                <span className={`text-2xl font-black ${aWins ? 'text-emerald-500' : 'text-gray-400'}`}>
+                                                <span className={`text-2xl font-black ${aWins ? 'text-emerald-500' : 'text-[var(--muted)]'}`}>
                                                     {match.team_a_score}
                                                 </span>
                                                 {aWins && <span className="block text-[10px] font-bold text-emerald-500 mt-0.5">ชนะ</span>}
                                             </div>
 
-                                            <span className="text-sm font-black text-gray-300">VS</span>
+                                            <span className="text-sm font-black text-[var(--muted)] opacity-50">VS</span>
 
                                             {/* Team B */}
                                             <div className={`flex-1 text-center ${!aWins ? '' : 'opacity-60'}`}>
                                                 <div className="flex flex-wrap items-center justify-center gap-1 mb-2">
                                                     {teamB.map(mp => (
-                                                        <span key={mp.id} className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                        <span key={mp.id} className="text-xs font-bold text-[var(--foreground)] bg-[var(--card-elevated)] border border-[var(--card-border)] px-2 py-0.5 rounded-full">
                                                             {mp.profiles?.display_name}
                                                         </span>
                                                     ))}
                                                     {Array.from({ length: Math.max(0, 2 - teamB.length) }).map((_, idx) => (
-                                                        <span key={`empty-B-${idx}`} className="text-xs font-bold text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full italic opacity-70">
+                                                        <span key={`empty-B-${idx}`} className="text-xs font-bold text-[var(--muted)] bg-[var(--card-elevated)] border border-[var(--card-border)] px-2 py-0.5 rounded-full italic opacity-70">
                                                             (ขาจร)
                                                         </span>
                                                     ))}
                                                 </div>
-                                                <span className={`text-2xl font-black ${!aWins ? 'text-emerald-500' : 'text-gray-400'}`}>
+                                                <span className={`text-2xl font-black ${!aWins ? 'text-emerald-500' : 'text-[var(--muted)]'}`}>
                                                     {match.team_b_score}
                                                 </span>
                                                 {!aWins && <span className="block text-[10px] font-bold text-emerald-500 mt-0.5">ชนะ</span>}
@@ -521,21 +521,21 @@ export default function EventHistoryPage({ params }: { params: Promise<{ id: str
             {mounted && scoreMatch && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setScoreMatch(null)} />
-                    <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                    <div className="relative w-full max-w-sm bg-[var(--card-bg)] border border-[var(--card-border)] rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                         {/* Header */}
-                        <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between" style={{ background: 'var(--card-elevated)' }}>
+                        <div className="px-6 py-5 border-b border-[var(--card-border)] flex items-center justify-between" style={{ background: 'var(--card-elevated)' }}>
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm" style={{ background: 'var(--orange-50)', color: 'var(--orange-500)' }}>
+                                <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-xs bg-orange-500/10 text-orange-500">
                                     <Icon icon="solar:cup-star-bold-duotone" width={24} />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black" style={{ color: 'var(--gray-900)' }}>บันทึกผลการแข่ง</h3>
-                                    <p className="text-xs font-medium" style={{ color: 'var(--gray-500)' }}>
+                                    <h3 className="text-lg font-black text-[var(--foreground)]">บันทึกผลการแข่ง</h3>
+                                    <p className="text-xs font-medium text-[var(--muted)]">
                                         สนาม {scoreMatch.court_number}
                                     </p>
                                 </div>
                             </div>
-                            <button onClick={() => setScoreMatch(null)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors">
+                            <button onClick={() => setScoreMatch(null)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-[var(--card-elevated)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
                                 <Icon icon="solar:close-circle-bold" width={20} />
                             </button>
                         </div>

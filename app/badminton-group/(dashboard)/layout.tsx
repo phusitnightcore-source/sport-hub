@@ -26,7 +26,7 @@ export default async function DashboardLayout({
     }
 
     return (
-        <div className="min-h-screen">
+        <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] transition-colors duration-200">
             <Navbar profile={profile as Profile} />
 
             {/* Main Content */}
