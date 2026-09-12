@@ -5,7 +5,9 @@ import { defineConfig, devices } from "@playwright/test";
 // รัน:            npm run e2e
 export default defineConfig({
   testDir: "./e2e",
-  timeout: 30_000,
+  // First requests on a cold Next dev server can compile route bundles before
+  // the page loads. Keep smoke tests stable without relaxing assertions.
+  timeout: 60_000,
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
   reporter: "list",

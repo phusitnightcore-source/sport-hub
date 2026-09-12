@@ -148,8 +148,8 @@ export function PublicNavClient({ home, userEmail }: PublicNavClientProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-line/60 bg-surface/80 backdrop-blur-xl shadow-xs transition-colors">
-        <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-50 w-full border-b border-line/60 bg-surface/80 backdrop-blur-xl shadow-xs transition-colors">
+        <div className="flex h-18 w-full items-center justify-between px-4 sm:px-8 lg:px-12">
           {/* Left: Brand Logo & Hamburger Trigger */}
           <div className="flex items-center gap-3">
             {/* Hamburger Button (Mobile / Tablet only, hidden on large screens) */}

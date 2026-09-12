@@ -19,14 +19,24 @@ function hourRange(open: string, close: string): string[] {
   return out;
 }
 
-export function WalkInForm({ courts }: { courts: CourtOpt[] }) {
+export function WalkInForm({
+  courts,
+  defaultCourtId,
+  defaultDate,
+  defaultStart,
+}: {
+  courts: CourtOpt[];
+  defaultCourtId?: string;
+  defaultDate?: string;
+  defaultStart?: string;
+}) {
   const router = useRouter();
-  const [courtId, setCourtId] = useState(courts[0]?.id ?? "");
+  const [courtId, setCourtId] = useState(defaultCourtId ?? courts[0]?.id ?? "");
   const [todayStr] = useState(() =>
     new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" }),
   );
-  const [date, setDate] = useState(todayStr);
-  const [start, setStart] = useState("");
+  const [date, setDate] = useState(defaultDate ?? todayStr);
+  const [start, setStart] = useState(defaultStart ?? "");
   const [hours, setHours] = useState(1);
   const [method, setMethod] = useState<"walk_in_cash" | "walk_in_transfer">("walk_in_cash");
   const [busy, setBusy] = useState(false);

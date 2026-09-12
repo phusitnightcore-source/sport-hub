@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -40,6 +40,17 @@ export default function Navbar({ profile }: NavbarProps) {
     const confirm = useConfirm();
     const [mobileOpen, setMobileOpen] = useState(false);
     const isAdmin = profile.role === 'venue_admin' || profile.role === 'admin';
+
+    // Keep the page behind the drawer still on mobile; this prevents accidental
+    // scrolling while selecting a menu item without changing navigation behavior.
+    useEffect(() => {
+        if (!mobileOpen) return;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [mobileOpen]);
 
     const handleLogout = async () => {
         const ok = await confirm({
@@ -91,7 +102,7 @@ export default function Navbar({ profile }: NavbarProps) {
         <>
             {/* Desktop Sidebar */}
             <aside
-                className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-[260px] z-40 border-r"
+                className="badminton-nav-shell hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-[260px] z-40 border-r"
                 style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
             >
                 {/* Logo */}
@@ -159,7 +170,7 @@ export default function Navbar({ profile }: NavbarProps) {
 
             {/* Mobile Top Bar */}
             <header
-                className="lg:hidden fixed top-0 left-0 right-0 z-50 h-16 flex items-center justify-between px-4 border-b backdrop-blur-md"
+                className="badminton-nav-shell lg:hidden fixed top-0 left-0 right-0 z-50 h-16 flex items-center justify-between px-4 border-b backdrop-blur-md"
                 style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
             >
                 <Link href="/badminton-group/dashboard" className="flex items-center gap-1.5">
@@ -177,6 +188,9 @@ export default function Navbar({ profile }: NavbarProps) {
                     <NotificationBell userId={profile.id} />
                     <button
                         onClick={() => setMobileOpen(!mobileOpen)}
+                        aria-expanded={mobileOpen}
+                        aria-controls="badminton-mobile-navigation"
+                        aria-label={mobileOpen ? 'ปิดเมนูการใช้งาน' : 'เปิดเมนูการใช้งาน'}
                         className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors border"
                         style={{ borderColor: 'var(--card-border)', color: 'var(--foreground)' }}
                     >
@@ -187,12 +201,16 @@ export default function Navbar({ profile }: NavbarProps) {
 
             {/* Mobile Drawer */}
             {mobileOpen && (
-                <div className="lg:hidden fixed inset-0 z-40" onClick={() => setMobileOpen(false)}>
+                <div className="lg:hidden fixed inset-0 z-[60]" onClick={() => setMobileOpen(false)}>
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
                     <div
                         className="absolute right-0 top-0 bottom-0 w-[300px] animate-in flex flex-col justify-between"
                         style={{ background: 'var(--card-bg)' }}
                         onClick={(e) => e.stopPropagation()}
+                        id="badminton-mobile-navigation"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="เมนูการใช้งาน"
                     >
                         <div>
                             <div className="flex items-center justify-between px-6 h-16 border-b" style={{ borderColor: 'var(--card-border)' }}>

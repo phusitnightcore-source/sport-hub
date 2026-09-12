@@ -66,10 +66,10 @@ export default async function CoachDetailPage({
       .select("*")
       .eq("coach_profile_id", id)
       .order("issued_date", { ascending: false }),
-    admin
+    (admin as any)
       .from("reviews")
       .select("id, rating_overall, comment, created_at, reviewer_id")
-      .eq("coach_id", id)
+      .or(`coach_id.eq.${id},coach_profile_id.eq.${id}`)
       .eq("entity_type", "coach")
       .eq("is_visible", true)
       .order("created_at", { ascending: false })
@@ -82,7 +82,7 @@ export default async function CoachDetailPage({
 
   const allServices = services ?? [];
   const allCertificates = certificates ?? [];
-  const allReviews = reviews ?? [];
+  const allReviews = (reviews ?? []) as any[];
 
   return (
     <div className="min-h-screen">

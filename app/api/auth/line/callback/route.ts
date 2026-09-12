@@ -98,11 +98,13 @@ export async function GET(request: Request) {
         captureException("line.callback.createUser", userErr);
         return fail("failed");
       }
+      const displayName = profile.name?.trim() || "ผู้ใช้ LINE";
       const { error: profileErr } = await admin.from("profiles").insert({
         id: created.user.id,
         tenant_id: null,
         role: "member",
-        full_name: profile.name ?? "ผู้ใช้ LINE",
+        full_name: displayName,
+        display_name: displayName,
         email: profile.email,
         line_user_id: profile.userId,
         pdpa_consent_at: new Date().toISOString(),

@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/badminton/supabase/server';
 import { Icon } from '@iconify/react';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -104,13 +105,16 @@ export default async function HomePage() {
                 </span>
               </Link>
             </div>
-            <div className="hidden md:flex items-center gap-4">
-              <Link href="/login" className="text-sm font-semibold text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
-                เข้าสู่ระบบ
-              </Link>
-              <Link href="/signup" className="btn btn-primary" style={{ padding: '10px 20px', borderRadius: '12px' }}>
-                สมัครใช้งานฟรี
-              </Link>
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <div className="hidden md:flex items-center gap-4">
+                <Link href="/login" className="text-sm font-semibold text-[var(--muted)] hover:text-[var(--foreground)] transition-colors">
+                  เข้าสู่ระบบ
+                </Link>
+                <Link href="/signup" className="btn btn-primary" style={{ padding: '10px 20px', borderRadius: '12px' }}>
+                  สมัครใช้งานฟรี
+                </Link>
+              </div>
             </div>
           </div>
         </div>

@@ -114,6 +114,7 @@ export async function POST(request: Request) {
       tenant_id: tenant.id,
       role: "venue_admin",
       full_name: body.ownerName,
+      display_name: body.ownerName?.trim() || body.email.split("@")[0],
       phone: body.phone,
       email: body.email,
     }),

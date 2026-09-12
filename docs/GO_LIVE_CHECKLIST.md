@@ -40,7 +40,7 @@
 ---
 
 ## 3. Supabase
-- [x] Migration ครบ (14 ไฟล์ — `npx supabase migration list` local=remote) 🔴
+- [ ] Apply และยืนยัน migration ทั้งหมด (ปัจจุบัน 24 ไฟล์ — `npx supabase migration list` local=remote) 🔴
 - [ ] เปิด **Point-in-Time Recovery / Backup** (Project → Database → Backups) 🔴
 - [ ] ตรวจ RLS เปิดทุกตาราง (มีใน migration แล้ว — ยืนยันหลัง deploy) 🟡
 - [ ] Storage buckets `slips`, `tenant-media` มีอยู่ (จาก migration) 🟡
@@ -56,7 +56,7 @@
 ---
 
 ## 5. Testing ก่อนเปิด
-- [x] Unit tests: `npm test` (39 ผ่าน)
+- [x] Unit tests: `npm test` (55 ผ่าน)
 - [ ] **Authenticated e2e (manual)** ตาม `docs/PLAN_GATING_CHECKLIST.md` — login เป็น venue_admin/staff/member
       ทดสอบ จอง→สลิป→verify→แจ้งเตือน+เสียง, กัน double booking, plan gating 🔴
 - [ ] ทดสอบ realtime notification: เปิด dashboard ค้าง + จองจากอีกเบราว์เซอร์ → เห็น toast+เสียง+badge

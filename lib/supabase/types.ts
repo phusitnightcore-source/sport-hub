@@ -1577,6 +1577,10 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
           tenant_id: string | null
           updated_at: string
+          display_name: string | null
+          avatar_url: string | null
+          skill_level: string | null
+          mmr: number | null
         }
         Insert: {
           created_at?: string
@@ -1590,6 +1594,10 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           tenant_id?: string | null
           updated_at?: string
+          display_name?: string | null
+          avatar_url?: string | null
+          skill_level?: string | null
+          mmr?: number | null
         }
         Update: {
           created_at?: string
@@ -1603,6 +1611,10 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           tenant_id?: string | null
           updated_at?: string
+          display_name?: string | null
+          avatar_url?: string | null
+          skill_level?: string | null
+          mmr?: number | null
         }
         Relationships: [
           {
@@ -2941,6 +2953,12 @@ export type Database = {
           rules?: string | null
           prize_info?: string | null
           bracket_type?: "single_elimination" | "double_elimination" | "round_robin" | "group_knockout"
+          format?: "knockout" | "round_robin" | "group_knockout" | "double_elimination"
+          skill_verification_mode?: "open" | "skill_level" | "rating"
+          require_video_proof?: boolean
+          has_third_place_match?: boolean
+          check_in_time?: string | null
+          start_time?: string | null
           status?: "draft" | "registration_open" | "registration_closed" | "in_progress" | "completed" | "cancelled"
           created_at?: string
           updated_at?: string
@@ -2962,6 +2980,12 @@ export type Database = {
           rules?: string | null
           prize_info?: string | null
           bracket_type?: "single_elimination" | "double_elimination" | "round_robin" | "group_knockout"
+          format?: "knockout" | "round_robin" | "group_knockout" | "double_elimination"
+          skill_verification_mode?: "open" | "skill_level" | "rating"
+          require_video_proof?: boolean
+          has_third_place_match?: boolean
+          check_in_time?: string | null
+          start_time?: string | null
           status?: "draft" | "registration_open" | "registration_closed" | "in_progress" | "completed" | "cancelled"
           created_at?: string
           updated_at?: string
@@ -3050,6 +3074,15 @@ export type Database = {
           payment_status: "pending" | "paid" | "refunded"
           slip_image_url: string | null
           registered_at: string
+          video_url: string | null
+          verification_status: "pending" | "approved" | "rejected" | "auto_approved"
+          verification_notes: string | null
+          partner_id: string | null
+          partner_name: string | null
+          partner_video_url: string | null
+          rating_at_registration: number | null
+          checkin_status: "not_checked_in" | "checked_in"
+          checked_in_at: string | null
         }
         Insert: {
           id?: string
@@ -3060,6 +3093,15 @@ export type Database = {
           payment_status?: "pending" | "paid" | "refunded"
           slip_image_url?: string | null
           registered_at?: string
+          video_url?: string | null
+          verification_status?: "pending" | "approved" | "rejected" | "auto_approved"
+          verification_notes?: string | null
+          partner_id?: string | null
+          partner_name?: string | null
+          partner_video_url?: string | null
+          rating_at_registration?: number | null
+          checkin_status?: "not_checked_in" | "checked_in"
+          checked_in_at?: string | null
         }
         Update: {
           id?: string
@@ -3070,6 +3112,15 @@ export type Database = {
           payment_status?: "pending" | "paid" | "refunded"
           slip_image_url?: string | null
           registered_at?: string
+          video_url?: string | null
+          verification_status?: "pending" | "approved" | "rejected" | "auto_approved"
+          verification_notes?: string | null
+          partner_id?: string | null
+          partner_name?: string | null
+          partner_video_url?: string | null
+          rating_at_registration?: number | null
+          checkin_status?: "not_checked_in" | "checked_in"
+          checked_in_at?: string | null
         }
         Relationships: []
       }
@@ -3091,6 +3142,11 @@ export type Database = {
           completed_at: string | null
           duration_minutes: number | null
           status: "scheduled" | "in_progress" | "completed" | "cancelled"
+          match_type: "group" | "knockout" | "third_place"
+          score_details: Json | null
+          current_server_id: string | null
+          current_serving_side: "right" | "left" | null
+          current_game_no: number
           notes: string | null
           next_match_id: string | null
           created_at: string
@@ -3112,6 +3168,11 @@ export type Database = {
           completed_at?: string | null
           duration_minutes?: number | null
           status?: "scheduled" | "in_progress" | "completed" | "cancelled"
+          match_type?: "group" | "knockout" | "third_place"
+          score_details?: Json | null
+          current_server_id?: string | null
+          current_serving_side?: "right" | "left" | null
+          current_game_no?: number
           notes?: string | null
           next_match_id?: string | null
           created_at?: string
@@ -3133,6 +3194,11 @@ export type Database = {
           completed_at?: string | null
           duration_minutes?: number | null
           status?: "scheduled" | "in_progress" | "completed" | "cancelled"
+          match_type?: "group" | "knockout" | "third_place"
+          score_details?: Json | null
+          current_server_id?: string | null
+          current_serving_side?: "right" | "left" | null
+          current_game_no?: number
           notes?: string | null
           next_match_id?: string | null
           created_at?: string
@@ -3397,8 +3463,205 @@ export type Database = {
         }
         Relationships: []
       }
+      tournament_skill_levels: {
+        Row: {
+          id: string
+          tenant_id: string | null
+          code: string
+          name: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string | null
+          code: string
+          name: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string | null
+          code?: string
+          name?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      tournament_events: {
+        Row: {
+          id: string
+          tournament_id: string
+          name: string
+          event_type: "MS" | "WS" | "MD" | "WD" | "XD"
+          skill_level_id: string | null
+          format: "single_elim" | "round_robin" | "group_knockout"
+          status: "setup" | "draw_done" | "ongoing" | "finished"
+          best_of: number
+          points_per_game: number
+          max_points: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          name: string
+          event_type?: "MS" | "WS" | "MD" | "WD" | "XD"
+          skill_level_id?: string | null
+          format?: "single_elim" | "round_robin" | "group_knockout"
+          status?: "setup" | "draw_done" | "ongoing" | "finished"
+          best_of?: number
+          points_per_game?: number
+          max_points?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tournament_id?: string
+          name?: string
+          event_type?: "MS" | "WS" | "MD" | "WD" | "XD"
+          skill_level_id?: string | null
+          format?: "single_elim" | "round_robin" | "group_knockout"
+          status?: "setup" | "draw_done" | "ongoing" | "finished"
+          best_of?: number
+          points_per_game?: number
+          max_points?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      tournament_event_groups: {
+        Row: {
+          id: string
+          event_id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      tournament_games: {
+        Row: {
+          id: string
+          match_id: string
+          game_no: number
+          team1_score: number
+          team2_score: number
+          winner_id: string | null
+          finished: boolean
+          status: "pending" | "in_progress" | "completed"
+          started_at: string | null
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          match_id: string
+          game_no: number
+          team1_score?: number
+          team2_score?: number
+          winner_id?: string | null
+          finished?: boolean
+          status?: "pending" | "in_progress" | "completed"
+          started_at?: string | null
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          match_id?: string
+          game_no?: number
+          team1_score?: number
+          team2_score?: number
+          winner_id?: string | null
+          finished?: boolean
+          status?: "pending" | "in_progress" | "completed"
+          started_at?: string | null
+          completed_at?: string | null
+        }
+        Relationships: []
+      }
+      tournament_score_events: {
+        Row: {
+          id: number
+          game_id: string
+          seq: number
+          rally_number: number | null
+          scoring_team: 1 | 2
+          team1_score: number
+          team2_score: number
+          serving_team: 1 | 2
+          server_player_id: string | null
+          serving_side: "right" | "left" | null
+          receiver_player_id: string | null
+          positions: Json | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          game_id: string
+          seq: number
+          rally_number?: number | null
+          scoring_team: 1 | 2
+          team1_score: number
+          team2_score: number
+          serving_team: 1 | 2
+          server_player_id?: string | null
+          serving_side?: "right" | "left" | null
+          receiver_player_id?: string | null
+          positions?: Json | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          game_id?: string
+          seq?: number
+          rally_number?: number | null
+          scoring_team?: 1 | 2
+          team1_score?: number
+          team2_score?: number
+          serving_team?: 1 | 2
+          server_player_id?: string | null
+          serving_side?: "right" | "left" | null
+          receiver_player_id?: string | null
+          positions?: Json | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
+      rallies: {
+        Row: {
+          id: number | null
+          game_id: string | null
+          rally_number: number | null
+          scoring_team: number | null
+          score_a: number | null
+          score_b: number | null
+          serving_team: number | null
+          server_id: string | null
+          serving_side: string | null
+          receiver_id: string | null
+          positions: Json | null
+          created_at: string | null
+        }
+        Relationships: []
+      }
       branch_occupancy: {
         Row: {
           branch_id: string | null
@@ -3542,7 +3805,13 @@ export type Database = {
         | "free"
         | "suspended"
         | "cancelled_pending_delete"
-      user_role: "super_admin" | "venue_admin" | "staff" | "member"
+      user_role:
+        | "super_admin"
+        | "venue_admin"
+        | "staff"
+        | "member"
+        | "umpire"
+        | "player"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3738,7 +4007,7 @@ export const Constants = {
         "suspended",
         "cancelled_pending_delete",
       ],
-      user_role: ["super_admin", "venue_admin", "staff", "member"],
+      user_role: ["super_admin", "venue_admin", "staff", "member", "umpire", "player"],
     },
   },
 } as const

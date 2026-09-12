@@ -9,6 +9,12 @@
 
 
 :root {
+  /* Local system stacks keep production builds independent from Google Fonts.
+     Thai-capable fallbacks are resolved by the visitor's operating system. */
+  --font-prompt: "Noto Sans Thai", "Leelawadee UI", Tahoma, Arial, sans-serif;
+  --font-outfit: "Segoe UI", Inter, Arial, sans-serif;
+  --font-plex-mono: "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+
   /* ---- Color tokens (ดู DESIGN_SYSTEM.md ข้อ 1) ---- */
   --brand: 46 119 245;         /* #2E77F5 */
   --brand-dark: 27 95 224;     /* #1B5FE0 */

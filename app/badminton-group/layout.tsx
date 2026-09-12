@@ -1,22 +1,7 @@
 import type { Metadata } from "next";
-import { Outfit, Prompt } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import { ConfirmProvider } from "@/components/badminton/ConfirmProvider";
 import "./badminton.css";
-
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  display: "swap",
-});
-
-const prompt = Prompt({
-  variable: "--font-prompt",
-  subsets: ["thai", "latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Badminton Group | จัดก๊วนแบดมินตัน",
@@ -30,7 +15,7 @@ export default function BadmintonGroupLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className={`${outfit.variable} ${prompt.variable} antialiased bg-[var(--background)] text-[var(--foreground)] min-h-screen transition-colors duration-200`}>
+    <div className="badminton-group-theme antialiased bg-[var(--background)] text-[var(--foreground)] min-h-screen transition-colors duration-200">
       <ConfirmProvider>
         {children}
         <Toaster

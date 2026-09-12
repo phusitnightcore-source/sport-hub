@@ -218,7 +218,19 @@ export default async function SchedulePage({
                         )}
                       >
                         {slot.status === "available" && (
-                          <span className="text-[10px] font-medium text-brand">ว่าง</span>
+                          <Link
+                            href={`/dashboard/bookings/new?court_id=${court.id}&date=${date}&start_time=${slot.start}`}
+                            className="flex h-full flex-col justify-between group"
+                            title={`คลิกเพื่อจอง Walk-in สำหรับ ${court.name} เวลา ${slot.start}`}
+                          >
+                            <span className="text-[10px] font-bold text-brand flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              ว่าง
+                            </span>
+                            <span className="mt-2 inline-flex items-center gap-0.5 text-[10px] font-bold text-brand bg-brand/10 rounded-md px-1.5 py-0.5 w-fit opacity-80 group-hover:opacity-100 group-hover:bg-brand group-hover:text-white transition-all">
+                              + จอง Walk-in
+                            </span>
+                          </Link>
                         )}
                         {slot.status === "booked" && (
                           <div className="flex flex-col gap-1">

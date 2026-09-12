@@ -12,6 +12,8 @@ import { PageTransition } from "@/components/ui/PageTransition";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { getTenantBellData } from "@/lib/notify/bell-data";
 import { DashboardNav, type NavGroup } from "@/components/ui/DashboardNav";
+import { cookies } from "next/headers";
+import { BranchSwitcher } from "@/components/ui/BranchSwitcher";
 import { DashboardMobileNav, type MobileNavItem } from "@/components/ui/DashboardMobileNav";
 
 type LockFeature = "analytics" | "member_system" | "guest_pass" | "broadcast";
@@ -45,6 +47,7 @@ const NAV_GROUPS: { title: string; items: NavItemConfig[] }[] = [
   {
     title: "สมาชิก & การตลาด",
     items: [
+      { href: "/dashboard/tournaments", label: "การแข่งขัน", iconName: "Trophy" },
       { href: "/dashboard/members", label: "สมาชิก", iconName: "Users", permission: "add_member", feature: "member_system" },
       { href: "/dashboard/packages", label: "แพ็กเกจ", iconName: "Package", permission: "manage_package", feature: "member_system" },
       { href: "/dashboard/broadcast", label: "Broadcast", iconName: "Megaphone", permission: "broadcast", feature: "broadcast" },
@@ -78,11 +81,20 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const ctx = await getStaffContext();
+  const cookieStore = await cookies();
+  const activeBranchId = cookieStore.get("active_branch_id")?.value;
   const admin = createAdminClient();
-  const entitlements = ctx
-    ? (await getTenantEntitlements(admin, ctx.tenantId)).entitlements
-    : null;
-  const bell = ctx ? await getTenantBellData(admin, ctx.tenantId) : null;
+
+  const [{ entitlements }, bell, branchesRes] = await Promise.all([
+    ctx
+      ? getTenantEntitlements(admin, ctx.tenantId)
+      : Promise.resolve({ entitlements: null }),
+    ctx ? getTenantBellData(admin, ctx.tenantId) : Promise.resolve(null),
+    ctx
+      ? (admin as any).from("branches").select("id, name").eq("tenant_id", ctx.tenantId)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const branches = (branchesRes?.data ?? []) as { id: string; name: string }[];
   const isLocked = (feature?: LockFeature) =>
     Boolean(feature && entitlements && !entitlements[feature]);
 
@@ -181,6 +193,7 @@ export default async function DashboardLayout({
                 href="/dashboard/notifications"
               />
             )}
+            <BranchSwitcher branches={branches} activeBranchId={activeBranchId} />
             <ThemeToggle />
             <span className="hidden md:inline font-medium">Dashboard</span>
             <div className="md:hidden">

@@ -69,6 +69,7 @@ export async function createStaff(formData: FormData) {
     tenant_id: ctx.tenantId,
     role: "staff",
     full_name: parsed.data.name,
+    display_name: parsed.data.name?.trim() || parsed.data.email.split("@")[0],
     phone: parsed.data.phone || null,
     email: parsed.data.email,
   });

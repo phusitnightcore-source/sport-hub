@@ -48,11 +48,14 @@ export async function POST(request: Request) {
   }
   const userId = created.user.id;
 
+  const displayName = body.fullName?.trim() || body.email.split("@")[0];
+
   const { error: profileErr } = await admin.from("profiles").insert({
     id: userId,
     tenant_id: null, // ผู้ใช้ทั่วไปไม่สังกัดสนาม
     role: "member",
     full_name: body.fullName,
+    display_name: displayName,
     phone: body.phone ?? null,
     email: body.email,
     pdpa_consent_at: new Date().toISOString(),

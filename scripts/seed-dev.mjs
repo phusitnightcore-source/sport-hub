@@ -70,6 +70,7 @@ const { error: profileErr } = await supabase.from("profiles").upsert({
   tenant_id: tenant.id,
   role: "venue_admin",
   full_name: "ผู้ดูแลเดโม่",
+  display_name: "ผู้ดูแลเดโม่",
   email: ADMIN_EMAIL,
 });
 if (profileErr) throw profileErr;
@@ -205,6 +206,7 @@ const { error: superProfileErr } = await supabase.from("profiles").upsert({
   tenant_id: null, // super_admin ไม่ผูก tenant
   role: "super_admin",
   full_name: "SportHub Super Admin",
+  display_name: "SportHub Super Admin",
   email: SUPER_EMAIL,
 });
 if (superProfileErr) throw superProfileErr;

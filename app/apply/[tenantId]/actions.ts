@@ -67,11 +67,13 @@ export async function submitApplication(data: {
     userId = newUser.user.id;
     
     // Create profile
+    const fullName = `${data.firstName} ${data.lastName}`.trim();
     await admin.from("profiles").insert({
       id: userId,
       tenant_id: data.tenantId,
       role: "member",
-      full_name: `${data.firstName} ${data.lastName}`,
+      full_name: fullName,
+      display_name: fullName || data.email.split("@")[0],
       phone: data.phone,
       email: data.email,
     });

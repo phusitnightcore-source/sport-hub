@@ -57,11 +57,13 @@ export async function manualCreateMember(data: {
     if (authErr || !newUser.user) return { success: false, error: authErr?.message };
     userId = newUser.user.id;
     
+    const fullName = `${data.firstName} ${data.lastName}`.trim();
     await admin.from("profiles").insert({
       id: userId,
       tenant_id: ctx.tenantId,
       role: "member",
-      full_name: `${data.firstName} ${data.lastName}`,
+      full_name: fullName,
+      display_name: fullName || data.email.split("@")[0],
       phone: data.phone,
       email: data.email,
     });

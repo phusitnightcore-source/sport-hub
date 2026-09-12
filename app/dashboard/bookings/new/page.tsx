@@ -4,7 +4,12 @@ import { getStaffContext } from "@/lib/auth";
 import { WalkInForm } from "./WalkInForm";
 
 // Staff จองให้ลูกค้า (§7.2) — โทรจอง/เดินมาหน้าร้าน
-export default async function NewBookingPage() {
+export default async function NewBookingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ court_id?: string; date?: string; start_time?: string }>;
+}) {
+  const { court_id, date, start_time } = await searchParams;
   const ctx = await getStaffContext();
   if (!ctx) redirect("/login");
 
@@ -33,6 +38,9 @@ export default async function NewBookingPage() {
             openTime: c.open_time.slice(0, 5),
             closeTime: c.close_time.slice(0, 5),
           }))}
+          defaultCourtId={court_id}
+          defaultDate={date}
+          defaultStart={start_time}
         />
       )}
     </main>

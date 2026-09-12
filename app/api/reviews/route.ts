@@ -84,9 +84,10 @@ export async function POST(request: NextRequest) {
       insertData.rating_service = parsed.rating_service;
     } else {
       insertData.coach_id = parsed.target_id;
+      insertData.coach_profile_id = parsed.target_id;
     }
 
-    const { error } = await admin.from("reviews").insert(insertData);
+    const { error } = await (admin as any).from("reviews").insert(insertData);
 
     if (error) {
       console.error("Review insert error:", error);

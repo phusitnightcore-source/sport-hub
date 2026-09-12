@@ -38,7 +38,7 @@ export async function getStaffContext(): Promise<StaffContext | null> {
     .from("staff")
     .select("id, extra_permissions")
     .eq("profile_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (staffRow) {
     staffId = staffRow.id;

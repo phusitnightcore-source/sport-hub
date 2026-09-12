@@ -40,8 +40,23 @@ export function captureException(
   error: unknown,
   meta?: Meta,
 ) {
-  const message = error instanceof Error ? error.message : String(error);
-  const stack = error instanceof Error ? error.stack : undefined;
+  let message: string;
+  let stack: string | undefined;
+
+  if (error instanceof Error) {
+    message = error.message;
+    stack = error.stack;
+  } else if (typeof error === "object" && error !== null) {
+    const errObj = error as Record<string, unknown>;
+    message =
+      typeof errObj.message === "string"
+        ? errObj.message
+        : JSON.stringify(error);
+    stack = typeof errObj.stack === "string" ? errObj.stack : undefined;
+  } else {
+    message = String(error);
+  }
+
   logger.error(context, { ...meta, error: message, stack });
 
   if (!sentryConfigured()) return;

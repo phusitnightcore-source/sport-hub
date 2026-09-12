@@ -26,12 +26,12 @@ export default async function DashboardLayout({
     }
 
     return (
-        <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] transition-colors duration-200">
+        <div className="badminton-group-shell min-h-screen bg-[var(--background)] text-[var(--foreground)] transition-colors duration-200">
             <Navbar profile={profile as Profile} />
 
             {/* Main Content */}
             <main className="lg:ml-[260px] pt-16 lg:pt-0">
-                <div className="w-full px-4 sm:px-6 lg:px-8 py-8 lg:py-10">
+                <div className="badminton-group-content w-full px-4 sm:px-6 lg:px-8 py-7 lg:py-9">
                     {children}
                 </div>
             </main>

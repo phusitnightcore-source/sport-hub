@@ -1,6 +1,6 @@
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PublicNav } from "@/components/ui/PublicNav";
-import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import {
   Users,
@@ -9,129 +9,195 @@ import {
   MapPin,
   Trophy,
   Zap,
-  UserPlus,
+  Sparkles,
+  Search,
+  DollarSign,
+  CheckCircle2,
+  ChevronRight,
+  Flame,
 } from "lucide-react";
+import { CreateGroupButton, JoinGroupButton } from "./GroupModals";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "ก๊วน & หาคู่แข่ง | SportHub",
-  description:
-    "หาก๊วนเล่นกีฬา ร่วมกลุ่ม หรือสร้างก๊วนของตัวเองได้ที่ SportHub",
+  title: "ก๊วนกีฬา & จัดก๊วนเล่น | SportHub",
+  description: "ค้นหาก๊วนกีฬา หาเพื่อนตีแบด เล่นฟุตบอล หรือสร้างก๊วนของตัวเองเพื่อแชร์ค่าสนาม",
 };
 
-export default async function GroupsPage() {
+const SPORT_TAGS: Record<string, { label: string; icon: string; tone: string }> = {
+  badminton: { label: "แบดมินตัน", icon: "🏸", tone: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
+  football: { label: "ฟุตบอล", icon: "⚽", tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+  tennis: { label: "เทนนิส", icon: "🎾", tone: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+  basketball: { label: "บาสเกตบอล", icon: "🏀", tone: "bg-orange-500/10 text-orange-600 dark:text-orange-400" },
+  tabletennis: { label: "ปิงปอง", icon: "🏓", tone: "bg-rose-500/10 text-rose-600 dark:text-rose-400" },
+};
+
+export default async function GroupsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sport?: string }>;
+}) {
+  const { sport: filterSport } = await searchParams;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   const admin = createAdminClient();
 
-  let groups: {
-    id: string;
-    sport: string;
-    title: string;
-    description: string | null;
-    play_date: string;
-    start_time: string;
-    end_time: string;
-    max_players: number;
-    current_players: number;
-    skill_level: string | null;
-    cost_per_person: number | null;
-    status: string;
-  }[] = [];
+  // Queries
+  let groupsQuery = (admin as any)
+    .from("groups")
+    .select("id, creator_id, sport, title, description, play_date, start_time, end_time, max_players, current_players, skill_level, cost_per_person, status")
+    .in("status", ["open", "full"])
+    .gte("play_date", new Date().toISOString().split("T")[0])
+    .order("play_date", { ascending: true })
+    .order("start_time", { ascending: true })
+    .limit(50);
 
-  let facilitySessions: any[] = [];
-
-  try {
-    const [{ data: gData }, { data: sData }] = await Promise.all([
-      admin
-        .from("groups")
-        .select(
-          "id, sport, title, description, play_date, start_time, end_time, max_players, current_players, skill_level, cost_per_person, status",
-        )
-        .in("status", ["open", "full"])
-        .gte("play_date", new Date().toISOString().split("T")[0])
-        .order("play_date")
-        .limit(50),
-      admin
-        .from("group_sessions")
-        .select("*, group_session_players(id)")
-        .in("status", ["open", "in_progress"])
-        .gte("session_date", new Date().toISOString().split("T")[0])
-        .order("session_date")
-        .limit(20),
-    ]);
-    groups = gData ?? [];
-    facilitySessions = sData ?? [];
-  } catch {
-    // Table may not exist yet
+  if (filterSport && filterSport !== "all") {
+    groupsQuery = groupsQuery.eq("sport", filterSport);
   }
 
-  const openGroups = groups.filter((g) => g.status === "open");
-  const fullGroups = groups.filter((g) => g.status === "full");
+  const [
+    { data: gData },
+    { data: sData },
+    { data: myMemberships },
+  ] = await Promise.all([
+    groupsQuery,
+    (admin as any)
+      .from("group_sessions")
+      .select("id, title, session_date, start_time, end_time, shuttlecock_brand, shuttlecock_price, entry_fee, status")
+      .in("status", ["open", "in_progress"])
+      .gte("session_date", new Date().toISOString().split("T")[0])
+      .order("session_date")
+      .limit(10),
+    user
+      ? (admin as any)
+          .from("group_members")
+          .select("group_id, is_creator")
+          .eq("profile_id", user.id)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const groups = (gData ?? []) as any[];
+  const facilitySessions = (sData ?? []) as any[];
+  const myGroupIds = new Set((myMemberships ?? []).map((m: any) => m.group_id));
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-20">
       <PublicNav />
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12 space-y-10">
-        <header className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-brand/20 to-brand/5">
-            <Users className="h-8 w-8 text-brand" />
+
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12 space-y-10">
+        {/* Header Hero */}
+        <section className="relative overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-surface via-surface to-brand/5 p-6 sm:p-10 shadow-sm">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-brand/10 blur-3xl" />
+          
+          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="rounded-full bg-brand-soft px-3 py-0.5 text-xs font-bold text-brand uppercase tracking-wider">
+                  Community Matchmaking
+                </span>
+              </div>
+              <h1 className="font-display text-3xl sm:text-4xl font-extrabold text-ink tracking-tight">
+                ก๊วนกีฬา & จัดก๊วนเล่น
+              </h1>
+              <p className="mt-2 text-body text-ink-soft max-w-xl">
+                ค้นหาก๊วนเล่นกีฬาในวันและเวลาที่คุณว่าง แชร์ค่าสนามกับเพื่อนใหม่ หรือสร้างก๊วนของตัวเองได้ทันที
+              </p>
+            </div>
+
+            <div className="shrink-0">
+              <CreateGroupButton />
+            </div>
           </div>
-          <h1 className="font-display text-display-lg font-bold text-ink">
-            ก๊วนกีฬา & จัดก๊วนแบดมินตัน
-          </h1>
-          <p className="mt-2 text-body text-ink-soft">
-            หาเพื่อนเล่นกีฬา เข้าร่วมก๊วนแบดมินตันประจำวัน หรือดูกระดานคิวสด Real-time
-          </p>
-        </header>
+
+          {/* Sport Filter Chips */}
+          <div className="relative mt-8 flex flex-wrap items-center gap-2 border-t border-line/60 pt-6">
+            <Link
+              href="/groups"
+              className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
+                !filterSport || filterSport === "all"
+                  ? "bg-brand text-white shadow-xs"
+                  : "bg-surface-raised border border-line text-ink-soft hover:text-ink"
+              }`}
+            >
+              🏅 ทั้งหมด
+            </Link>
+            {Object.entries(SPORT_TAGS).map(([key, item]) => (
+              <Link
+                key={key}
+                href={`/groups?sport=${key}`}
+                className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
+                  filterSport === key
+                    ? "bg-brand text-white shadow-xs"
+                    : "bg-surface-raised border border-line text-ink-soft hover:text-ink"
+                }`}
+              >
+                {item.icon} {item.label}
+              </Link>
+            ))}
+          </div>
+        </section>
 
         {/* Official Facility Badminton Group Sessions */}
         {facilitySessions.length > 0 && (
           <section className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-display text-body-lg font-bold text-ink flex items-center gap-2">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>รอบก๊วนแบดมินตันที่เปิดรับสมัคร ({facilitySessions.length})</span>
-              </h2>
-              <span className="text-[12px] font-semibold text-brand">ระบบคิวสด & หารค่าลูก</span>
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <Flame className="h-4 w-4" />
+                </div>
+                <h2 className="font-display text-lg font-bold text-ink">
+                  รอบก๊วนจัดโดยสนาม (กระดานคิวสด)
+                </h2>
+              </div>
+              <span className="text-xs font-semibold text-brand">ระบบคิว & หารค่าลูก</span>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {facilitySessions.map((s: any) => {
-                const playerCount = s.group_session_players?.length ?? 0;
                 return (
                   <div
                     key={s.id}
-                    className="card-floating flex flex-col justify-between rounded-3xl border border-line bg-surface p-5 transition-all hover:border-brand shadow-sm space-y-4"
+                    className="card-floating flex flex-col justify-between rounded-3xl border border-line p-5 transition-all hover:border-brand shadow-xs space-y-4"
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2">
                         <span className="rounded-lg bg-brand-soft px-2.5 py-0.5 text-[11px] font-bold text-brand uppercase">
-                          🏸 ก๊วนแบดมินตัน
+                          🏸 ก๊วนสนามมาตรฐาน
                         </span>
-                        <span className="font-mono text-body-sm font-bold text-ink">
+                        <span className="font-mono text-xs font-bold text-ink-soft">
                           {s.session_date}
                         </span>
                       </div>
 
-                      <h3 className="font-display text-body-lg font-bold text-ink mt-2">
+                      <h3 className="font-display text-lg font-bold text-ink mt-2">
                         {s.title}
                       </h3>
 
-                      <p className="text-body-sm text-ink-soft mt-1 flex flex-wrap items-center gap-2">
-                        <span>⏰ {s.start_time.slice(0, 5)} - {s.end_time.slice(0, 5)}</span>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-body-xs text-ink-soft">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          {s.start_time.slice(0, 5)} - {s.end_time.slice(0, 5)}
+                        </span>
                         <span>•</span>
                         <span>🏸 {s.shuttlecock_brand} (฿{s.shuttlecock_price}/ลูก)</span>
                         {s.entry_fee > 0 && <span>• 🎟️ ฿{s.entry_fee}</span>}
-                      </p>
+                      </div>
 
-                      <div className="mt-3 flex items-center gap-2 text-[12px] text-ink-soft">
+                      <div className="mt-4 flex items-center gap-2 text-xs text-ink-soft">
                         <Users className="h-3.5 w-3.5 text-brand" />
-                        <span>ผู้เล่นเข้าร่วมแล้ว <strong className="text-ink font-mono">{playerCount}</strong> คน</span>
+                        <span>กระดานคิวสด จัดแมตช์อัตโนมัติ</span>
                       </div>
                     </div>
 
                     <Link href={`/queue/${s.id}`}>
-                      <Button className="w-full rounded-2xl font-bold bg-brand text-white shadow-xs">
-                        🏸 ดูกระดานคิว & กดเข้าร่วมก๊วน
-                      </Button>
+                      <button className="w-full rounded-xl py-2.5 font-bold bg-brand text-white text-body-xs shadow-xs hover:bg-brand-dark transition-colors flex items-center justify-center gap-1.5">
+                        <span>ดูกระดานคิว & เข้าร่วม</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
                     </Link>
                   </div>
                 );
@@ -140,151 +206,125 @@ export default async function GroupsPage() {
           </section>
         )}
 
-        {groups.length === 0 ? (
-          <div className="card-floating p-16 text-center">
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-brand-soft">
-              <UserPlus className="h-10 w-10 text-brand" />
+        {/* Community User Groups */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                <Users className="h-4 w-4" />
+              </div>
+              <h2 className="font-display text-lg font-bold text-ink">
+                ก๊วนที่เปิดรับสมัครทั่วไป ({groups.length})
+              </h2>
             </div>
-            <h2 className="font-display text-body-lg font-semibold text-ink">
-              เร็วๆ นี้!
-            </h2>
-            <p className="mx-auto mt-2 max-w-md text-body-sm text-ink-soft">
-              ระบบก๊วนและหาคู่แข่งกำลังอยู่ระหว่างพัฒนา
-              คุณจะสามารถสร้างก๊วน เชิญเพื่อน และหารค่าสนามได้ในเร็วๆ นี้
-            </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link
-                href="/discover"
-                className="inline-flex items-center gap-2 rounded-radius-sm bg-brand px-5 py-2.5 text-body-sm font-semibold text-white transition-all hover:bg-brand-dark"
-              >
-                <Zap className="h-4 w-4" />
-                จองสนามเลย
-              </Link>
-            </div>
+            <span className="text-xs font-semibold text-ink-soft">อัปเดตแบบ Real-time</span>
           </div>
-        ) : (
-          <>
-            {/* Open Groups */}
-            {openGroups.length > 0 && (
-              <section className="mb-10">
-                <h2 className="mb-4 font-display text-body-lg font-semibold text-ink">
-                  ก๊วนที่เปิดรับ ({openGroups.length})
-                </h2>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {openGroups.map((group) => (
-                    <div
-                      key={group.id}
-                      className="card-floating flex flex-col gap-3 p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <span className="rounded-full bg-brand-soft px-2.5 py-1 text-mono-sm text-brand">
-                            {group.sport}
-                          </span>
-                          {group.skill_level && (
-                            <span className="ml-2 rounded-full bg-surface px-2.5 py-1 text-mono-sm text-ink-soft ring-1 ring-inset ring-line">
-                              {group.skill_level}
-                            </span>
-                          )}
-                        </div>
-                        <span className="rounded-full bg-success/10 px-2.5 py-1 text-mono-sm font-medium text-success">
-                          เปิดรับ
+
+          {groups.length === 0 ? (
+            <div className="card-floating p-16 text-center rounded-3xl border border-line">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-brand">
+                <Users className="h-8 w-8" />
+              </div>
+              <h3 className="font-display text-lg font-bold text-ink">
+                ยังไม่มีก๊วนที่เปิดรับสมัครในหมวดหมู่นี้
+              </h3>
+              <p className="mx-auto mt-1 max-w-sm text-body-sm text-ink-soft">
+                เป็นคนแรกที่เปิดก๊วนและชวนเพื่อนๆ มาร่วมสนุกไปด้วยกัน
+              </p>
+              <div className="mt-6">
+                <CreateGroupButton />
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {groups.map((group) => {
+                const sportTag = SPORT_TAGS[group.sport] ?? {
+                  label: group.sport,
+                  icon: "🏅",
+                  tone: "bg-surface-raised text-ink",
+                };
+
+                const isJoined = user ? myGroupIds.has(group.id) : false;
+                const isCreator = user ? group.creator_id === user.id : false;
+                const isFull = group.current_players >= group.max_players;
+
+                return (
+                  <div
+                    key={group.id}
+                    className="card-floating flex flex-col justify-between rounded-3xl border border-line p-5 transition-all hover:border-brand shadow-xs space-y-4"
+                  >
+                    <div>
+                      {/* Top metadata tags */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`rounded-lg px-2.5 py-0.5 text-[11px] font-bold ${sportTag.tone}`}>
+                          {sportTag.icon} {sportTag.label}
+                        </span>
+                        <span className="font-mono text-xs font-bold text-ink-soft">
+                          📅 {group.play_date}
                         </span>
                       </div>
-                      <h3 className="font-display text-body font-semibold text-ink">
+
+                      {/* Title */}
+                      <h3 className="font-display text-lg font-bold text-ink mt-2.5">
                         {group.title}
                       </h3>
+
                       {group.description && (
-                        <p className="line-clamp-2 text-body-sm text-ink-soft">
+                        <p className="text-body-xs text-ink-soft mt-2 line-clamp-2">
                           {group.description}
                         </p>
                       )}
-                      <div className="flex flex-wrap gap-3 text-body-sm text-ink-soft">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5" />
-                          {new Date(group.play_date).toLocaleDateString(
-                            "th-TH",
-                            { day: "numeric", month: "short" },
-                          )}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5" />
-                          {group.start_time.slice(0, 5)}–
-                          {group.end_time.slice(0, 5)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5" />
-                          {group.current_players}/{group.max_players} คน
-                        </span>
-                      </div>
-                      <div className="mt-auto flex items-center justify-between border-t border-line pt-3">
-                        {group.cost_per_person !== null ? (
-                          <span className="text-body-sm font-semibold text-ink">
-                            ฿
-                            {new Intl.NumberFormat("th-TH").format(
-                              Number(group.cost_per_person),
-                            )}
-                            /คน
-                          </span>
-                        ) : (
-                          <span className="text-body-sm text-ink-soft">
-                            ฟรี
-                          </span>
-                        )}
-                        <span className="text-body-sm font-medium text-brand">
-                          ต้องการอีก{" "}
-                          {group.max_players - group.current_players} คน
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
 
-            {/* Full Groups */}
-            {fullGroups.length > 0 && (
-              <section>
-                <h2 className="mb-4 font-display text-body-lg font-semibold text-ink">
-                  ก๊วนเต็มแล้ว ({fullGroups.length})
-                </h2>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {fullGroups.map((group) => (
-                    <div
-                      key={group.id}
-                      className="card-floating flex flex-col gap-3 p-5 opacity-70"
-                    >
-                      <div className="flex items-start justify-between">
-                        <span className="rounded-full bg-brand-soft px-2.5 py-1 text-mono-sm text-brand">
-                          {group.sport}
+                      {/* Time, Cost, Skill pills */}
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-body-xs font-medium">
+                        <span className="flex items-center gap-1 rounded-md bg-surface-raised border border-line px-2 py-0.5 text-ink">
+                          <Clock className="h-3 w-3 text-brand" />
+                          {group.start_time.slice(0, 5)} - {group.end_time.slice(0, 5)}
                         </span>
-                        <span className="rounded-full bg-ink-soft/10 px-2.5 py-1 text-mono-sm text-ink-soft">
-                          เต็มแล้ว
+                        <span className="rounded-md bg-surface-raised border border-line px-2 py-0.5 text-ink">
+                          ระดับ: {group.skill_level || "ทั่วไป"}
+                        </span>
+                        <span className="rounded-md bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                          {Number(group.cost_per_person) > 0 ? `฿${group.cost_per_person}/คน` : "ฟรี"}
                         </span>
                       </div>
-                      <h3 className="font-display text-body font-semibold text-ink">
-                        {group.title}
-                      </h3>
-                      <div className="flex flex-wrap gap-3 text-body-sm text-ink-soft">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5" />
-                          {new Date(group.play_date).toLocaleDateString(
-                            "th-TH",
-                            { day: "numeric", month: "short" },
-                          )}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5" />
-                          {group.max_players}/{group.max_players} คน
-                        </span>
+
+                      {/* Player Capacity Bar */}
+                      <div className="mt-4 space-y-1.5">
+                        <div className="flex items-center justify-between text-body-xs font-semibold">
+                          <span className="text-ink-soft">ผู้เล่นในก๊วน</span>
+                          <span className="text-ink">
+                            {group.current_players} / {group.max_players} คน
+                          </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-raised border border-line">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              isFull ? "bg-amber-500" : "bg-brand"
+                            }`}
+                            style={{
+                              width: `${Math.min(100, (group.current_players / group.max_players) * 100)}%`,
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
-          </>
-        )}
+
+                    {/* Footer Actions */}
+                    <div className="pt-2 border-t border-line/60 flex items-center justify-end gap-3">
+                      <JoinGroupButton
+                        groupId={group.id}
+                        isJoined={isJoined}
+                        isFull={isFull}
+                        isCreator={isCreator}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </main>
     </div>
   );

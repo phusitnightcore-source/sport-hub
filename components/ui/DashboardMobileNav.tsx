@@ -29,6 +29,7 @@ import {
   ShoppingCart,
   Boxes,
   Sparkles,
+  Trophy,
   HelpCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -59,6 +60,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   ShoppingCart,
   Boxes,
   Sparkles,
+  Trophy,
 };
 
 export type MobileNavItem = {

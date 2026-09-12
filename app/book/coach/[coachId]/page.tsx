@@ -38,14 +38,25 @@ export default async function CoachBookingPage({
 
   const admin = createAdminClient();
   
-  const [{ data: coach }, { data: service }] = await Promise.all([
+  const [{ data: coach }, { data: service }, { data: schedules }] = await Promise.all([
     admin.from("coach_profiles").select("*").eq("id", coachId).single(),
     admin.from("coach_services").select("*").eq("id", serviceId).single(),
+    (admin as any)
+      .from("coach_schedules")
+      .select("day_of_week, start_time, end_time")
+      .eq("coach_profile_id", coachId)
+      .eq("is_available", true)
+      .order("day_of_week", { ascending: true }),
   ]);
 
   if (!coach || !service || service.coach_profile_id !== coach.id) {
     notFound();
   }
+
+  const DAY_NAMES = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
+  const scheduleText = (schedules ?? []).length > 0
+    ? (schedules ?? []).map((s: any) => `${DAY_NAMES[s.day_of_week]} (${s.start_time.slice(0, 5)}-${s.end_time.slice(0, 5)})`).join(", ")
+    : "ทุกวัน (ตามนัดหมาย)";
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
@@ -90,6 +101,11 @@ export default async function CoachBookingPage({
               <CreditCard className="h-3.5 w-3.5" />
               ฿{formatBahtFromDb(service.price)}
             </span>
+          </div>
+
+          <div className="mt-3 flex items-center gap-1.5 text-body-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 rounded-xl px-3 py-1.5">
+            <Calendar className="h-3.5 w-3.5 shrink-0" />
+            <span>เวลาที่โค้ชสะดวก: {scheduleText}</span>
           </div>
         </div>
       </div>
