@@ -17,6 +17,9 @@ export interface GeneratedMatch {
   next_match_round?: number;
   next_match_pos?: number;
   next_match_slot?: 1 | 2;
+  loser_next_match_round?: number;
+  loser_next_match_pos?: number;
+  loser_next_match_slot?: 1 | 2;
   notes?: string | null;
 }
 
@@ -147,6 +150,13 @@ export function generateSingleElimination(
 
   // Add 3rd Place Match if enabled and tournament has semifinals (totalRounds >= 2)
   if (options?.hasThirdPlaceMatch && totalRounds >= 2) {
+    const semiFinals = allMatches.filter((match) => match.round === totalRounds - 1);
+    semiFinals.forEach((semiFinal, index) => {
+      semiFinal.loser_next_match_round = totalRounds;
+      semiFinal.loser_next_match_pos = 1;
+      semiFinal.loser_next_match_slot = index === 0 ? 1 : 2;
+    });
+
     allMatches.push({
       round: totalRounds,
       bracket_pos: 1, // 0 = Final, 1 = 3rd Place Match
@@ -212,6 +222,74 @@ export function generateRoundRobin(
 }
 
 /**
+ * Double elimination for compact, one-day badminton events (4 or 8 teams).
+ * Every winners-bracket loss has an explicit loser route; the grand final is
+ * a single deciding match, which is the practical default for venue events.
+ */
+export function generateDoubleElimination(teams: TeamEntry[]): GeneratedMatch[] {
+  if (teams.length !== 4 && teams.length !== 8) return [];
+  const matches: GeneratedMatch[] = [];
+  const add = (match: GeneratedMatch) => matches.push(match);
+
+  const winnerFirstRoundCount = teams.length / 2;
+  for (let index = 0; index < winnerFirstRoundCount; index++) {
+    add({
+      round: 1,
+      bracket_pos: index,
+      team_a_id: teams[index * 2].id,
+      team_b_id: teams[index * 2 + 1].id,
+      status: "scheduled",
+      stage: "knockout",
+      match_type: "knockout",
+      notes: "สายผู้ชนะ",
+    });
+  }
+
+  if (teams.length === 4) {
+    add({ round: 2, bracket_pos: 0, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "รอบชิงสายผู้ชนะ" });
+    add({ round: 2, bracket_pos: 1, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "สายผู้แพ้ รอบ 1" });
+    add({ round: 3, bracket_pos: 0, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "รอบชิงสายผู้แพ้" });
+    add({ round: 4, bracket_pos: 0, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "Grand Final" });
+
+    matches[0] = { ...matches[0], next_match_round: 2, next_match_pos: 0, next_match_slot: 1, loser_next_match_round: 2, loser_next_match_pos: 1, loser_next_match_slot: 1 };
+    matches[1] = { ...matches[1], next_match_round: 2, next_match_pos: 0, next_match_slot: 2, loser_next_match_round: 2, loser_next_match_pos: 1, loser_next_match_slot: 2 };
+    matches[2] = { ...matches[2], next_match_round: 4, next_match_pos: 0, next_match_slot: 1, loser_next_match_round: 3, loser_next_match_pos: 0, loser_next_match_slot: 2 };
+    matches[3] = { ...matches[3], next_match_round: 3, next_match_pos: 0, next_match_slot: 1 };
+    matches[4] = { ...matches[4], next_match_round: 4, next_match_pos: 0, next_match_slot: 2 };
+    return matches;
+  }
+
+  add({ round: 2, bracket_pos: 0, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "สายผู้ชนะ รอบรอง 1" });
+  add({ round: 2, bracket_pos: 1, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "สายผู้ชนะ รอบรอง 2" });
+  add({ round: 2, bracket_pos: 2, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "สายผู้แพ้ รอบ 1" });
+  add({ round: 2, bracket_pos: 3, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "สายผู้แพ้ รอบ 1" });
+  add({ round: 3, bracket_pos: 0, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "รอบชิงสายผู้ชนะ" });
+  add({ round: 3, bracket_pos: 1, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "สายผู้แพ้ รอบ 2" });
+  add({ round: 3, bracket_pos: 2, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "สายผู้แพ้ รอบ 2" });
+  add({ round: 4, bracket_pos: 0, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "สายผู้แพ้ รอบ 3" });
+  add({ round: 5, bracket_pos: 0, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "รอบชิงสายผู้แพ้" });
+  add({ round: 6, bracket_pos: 0, team_a_id: null, team_b_id: null, status: "pending", stage: "knockout", match_type: "knockout", notes: "Grand Final" });
+
+  for (let index = 0; index < 4; index++) {
+    const winnerTarget = index < 2 ? index : index - 2;
+    const winnerSlot = index % 2 === 0 ? 1 : 2;
+    const loserTarget = index < 2 ? 2 : 3;
+    const loserSlot = index % 2 === 0 ? 1 : 2;
+    matches[index] = { ...matches[index], next_match_round: 2, next_match_pos: winnerTarget, next_match_slot: winnerSlot, loser_next_match_round: 2, loser_next_match_pos: loserTarget, loser_next_match_slot: loserSlot };
+  }
+  matches[4] = { ...matches[4], next_match_round: 3, next_match_pos: 0, next_match_slot: 1, loser_next_match_round: 3, loser_next_match_pos: 1, loser_next_match_slot: 2 };
+  matches[5] = { ...matches[5], next_match_round: 3, next_match_pos: 0, next_match_slot: 2, loser_next_match_round: 3, loser_next_match_pos: 2, loser_next_match_slot: 2 };
+  matches[6] = { ...matches[6], next_match_round: 3, next_match_pos: 1, next_match_slot: 1 };
+  matches[7] = { ...matches[7], next_match_round: 3, next_match_pos: 2, next_match_slot: 1 };
+  matches[8] = { ...matches[8], next_match_round: 6, next_match_pos: 0, next_match_slot: 1, loser_next_match_round: 5, loser_next_match_pos: 0, loser_next_match_slot: 2 };
+  matches[9] = { ...matches[9], next_match_round: 4, next_match_pos: 0, next_match_slot: 1 };
+  matches[10] = { ...matches[10], next_match_round: 4, next_match_pos: 0, next_match_slot: 2 };
+  matches[11] = { ...matches[11], next_match_round: 5, next_match_pos: 0, next_match_slot: 1 };
+  matches[12] = { ...matches[12], next_match_round: 6, next_match_pos: 0, next_match_slot: 2 };
+  return matches;
+}
+
+/**
  * Generates Cross Knockout Bracket from top 2 teams of each group (Group + Knockout):
  * - 2 Groups: A1 vs B2, B1 vs A2 -> Final (+ optional 3rd place)
  * - 4 Groups: A1 vs B2, C1 vs D2, B1 vs A2, D1 vs C2 -> QF -> SF -> Final (+ optional 3rd place)
@@ -239,6 +317,9 @@ export function generateGroupKnockoutCrossBracket(
       next_match_round: 2,
       next_match_pos: 0,
       next_match_slot: 1,
+      loser_next_match_round: hasThirdPlaceMatch ? 2 : undefined,
+      loser_next_match_pos: hasThirdPlaceMatch ? 1 : undefined,
+      loser_next_match_slot: hasThirdPlaceMatch ? 1 : undefined,
       notes: "รอบรองชนะเลิศ 1 (A1 vs B2)",
     });
 
@@ -253,6 +334,9 @@ export function generateGroupKnockoutCrossBracket(
       next_match_round: 2,
       next_match_pos: 0,
       next_match_slot: 2,
+      loser_next_match_round: hasThirdPlaceMatch ? 2 : undefined,
+      loser_next_match_pos: hasThirdPlaceMatch ? 1 : undefined,
+      loser_next_match_slot: hasThirdPlaceMatch ? 2 : undefined,
       notes: "รอบรองชนะเลิศ 2 (B1 vs A2)",
     });
 
@@ -353,6 +437,9 @@ export function generateGroupKnockoutCrossBracket(
       next_match_round: 3,
       next_match_pos: 0,
       next_match_slot: 1,
+      loser_next_match_round: hasThirdPlaceMatch ? 3 : undefined,
+      loser_next_match_pos: hasThirdPlaceMatch ? 1 : undefined,
+      loser_next_match_slot: hasThirdPlaceMatch ? 1 : undefined,
       notes: "รอบรองชนะเลิศ 1",
     });
 
@@ -367,6 +454,9 @@ export function generateGroupKnockoutCrossBracket(
       next_match_round: 3,
       next_match_pos: 0,
       next_match_slot: 2,
+      loser_next_match_round: hasThirdPlaceMatch ? 3 : undefined,
+      loser_next_match_pos: hasThirdPlaceMatch ? 1 : undefined,
+      loser_next_match_slot: hasThirdPlaceMatch ? 2 : undefined,
       notes: "รอบรองชนะเลิศ 2",
     });
 

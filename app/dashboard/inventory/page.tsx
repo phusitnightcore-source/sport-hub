@@ -14,10 +14,12 @@ export default async function InventoryPage() {
     ctx.role === "staff" && ctx.staffId
       ? await admin
           .from("staff")
-          .select("multi_branch_access, staff_branches(branch_id)")
+          .select("status, multi_branch_access, staff_branches(branch_id)")
           .eq("id", ctx.staffId)
+          .eq("tenant_id", ctx.tenantId)
           .maybeSingle()
       : { data: null };
+  if (ctx.role === "staff" && staffAccess?.status !== "active") redirect("/dashboard");
 
   const branchQuery = admin
     .from("branches")
@@ -94,6 +96,10 @@ export default async function InventoryPage() {
     (total, product) => total + (product.trackStock && branchIds.some((id) => (product.stockByBranch[id] ?? 0) <= product.lowStockThreshold) ? 1 : 0),
     0,
   );
+
+  if (productsResult.error || categoriesResult.error || ("error" in inventoryResult && inventoryResult.error) || ("error" in movementResult && movementResult.error)) {
+    return <main className="card-floating p-8" role="alert"><h1 className="text-xl font-bold">โหลดคลังสินค้าไม่สำเร็จ</h1><p className="mt-3 text-sm text-ink-soft">กรุณาตรวจสอบการเชื่อมต่อและการอัปเดตฐานข้อมูลก่อนจัดการสินค้า</p></main>;
+  }
 
   return (
     <main className="flex flex-col gap-6">

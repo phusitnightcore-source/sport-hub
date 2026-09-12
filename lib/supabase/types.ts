@@ -2160,6 +2160,8 @@ export type Database = {
       }
       sales: {
         Row: {
+          cash_received: number | null
+          change_amount: number | null
           id: string
           tenant_id: string
           branch_id: string
@@ -3723,6 +3725,36 @@ export type Database = {
           p_notes?: string | null
         }
         Returns: void
+      }
+      pos_counter_report: {
+        Args: { p_tenant_id: string; p_shift_id: string }
+        Returns: Json
+      }
+      create_pos_product: {
+        Args: { p_tenant_id: string; p_branch_id: string; p_staff_id: string | null; p_product: Json }
+        Returns: string
+      }
+      pos_daily_summary: {
+        Args: { p_tenant_id: string; p_branch_ids: string[] }
+        Returns: Json
+      }
+      record_pos_cash: {
+        Args: { p_tenant_id: string; p_shift_id: string; p_amount: number; p_reason: string; p_actor_id: string; p_request_id: string }
+        Returns: void
+      }
+      void_pos_counter_sale: {
+        Args: { p_tenant_id: string; p_sale_id: string; p_staff_id: string | null; p_reason: string; p_restock: boolean }
+        Returns: void
+      }
+      checkout_pos_counter: {
+        Args: {
+          p_tenant_id: string; p_branch_id: string; p_staff_id: string | null; p_shift_id: string;
+          p_checkout_key: string; p_payment_method: string; p_items: Json;
+          p_expected_total: number; p_cash_received: number | null;
+          p_customer_name?: string | null; p_customer_phone?: string | null; p_booking_id?: string | null;
+          p_note?: string | null; p_discount_amount?: number; p_reference?: string | null;
+        }
+        Returns: { sale_id: string; receipt_number: string; total_amount: number }[]
       }
       complete_pos_sale: {
         Args: {

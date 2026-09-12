@@ -26,9 +26,9 @@ export default async function PosReceiptPage({ params }: { params: Promise<{ id:
   const supabase = await createClient();
   const { data: sale } = await supabase
     .from("sales")
-    .select("id, branch_id, booking_id, receipt_number, sale_number, customer_name, customer_phone, subtotal, discount_amount, total_amount, note, completed_at")
+    .select("id, branch_id, booking_id, receipt_number, sale_number, customer_name, customer_phone, subtotal, discount_amount, total_amount, note, completed_at, status, void_reason, voided_at, cash_received, change_amount")
     .eq("id", id)
-    .eq("status", "completed")
+    .eq("tenant_id", ctx.tenantId)
     .maybeSingle();
   if (!sale) notFound();
 
@@ -58,7 +58,7 @@ export default async function PosReceiptPage({ params }: { params: Promise<{ id:
         <header className="border-b border-dashed border-line pb-5 text-center">
           <div className="mb-2 flex items-center justify-center gap-2 text-success">
             <CheckCircle2 className="h-5 w-5" />
-            <span className="text-body-sm font-medium">รับชำระเรียบร้อย</span>
+            <span className="text-body-sm font-medium">{sale.status === "voided" ? "คืนเงินเต็มบิลแล้ว" : "รับชำระเรียบร้อย"}</span>
           </div>
           <h1 className="font-display text-body-lg font-bold text-ink">{tenant?.name ?? "SportHub"}</h1>
           <p className="mt-1 text-body-sm text-ink-soft">{branch?.name}</p>
@@ -80,10 +80,14 @@ export default async function PosReceiptPage({ params }: { params: Promise<{ id:
         </section>
 
         <section className="space-y-1.5 pt-4 text-body-sm">
+          {sale.status === "voided" && <div className="mb-4 rounded-xl border border-danger/30 p-3 text-ink">บิลนี้ถูกคืนเงินแล้ว · {sale.void_reason}{sale.voided_at && <p className="mt-1 text-xs">{new Date(sale.voided_at).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}</p>}</div>}
           <div className="flex justify-between text-ink-soft"><span>รวมสินค้า</span><span>฿{formatBahtFromDb(sale.subtotal)}</span></div>
           {Number(sale.discount_amount) > 0 && <div className="flex justify-between text-ink-soft"><span>ส่วนลด</span><span>-฿{formatBahtFromDb(sale.discount_amount)}</span></div>}
           <div className="flex justify-between border-t border-line pt-3 font-display text-body-lg font-bold text-ink"><span>รวมทั้งสิ้น</span><span>฿{formatBahtFromDb(sale.total_amount)}</span></div>
           <div className="flex justify-between pt-2 text-ink-soft"><span>ชำระโดย</span><span>{PAYMENT_METHOD_LABEL[payment?.method ?? ""] ?? "-"}</span></div>
+          {sale.cash_received !== null && <div className="flex justify-between text-ink-soft"><span>รับเงินสด</span><span>฿{formatBahtFromDb(sale.cash_received)}</span></div>}
+          {sale.change_amount !== null && <div className="flex justify-between text-ink-soft"><span>เงินทอน</span><span>฿{formatBahtFromDb(sale.change_amount)}</span></div>}
+          {payment?.reference && <p className="pt-2 text-ink-soft">อ้างอิงชำระ: {payment.reference}</p>}
           {sale.note && <p className="pt-3 text-ink-soft">หมายเหตุ: {sale.note}</p>}
         </section>
         <footer className="mt-6 border-t border-dashed border-line pt-4 text-center text-mono-sm text-ink-soft">ขอบคุณที่ใช้บริการ</footer>

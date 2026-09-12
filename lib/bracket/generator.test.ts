@@ -4,6 +4,7 @@ import {
   generateRoundRobin,
   calculateRoundRobinStandings,
   generateGroupKnockoutCrossBracket,
+  generateDoubleElimination,
   type TeamEntry,
 } from "./generator";
 
@@ -47,6 +48,11 @@ describe("Bracket Generator", () => {
     expect(thirdPlaceMatch).toBeDefined();
     expect(thirdPlaceMatch?.round).toBe(3);
     expect(thirdPlaceMatch?.bracket_pos).toBe(1);
+
+    const semifinals = matches.filter((m) => m.round === 2 && m.match_type === "knockout");
+    expect(semifinals).toHaveLength(2);
+    expect(semifinals.map((m) => m.loser_next_match_slot)).toEqual([1, 2]);
+    expect(semifinals.every((m) => m.loser_next_match_round === 3 && m.loser_next_match_pos === 1)).toBe(true);
   });
 
   it("สร้างสาย Single Elimination 7 ทีม มี Bye 1 ทีมและเลื่อนเข้ารอบ 2 อัตโนมัติ", () => {
@@ -126,5 +132,17 @@ describe("Bracket Generator", () => {
     // 3rd place match
     const third = matches.find((m) => m.match_type === "third_place");
     expect(third).toBeDefined();
+
+    const semifinals = matches.filter((m) => m.round === 1 && m.match_type === "knockout");
+    expect(semifinals.map((m) => m.next_match_slot)).toEqual([1, 2]);
+    expect(semifinals.map((m) => m.loser_next_match_slot)).toEqual([1, 2]);
+  });
+
+  it("สร้าง Double Elimination 4 ทีม และส่งผู้แพ้เข้าสายผู้แพ้", () => {
+    const matches = generateDoubleElimination(teams8.slice(0, 4));
+    expect(matches).toHaveLength(6);
+    expect(matches[0].loser_next_match_round).toBe(2);
+    expect(matches[0].loser_next_match_pos).toBe(1);
+    expect(matches.at(-1)?.notes).toBe("Grand Final");
   });
 });

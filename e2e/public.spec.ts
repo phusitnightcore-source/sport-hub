@@ -35,7 +35,7 @@ test.describe("public pages", () => {
     const toggle = page.getByRole("button", { name: "เปลี่ยนเป็นโหมดมืด" });
     // The landing page is data-backed; wait for client hydration before testing
     // the interactive control rather than clicking the SSR markup immediately.
-    await page.waitForTimeout(500);
+    await expect(toggle).toHaveAttribute("data-theme-ready", "true");
     await toggle.click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 

@@ -29,6 +29,8 @@ import {
   verifyRegistrationAction,
   checkInAthleteAction,
   generateTournamentDrawAction,
+  verifyTournamentPaymentAction,
+  generateGroupKnockoutStageAction,
 } from "../actions";
 import toast from "react-hot-toast";
 
@@ -40,6 +42,7 @@ interface Team {
 
 interface Match {
   id: string;
+  category_id?: string | null;
   round: number;
   match_number: number;
   status: string;
@@ -60,10 +63,18 @@ interface Court {
   name: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 interface Registration {
   id: string;
   player_id: string;
   team_id: string | null;
+  payment_status: "pending" | "paid" | "refunded";
+  slip_image_url: string | null;
+  payment_notes: string | null;
   verification_status: "pending" | "approved" | "rejected" | "auto_approved";
   verification_notes: string | null;
   video_url: string | null;
@@ -87,6 +98,7 @@ export function TournamentAdminClient({
   teams,
   matches,
   courts,
+  categories = [],
   registrations = [],
   requireVideoProof = false,
   skillVerificationMode = "skill_level",
@@ -97,12 +109,14 @@ export function TournamentAdminClient({
   teams: Team[];
   matches: Match[];
   courts: Court[];
+  categories?: Category[];
   registrations?: Registration[];
   requireVideoProof?: boolean;
   skillVerificationMode?: string;
   format?: string;
 }) {
-  const [activeTab, setActiveTab] = useState<"matches" | "verification" | "checkin" | "teams">("matches");
+  const [activeTab, setActiveTab] = useState<"matches" | "payment" | "verification" | "checkin" | "teams">("matches");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
   const [loading, setLoading] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [isAddTeamOpen, setIsAddTeamOpen] = useState(false);
@@ -141,6 +155,18 @@ export function TournamentAdminClient({
     }
   }
 
+  async function handleGenerateKnockout() {
+    if (!confirm("สร้างรอบน็อกเอาต์จากอันดับรอบแบ่งกลุ่มใช่หรือไม่?")) return;
+    setLoading(true);
+    try {
+      const res = await generateGroupKnockoutStageAction(tournamentId);
+      if (res.success) toast.success(`สร้างรอบน็อกเอาต์แล้ว ${res.count} แมตช์`);
+      else toast.error(res.error || "สร้างรอบน็อกเอาต์ไม่สำเร็จ");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // Verification Handler
   async function handleVerify(regId: string, verStatus: "approved" | "rejected", notes?: string) {
     setLoading(true);
@@ -155,6 +181,17 @@ export function TournamentAdminClient({
       }
     } catch (err: any) {
       toast.error(err?.message || "เกิดข้อผิดพลาด");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handlePayment(regId: string, approved: boolean) {
+    setLoading(true);
+    try {
+      const res = await verifyTournamentPaymentAction(regId, approved);
+      if (res.success) toast.success(approved ? "ยืนยันค่าสมัครแล้ว" : "ตั้งสถานะรอชำระอีกครั้งแล้ว");
+      else toast.error(res.error || "อัปเดตการชำระเงินไม่สำเร็จ");
     } finally {
       setLoading(false);
     }
@@ -238,7 +275,14 @@ export function TournamentAdminClient({
   }
 
   const pendingVerifications = registrations.filter((r) => r.verification_status === "pending");
+  const pendingPayments = registrations.filter((r) => r.payment_status === "pending").length;
   const checkedInCount = registrations.filter((r) => r.checkin_status === "checked_in").length;
+  const paidCount = registrations.filter((r) => r.payment_status === "paid").length;
+  const verifiedCount = registrations.filter((r) => r.verification_status === "approved" || r.verification_status === "auto_approved").length;
+  const visibleMatches = selectedCategoryId === "all"
+    ? matches
+    : matches.filter((match) => match.category_id === selectedCategoryId);
+  const categoryName = (categoryId?: string | null) => categories.find((category) => category.id === categoryId)?.name || "ประเภททั่วไป";
 
   return (
     <div className="space-y-6">
@@ -280,8 +324,35 @@ export function TournamentAdminClient({
         </div>
       </div>
 
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="ความพร้อมของการแข่งขัน">
+        {[
+          { label: "สมัครแล้ว", value: `${registrations.length}`, hint: "ทีม", tone: "text-ink" },
+          { label: "ชำระแล้ว", value: `${paidCount}/${registrations.length}`, hint: "รอตรวจสลิป", tone: "text-emerald-600" },
+          { label: "ผ่านคัดกรอง", value: `${verifiedCount}/${registrations.length}`, hint: requireVideoProof ? "ตรวจคลิปแล้ว" : "พร้อมแข่งขัน", tone: "text-brand" },
+          { label: "เช็กอินแล้ว", value: `${checkedInCount}/${registrations.length}`, hint: "วันแข่งขัน", tone: "text-amber-600" },
+        ].map((metric) => (
+          <div key={metric.label} className="rounded-2xl border border-line bg-surface p-3.5 shadow-xs">
+            <p className="text-[11px] font-bold text-ink-soft">{metric.label}</p>
+            <p className={`mt-1 font-display text-xl font-black ${metric.tone}`}>{metric.value}</p>
+            <p className="mt-0.5 text-[10px] text-ink-soft">{metric.hint}</p>
+          </div>
+        ))}
+      </section>
+
       {/* Organizer Sub-Tabs */}
       <div className="flex flex-wrap items-center gap-2 border-b border-line pb-2">
+        <button
+          onClick={() => setActiveTab("payment")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-body-sm font-bold transition-all cursor-pointer relative ${
+            activeTab === "payment"
+              ? "bg-brand text-white shadow-xs"
+              : "text-ink-soft hover:bg-surface-raised hover:text-ink"
+          }`}
+        >
+          <span>💳 ตรวจสลิปค่าสมัคร</span>
+          {pendingPayments > 0 && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-black">{pendingPayments}</span>}
+        </button>
+
         <button
           onClick={() => setActiveTab("matches")}
           className={`flex items-center gap-2 rounded-xl px-4 py-2 text-body-sm font-bold transition-all cursor-pointer ${
@@ -378,36 +449,69 @@ export function TournamentAdminClient({
                   <span>จัดสายรอบกลุ่ม (Round-Robin)</span>
                 </Button>
               )}
+              {format === "group_knockout" && (
+                <Button
+                  onClick={handleGenerateKnockout}
+                  disabled={loading}
+                  variant="secondary"
+                  className="rounded-xl font-bold border-line text-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trophy className="h-4 w-4" />
+                  <span>สร้างรอบน็อกเอาต์จากกลุ่ม</span>
+                </Button>
+              )}
             </div>
           </div>
 
+          {categories.length > 1 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-surface p-3">
+              <span className="px-1 text-xs font-bold text-ink-soft">แสดงประเภท:</span>
+              <button
+                onClick={() => setSelectedCategoryId("all")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold ${selectedCategoryId === "all" ? "bg-brand text-white" : "bg-surface-raised text-ink-soft hover:text-ink"}`}
+              >ทั้งหมด</button>
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategoryId(category.id)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold ${selectedCategoryId === category.id ? "bg-brand text-white" : "bg-surface-raised text-ink-soft hover:text-ink"}`}
+                >{category.name}</button>
+              ))}
+            </div>
+          )}
+
           {/* Matches Grid */}
-          {matches.length === 0 ? (
+          {visibleMatches.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-line p-12 text-center text-body-sm text-ink-soft">
               ยังไม่มีสายการแข่งขัน กรุณากดปุ่ม <strong>"จัดสายตามมือวาง"</strong> หรือ <strong>"สุ่มจับสลาก"</strong> ด้านบน
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {matches.map((m) => {
+              {visibleMatches.map((m) => {
                 const isCompleted = m.status === "completed";
+                const canRecordResult = Boolean(m.team_a_id && m.team_b_id && !isCompleted);
+                const courtName = courts.find((court) => court.id === m.court_id)?.name;
                 const aWon = isCompleted && m.winner_id === m.team_a_id;
                 const bWon = isCompleted && m.winner_id === m.team_b_id;
 
                 return (
                   <div
                     key={m.id}
-                    onClick={() => openScoreModal(m)}
-                    className={`card-floating rounded-2xl border p-4 cursor-pointer transition-all hover:border-brand hover:shadow-md space-y-3 ${
+                    onClick={() => canRecordResult && openScoreModal(m)}
+                    className={`card-floating rounded-2xl border p-4 transition-all space-y-3 ${
+                      canRecordResult ? "cursor-pointer hover:border-brand hover:shadow-md" : "cursor-default"
+                    } ${
                       isCompleted ? "border-line bg-surface" : "border-brand/40 bg-brand-soft/10"
                     }`}
                   >
                     <div className="flex items-center justify-between text-[11px] font-bold">
                       <span className="text-ink-soft">
-                        รอบที่ {m.round} · แมตช์ #{m.match_number}
+                        {categoryName(m.category_id)} · รอบที่ {m.round} · แมตช์ #{m.match_number}
                         {m.match_type === "third_place" && (
                           <span className="ml-1.5 text-amber-500 font-bold">(ชิงอันดับ 3)</span>
                         )}
                       </span>
+                      {courtName && <span className="text-brand">🏸 {courtName}</span>}
                       <span
                         className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
                           isCompleted
@@ -441,17 +545,27 @@ export function TournamentAdminClient({
 
                     <div className="pt-2 border-t border-line/60 flex items-center justify-between gap-2">
                       <span className="text-[11px] font-bold text-brand hover:underline">
-                        {isCompleted ? "แก้ไขคะแนน" : "👉 บันทึกผลด่วน"}
+                        {isCompleted
+                          ? "ผลยืนยันแล้ว"
+                          : canRecordResult
+                          ? "👉 บันทึกผลด่วน"
+                          : "รอผลจากรอบก่อน"}
                       </span>
                       <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        <a
-                          href={`/umpire/match/${m.id}`}
-                          target="_blank"
-                          className="rounded-lg bg-brand-soft px-2.5 py-1 text-[11px] font-bold text-brand hover:bg-brand-soft/80 flex items-center gap-1"
-                        >
-                          <span>🏸 นับแต้ม BWF</span>
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
+                        {m.team_a_id && m.team_b_id ? (
+                          <a
+                            href={`/umpire/match/${m.id}`}
+                            target="_blank"
+                            className="rounded-lg bg-brand-soft px-2.5 py-1 text-[11px] font-bold text-brand hover:bg-brand-soft/80 flex items-center gap-1"
+                          >
+                            <span>🏸 นับแต้ม BWF</span>
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <span className="rounded-lg bg-surface-raised px-2.5 py-1 text-[11px] font-bold text-ink-soft">
+                            รอทีมครบ
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -459,6 +573,34 @@ export function TournamentAdminClient({
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === "payment" && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="font-display text-sm font-bold text-ink">ตรวจสอบการชำระค่าสมัคร</h4>
+            <span className="text-xs text-ink-soft">รอยืนยัน {pendingPayments} รายการ</span>
+          </div>
+          {registrations.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-line p-12 text-center text-body-sm text-ink-soft">ยังไม่มีรายการชำระเงิน</div>
+          ) : registrations.map((registration) => {
+            const name = registration.profiles?.display_name || registration.profiles?.full_name || "นักกีฬา";
+            const isPaid = registration.payment_status === "paid";
+            return (
+              <div key={registration.id} className="card-floating flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="font-bold text-ink">{name} {registration.partner_name ? `· ${registration.partner_name}` : ""}</div>
+                  <div className={`mt-1 text-xs font-bold ${isPaid ? "text-emerald-600" : "text-amber-600"}`}>{isPaid ? "✓ ชำระแล้ว" : "รอตรวจสลิป"}</div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {registration.slip_image_url ? <span className="rounded-lg bg-surface-raised px-3 py-1.5 text-xs text-ink-soft">แนบสลิปแล้ว</span> : <span className="rounded-lg bg-danger/10 px-3 py-1.5 text-xs text-danger">ไม่พบสลิป</span>}
+                  <Button size="sm" disabled={loading || isPaid || !registration.slip_image_url} onClick={() => handlePayment(registration.id, true)} className="rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700">ยืนยันชำระ</Button>
+                  {isPaid && <Button size="sm" variant="secondary" disabled={loading} onClick={() => handlePayment(registration.id, false)} className="rounded-xl text-xs font-bold">เปิดเป็นรอตรวจ</Button>}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -752,6 +894,22 @@ export function TournamentAdminClient({
                       {selectedMatch.team_b?.name}
                     </option>
                   )}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-body-xs font-bold text-ink mb-1">
+                  สนามที่ใช้แข่ง
+                </label>
+                <select
+                  value={selectedCourtId}
+                  onChange={(e) => setSelectedCourtId(e.target.value)}
+                  className="w-full rounded-xl border border-line bg-surface-raised px-3 py-2 text-xs font-bold text-ink focus:border-brand focus:outline-none"
+                >
+                  <option value="">ยังไม่ระบุสนาม</option>
+                  {courts.map((court) => (
+                    <option key={court.id} value={court.id}>{court.name}</option>
+                  ))}
                 </select>
               </div>
 

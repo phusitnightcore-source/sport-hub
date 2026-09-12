@@ -35,6 +35,7 @@ export default async function DashboardTournamentDetailPage({
     { data: teams },
     { data: matches },
     { data: courts },
+    { data: categories },
     { data: registrations },
   ] = await Promise.all([
     (admin as any)
@@ -50,7 +51,7 @@ export default async function DashboardTournamentDetailPage({
       .order("created_at", { ascending: true }),
     (admin as any)
       .from("matches")
-      .select("id, round, match_number, status, score_a, score_b, winner_id, team_a_id, team_b_id, court_id, match_type, notes")
+      .select("id, category_id, round, match_number, status, score_a, score_b, winner_id, team_a_id, team_b_id, court_id, match_type, notes")
       .eq("tournament_id", id)
       .order("round", { ascending: true })
       .order("match_number", { ascending: true }),
@@ -60,8 +61,13 @@ export default async function DashboardTournamentDetailPage({
       .eq("tenant_id", ctx.tenantId)
       .order("name", { ascending: true }),
     (admin as any)
+      .from("tournament_categories")
+      .select("id, name")
+      .eq("tournament_id", id)
+      .order("created_at", { ascending: true }),
+    (admin as any)
       .from("tournament_registrations")
-      .select("id, player_id, team_id, verification_status, verification_notes, video_url, partner_name, rating_at_registration, checkin_status, checked_in_at, registered_at, profiles(display_name, full_name, avatar_url, skill_level, mmr)")
+      .select("id, player_id, team_id, payment_status, slip_image_url, payment_notes, verification_status, verification_notes, video_url, partner_name, rating_at_registration, checkin_status, checked_in_at, registered_at, profiles(display_name, full_name, avatar_url, skill_level, mmr)")
       .eq("tournament_id", id)
       .order("registered_at", { ascending: true }),
   ]);
@@ -143,6 +149,7 @@ export default async function DashboardTournamentDetailPage({
         teams={teamList}
         matches={populatedMatches}
         courts={(courts ?? []) as any[]}
+        categories={(categories ?? []) as any[]}
         registrations={(registrations ?? []) as any[]}
         requireVideoProof={tournament.require_video_proof}
         skillVerificationMode={tournament.skill_verification_mode}

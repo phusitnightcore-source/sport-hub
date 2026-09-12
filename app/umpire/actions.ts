@@ -1,104 +1,180 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getStaffContext } from "@/lib/auth";
+import { calculateEloChange } from "@/lib/tournament/elo";
+import type { MatchState } from "@/lib/scoring/types";
+
+async function updateTournamentElo(
+  admin: ReturnType<typeof createAdminClient>,
+  matchId: string,
+  tournamentId: string,
+  winnerTeamId: string,
+  loserTeamId: string,
+) {
+  const [{ data: winnerMembers }, { data: loserMembers }] = await Promise.all([
+    (admin as any).from("team_members").select("profile_id").eq("team_id", winnerTeamId),
+    (admin as any).from("team_members").select("profile_id").eq("team_id", loserTeamId),
+  ]);
+  const winnerIds = (winnerMembers ?? []).map((member: { profile_id: string }) => member.profile_id);
+  const loserIds = (loserMembers ?? []).map((member: { profile_id: string }) => member.profile_id);
+  const allIds = [...winnerIds, ...loserIds];
+  if (!allIds.length) return;
+
+  const { data: ratings } = await (admin as any)
+    .from("elo_ratings")
+    .select("id, profile_id, rating, wins, losses, games_played")
+    .eq("sport", "badminton")
+    .in("profile_id", allIds);
+  type RatingRecord = { id: string; profile_id: string; rating: number; wins: number; losses: number; games_played: number };
+  const ratingMap = new Map<string, RatingRecord>((ratings ?? []).map((rating: RatingRecord) => [rating.profile_id, rating]));
+  const average = (ids: string[]) => ids.length ? Math.round(ids.reduce((sum, id) => sum + (ratingMap.get(id)?.rating ?? 1200), 0) / ids.length) : 1200;
+  const winnerOpponentRating = average(loserIds);
+  const loserOpponentRating = average(winnerIds);
+
+  for (const [ids, result, opponentRating] of [[winnerIds, "win", winnerOpponentRating], [loserIds, "loss", loserOpponentRating]] as const) {
+    for (const profileId of ids) {
+      const current = ratingMap.get(profileId);
+      const before = current?.rating ?? 1200;
+      const change = calculateEloChange(before, opponentRating, result);
+      const after = Math.max(100, before + change);
+      const payload = {
+        profile_id: profileId,
+        sport: "badminton",
+        rating: after,
+        wins: (current?.wins ?? 0) + (result === "win" ? 1 : 0),
+        losses: (current?.losses ?? 0) + (result === "loss" ? 1 : 0),
+        games_played: (current?.games_played ?? 0) + 1,
+        updated_at: new Date().toISOString(),
+      };
+      if (current) await (admin as any).from("elo_ratings").update(payload).eq("id", current.id);
+      else await (admin as any).from("elo_ratings").insert(payload);
+      await (admin as any).from("elo_history").insert({
+        profile_id: profileId,
+        sport: "badminton",
+        match_id: matchId,
+        tournament_id: tournamentId,
+        rating_before: before,
+        rating_after: after,
+        rating_change: change,
+        result,
+      });
+    }
+  }
+}
+
+export async function saveLiveTournamentScoreAction(matchId: string, state: MatchState) {
+  const ctx = await getStaffContext();
+  if (!ctx) return { success: false, error: "เฉพาะเจ้าหน้าที่สนามเท่านั้นที่บันทึกคะแนนได้" };
+  const admin = createAdminClient();
+  const { data: match } = await (admin as any)
+    .from("matches")
+    .select("id, tournament_id")
+    .eq("id", matchId)
+    .maybeSingle();
+  if (!match) return { success: false, error: "ไม่พบข้อมูลแมตช์" };
+  const { data: tournament } = await (admin as any)
+    .from("tournaments")
+    .select("id")
+    .eq("id", match.tournament_id)
+    .eq("tenant_id", ctx.tenantId)
+    .maybeSingle();
+  if (!tournament) return { success: false, error: "ไม่มีสิทธิ์บันทึกคะแนนแมตช์นี้" };
+
+  const now = new Date().toISOString();
+  await (admin as any).from("matches").update({
+    score_a: String(state.team1_score),
+    score_b: String(state.team2_score),
+    current_game_no: state.currentGameNo,
+    current_server_id: state.server_player_id,
+    current_serving_side: (state.serving_team === 1 ? state.team1_score : state.team2_score) % 2 === 0 ? "right" : "left",
+    score_details: {
+      games: state.completedGames,
+      team_a_games_won: state.team1_games_won,
+      team_b_games_won: state.team2_games_won,
+      status: state.status,
+    },
+    status: "in_progress",
+    started_at: now,
+  }).eq("id", matchId);
+
+  const currentGame = state.completedGames.find((game) => game.gameNo === state.currentGameNo);
+  await (admin as any).from("tournament_games").upsert({
+    match_id: matchId,
+    game_no: state.currentGameNo,
+    team1_score: state.team1_score,
+    team2_score: state.team2_score,
+    winner_id: currentGame ? (currentGame.winner === 1 ? state.team1.id : state.team2.id) : null,
+    finished: Boolean(currentGame),
+    status: currentGame ? "completed" : "in_progress",
+    started_at: now,
+    completed_at: currentGame ? now : null,
+  }, { onConflict: "match_id,game_no" });
+
+  revalidatePath(`/display/${matchId}`);
+  revalidatePath(`/umpire/match/${matchId}`);
+  return { success: true };
+}
 
 export async function syncMatchResultAction(
   matchId: string,
   winnerTeamId: string,
   finalScores: string
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "กรุณาเข้าสู่ระบบ" };
+  const ctx = await getStaffContext();
+  if (!ctx) return { success: false, error: "เฉพาะเจ้าหน้าที่สนามเท่านั้นที่บันทึกผลได้" };
 
   const admin = createAdminClient();
 
   // 1. Fetch match
   const { data: match } = await (admin as any)
     .from("matches")
-    .select("id, tournament_id, next_match_id, next_match_slot, team_a_id, team_b_id")
+    .select("id, tournament_id, team_a_id, team_b_id")
     .eq("id", matchId)
     .single();
 
   if (!match) return { success: false, error: "ไม่พบข้อมูลแมตช์" };
 
+  const { data: tournament } = await (admin as any)
+    .from("tournaments")
+    .select("id")
+    .eq("id", match.tournament_id)
+    .eq("tenant_id", ctx.tenantId)
+    .maybeSingle();
+  if (!tournament) return { success: false, error: "ไม่มีสิทธิ์บันทึกผลแมตช์นี้" };
+  if (![match.team_a_id, match.team_b_id].includes(winnerTeamId)) {
+    return { success: false, error: "ผู้ชนะต้องเป็นหนึ่งในสองทีมของแมตช์นี้" };
+  }
+
   // 2. Update match status, winner, scores
   const scoreParts = finalScores.split(",");
+  const completedGames = scoreParts.map((score, index) => {
+    const [teamA, teamB] = score.trim().split("-").map(Number);
+    return Number.isFinite(teamA) && Number.isFinite(teamB)
+      ? { gameNo: index + 1, team1_score: teamA, team2_score: teamB, winner: teamA > teamB ? 1 : 2 }
+      : null;
+  }).filter(Boolean);
   await (admin as any)
     .from("matches")
     .update({
       winner_id: winnerTeamId,
       score_a: scoreParts[0]?.trim() || finalScores,
       score_b: scoreParts[1]?.trim() || null,
+      score_details: { games: completedGames, final_summary: finalScores },
       status: "completed",
       completed_at: new Date().toISOString(),
+      result_recorded_by: ctx.userId,
+      result_recorded_at: new Date().toISOString(),
     })
     .eq("id", matchId);
 
-  // 3. Advance winner to next_match_id
-  if (match.next_match_id) {
-    if (match.next_match_slot === 2) {
-      await (admin as any)
-        .from("matches")
-        .update({ team_b_id: winnerTeamId })
-        .eq("id", match.next_match_id);
-    } else {
-      await (admin as any)
-        .from("matches")
-        .update({ team_a_id: winnerTeamId })
-        .eq("id", match.next_match_id);
-    }
-  }
+  // The bracket trigger advances this result to the predetermined slot.
 
-  // 4. Update player Elo rating stats
+  // 3. Update player Elo rating and history using the SOW formula.
   const loserId = winnerTeamId === match.team_a_id ? match.team_b_id : match.team_a_id;
   if (winnerTeamId && loserId) {
-    const [{ data: winMembers }, { data: loseMembers }] = await Promise.all([
-      (admin as any).from("team_members").select("profile_id").eq("team_id", winnerTeamId),
-      (admin as any).from("team_members").select("profile_id").eq("team_id", loserId),
-    ]);
-
-    for (const wm of winMembers ?? []) {
-      const { data: elo } = await (admin as any)
-        .from("elo_ratings")
-        .select("id, rating, wins, games_played")
-        .eq("profile_id", wm.profile_id)
-        .maybeSingle();
-
-      if (elo) {
-        await (admin as any)
-          .from("elo_ratings")
-          .update({
-            rating: elo.rating + 25,
-            wins: elo.wins + 1,
-            games_played: elo.games_played + 1,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", elo.id);
-      }
-    }
-
-    for (const lm of loseMembers ?? []) {
-      const { data: elo } = await (admin as any)
-        .from("elo_ratings")
-        .select("id, rating, losses, games_played")
-        .eq("profile_id", lm.profile_id)
-        .maybeSingle();
-
-      if (elo) {
-        await (admin as any)
-          .from("elo_ratings")
-          .update({
-            rating: Math.max(800, elo.rating - 15),
-            losses: elo.losses + 1,
-            games_played: elo.games_played + 1,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", elo.id);
-      }
-    }
+    await updateTournamentElo(admin, matchId, match.tournament_id, winnerTeamId, loserId);
   }
 
   revalidatePath(`/umpire/match/${matchId}`);
@@ -111,15 +187,30 @@ export async function syncMatchResultAction(
 }
 
 export async function assignUmpireAction(matchId: string, umpireProfileId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "กรุณาเข้าสู่ระบบ" };
+  const ctx = await getStaffContext();
+  if (!ctx) return { success: false, error: "เฉพาะเจ้าหน้าที่สนามเท่านั้นที่มอบหมายกรรมการได้" };
 
   const admin = createAdminClient();
-  await (admin as any)
+  const { data: match } = await (admin as any)
+    .from("matches")
+    .select("tournament_id")
+    .eq("id", matchId)
+    .maybeSingle();
+  if (!match) return { success: false, error: "ไม่พบข้อมูลแมตช์" };
+
+  const { data: tournament } = await (admin as any)
+    .from("tournaments")
+    .select("id")
+    .eq("id", match.tournament_id)
+    .eq("tenant_id", ctx.tenantId)
+    .maybeSingle();
+  if (!tournament) return { success: false, error: "ไม่มีสิทธิ์มอบหมายแมตช์นี้" };
+
+  const { error } = await (admin as any)
     .from("matches")
     .update({ umpire_id: umpireProfileId || null })
     .eq("id", matchId);
+  if (error) return { success: false, error: "มอบหมายกรรมการไม่สำเร็จ" };
 
   revalidatePath(`/umpire`);
   return { success: true };

@@ -297,6 +297,20 @@ export function TournamentRegistrationModal({
                   </span>
                 </div>
 
+                {entryFee > 0 && (
+                  <div className="rounded-2xl border border-amber-400/40 bg-amber-500/5 p-4 space-y-2">
+                    <div className="text-body-xs font-bold text-ink">แนบสลิปค่าสมัคร <span className="text-danger">*</span></div>
+                    <p className="text-[11px] text-ink-soft">แนบ JPG, PNG หรือ WebP ไม่เกิน 10 MB หลังส่งแล้วผู้จัดจะตรวจสอบก่อนยืนยันสิทธิ์</p>
+                    <input
+                      name="payment_slip"
+                      type="file"
+                      required
+                      accept="image/jpeg,image/png,image/webp"
+                      className="block w-full text-xs text-ink-soft file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-brand-dark"
+                    />
+                  </div>
+                )}
+
                 {/* Actions */}
                 <div className="flex items-center justify-end gap-3 pt-3 border-t border-line">
                   <Button

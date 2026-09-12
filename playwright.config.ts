@@ -8,9 +8,13 @@ export default defineConfig({
   // First requests on a cold Next dev server can compile route bundles before
   // the page loads. Keep smoke tests stable without relaxing assertions.
   timeout: 60_000,
-  fullyParallel: true,
+  // Public pages make server-side Supabase reads. Run the small smoke suite in
+  // sequence so a local/preview database is not artificially saturated.
+  fullyParallel: false,
+  workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: "list",
+  expect: { timeout: 30_000 },
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
     trace: "on-first-retry",

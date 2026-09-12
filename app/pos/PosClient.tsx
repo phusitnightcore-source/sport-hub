@@ -1,1717 +1,247 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  Banknote,
-  CreditCard,
-  Minus,
-  Package,
-  Plus,
-  Search,
-  ShoppingCart,
-  WalletCards,
-  LogOut,
-  FileText,
-  X,
-  Trash2,
-  Tag,
-  User,
-  Phone,
-  QrCode,
-  Layers,
-  Store,
-  Sparkles,
-  ArrowRight,
-  Receipt,
-  RotateCcw,
-  ChevronDown,
-  Check,
-  AlertTriangle,
-  History,
-  TrendingUp,
-  Clock,
-  ArrowLeft,
-  Calendar,
-  ExternalLink,
-  PackageOpen,
-  DollarSign
-} from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { completePosSale, openShift, closeShift } from "./actions";
+import { ArrowLeft, ArrowRight, Banknote, Check, Coffee, CreditCard, History, LayoutGrid, Minus, Package, Pause, Plus, Receipt, Search, ShoppingBag, ShoppingCart, Store, Trash2, Wallet, Wrench } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { CounterDialog } from "@/components/ui/CounterDialog";
+import { cartTotals, cashChange } from "@/lib/pos/money";
+import type { CounterReport, DailySummary } from "@/lib/pos/types";
+import { completePosSale, openShift, closeShift, recordCashMovement, refundPosSale, getShiftReport } from "./actions";
 import { ShiftReportModal } from "./ShiftReportModal";
 
 export type PosProduct = {
-  id: string;
-  name: string;
-  sku: string | null;
-  type: "product" | "rental" | "service";
-  sellingPrice: number;
-  trackStock: boolean;
-  stockByBranch: Record<string, number>;
+  id: string; name: string; sku: string | null; barcode?: string | null; category?: string;
+  type: "product" | "rental" | "service"; sellingPrice: number; trackStock: boolean;
+  lowStockThreshold?: number; stockByBranch: Record<string, number>;
 };
-
 export type ShiftHistoryItem = {
-  id: string;
-  branch_id: string;
-  opened_by: string | null;
-  closed_by: string | null;
-  opened_at: string;
-  closed_at: string | null;
-  status: "open" | "closed";
-  starting_cash: number;
-  actual_closing_cash: number | null;
-  expected_closing_cash: number | null;
-  notes: string | null;
+  id: string; branch_id: string; opened_by: string | null; closed_by: string | null;
+  opened_at: string; closed_at: string | null; status: "open" | "closed"; starting_cash: number;
+  actual_closing_cash: number | null; expected_closing_cash: number | null; notes: string | null;
 };
-
 export type SaleHistoryItem = {
-  id: string;
-  receipt_number: string;
-  sale_number: string;
-  customer_name: string | null;
-  customer_phone: string | null;
-  total_amount: number;
-  discount_amount: number;
-  subtotal: number;
-  completed_at: string;
-  branch_id: string;
-  shift_id: string | null;
-  payment_method?: string;
+  id: string; receipt_number: string; sale_number: string; customer_name: string | null;
+  customer_phone: string | null; total_amount: number; discount_amount: number; subtotal: number;
+  completed_at: string; branch_id: string; shift_id: string | null; payment_method?: string;
+  status?: "completed" | "voided";
 };
-
 type Branch = { id: string; name: string };
-type PaymentMethod = "cash" | "transfer" | "card" | "other";
 type Shift = { id: string; branch_id: string; opened_at: string; starting_cash: number };
-
-const PAYMENT_OPTIONS: { key: PaymentMethod; label: string; sub: string; icon: typeof Banknote }[] = [
-  { key: "cash", label: "เงินสด", sub: "Cash", icon: Banknote },
-  { key: "transfer", label: "โอนเงิน / QR", sub: "PromptPay", icon: WalletCards },
-  { key: "card", label: "บัตรเครดิต", sub: "Credit Card", icon: CreditCard },
-  { key: "other", label: "อื่น ๆ", sub: "Other", icon: Tag },
-];
-
-const QUICK_STARTING_CASH = [500, 1000, 2000, 3000, 5000];
-const QUICK_DISCOUNTS = [20, 50, 100];
-
-function baht(value: number) {
-  return new Intl.NumberFormat("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value);
+type Method = "cash" | "transfer" | "card" | "other";
+type Draft = { cart: Record<string, number>; customerName: string; customerPhone: string; bookingCode: string; note: string; discount: string; percent: boolean };
+const blank = (): Draft => ({ cart: {}, customerName: "", customerPhone: "", bookingCode: "", note: "", discount: "", percent: false });
+const methods = [
+  { key: "cash", name: "เงินสด", icon: Banknote }, { key: "transfer", name: "โอนเงิน", icon: Wallet },
+  { key: "card", name: "บัตร", icon: CreditCard }, { key: "other", name: "อื่น ๆ", icon: Receipt },
+] as const;
+const baht = (n: number) => new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+const date = (s: string) => new Date(s).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "short", timeStyle: "short" });
+const field = "w-full rounded-xl border border-line bg-surface px-3 py-3 text-sm text-ink outline-none focus:border-brand";
+const secondary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink transition hover:bg-brand-soft disabled:opacity-40";
+const primary = "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-dark disabled:opacity-40";
+function Label({ title, children }: { title: string; children: ReactNode }) { return <label className="block space-y-2 text-sm font-medium"><span>{title}</span>{children}</label>; }
+function ProductIcon({ product }: { product: PosProduct }) {
+  const Icon = /อาหาร|เครื่องดื่ม|ขนม|กาแฟ/.test(product.category ?? "") ? Coffee : product.type === "rental" ? Wrench : product.type === "service" ? Receipt : Package;
+  return <Icon size={30} strokeWidth={1.5}/>;
 }
 
-const CATEGORIES = [
-  { key: "all", label: "ทั้งหมด", icon: Layers },
-  { key: "product", label: "สินค้า / เครื่องดื่ม", icon: Package },
-  { key: "rental", label: "อุปกรณ์เช่า", icon: Tag },
-  { key: "service", label: "บริการ / คอร์ส", icon: Sparkles },
-] as const;
-
-export function PosClient({
-  branches,
-  products,
-  activeShifts,
-  pastShifts,
-  pastSales,
-}: {
-  branches: Branch[];
-  products: PosProduct[];
-  activeShifts: Shift[];
-  pastShifts: ShiftHistoryItem[];
-  pastSales: SaleHistoryItem[];
+export function PosClient({ branches, products, activeShifts, pastShifts, pastSales, dailySummary = [], canRefund = false, canInventory = false, ready = true }: {
+  branches: Branch[]; products: PosProduct[]; activeShifts: Shift[]; pastShifts: ShiftHistoryItem[]; pastSales: SaleHistoryItem[];
+  dailySummary?: DailySummary[]; canRefund?: boolean; canInventory?: boolean; ready?: boolean;
 }) {
   const router = useRouter();
   const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
-  const [viewMode, setViewMode] = useState<"hub" | "register">("hub");
-  const [hubTab, setHubTab] = useState<"shifts" | "sales">("shifts");
-
-  // Register State
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [tab, setTab] = useState<"sell" | "sales" | "shifts">("sell");
+  const [draft, setDraft] = useState<Draft>(blank);
+  const [held, setHeld] = useState<{ id: string; branchId: string; draft: Draft; time: string }[]>([]);
   const [query, setQuery] = useState("");
-  const [historySearch, setHistorySearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<"all" | "product" | "rental" | "service">("all");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [bookingCode, setBookingCode] = useState("");
-  const [discount, setDiscount] = useState("0");
-  const [note, setNote] = useState("");
+  const [category, setCategory] = useState("ทั้งหมด");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [historyQuery, setHistoryQuery] = useState("");
+  const [historyStatus, setHistoryStatus] = useState("all");
+  const [modal, setModal] = useState<null | "open" | "close" | "pay" | "hold" | "clear" | "cash" | "refund" | "success">(null);
+  const [reportId, setReportId] = useState<string | null>(null);
+  const [closeReport, setCloseReport] = useState<CounterReport | null>(null);
+  const [saleToRefund, setSaleToRefund] = useState<SaleHistoryItem | null>(null);
+  const [lastSale, setLastSale] = useState<{ id: string; receipt: string; change: number } | null>(null);
+  const [method, setMethod] = useState<Method>("cash");
+  const [received, setReceived] = useState("");
+  const [reference, setReference] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [uncertain, setUncertain] = useState(false);
+  const request = useRef<Parameters<typeof completePosSale>[0] | null>(null);
+  const operationLock = useRef(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const cashRequest = useRef<string | null>(null);
+  const active = activeShifts.find(s => s.branch_id === branchId);
+  const summary = dailySummary.find(s => s.branch_id === branchId);
+  const items = useMemo(() => products.filter(p => draft.cart[p.id]).map(product => ({ product, quantity: draft.cart[product.id] })), [products, draft.cart]);
+  let totals = { subtotal: 0, discount: 0, total: 0 };
+  let totalError = "";
+  try { totals = cartTotals(items.map(i => ({ price: i.product.sellingPrice, quantity: i.quantity })), Number(draft.discount) || 0, draft.percent); }
+  catch { totalError = "ส่วนลดไม่ถูกต้อง ต้องไม่เกินยอดสินค้า"; }
+  const stockError = items.some(i => i.product.trackStock && i.quantity > (i.product.stockByBranch[branchId] ?? 0)) || Object.keys(draft.cart).some(id => !products.some(p => p.id === id));
+  const categories = ["ทั้งหมด", ...Array.from(new Set(products.map(p => p.category || "ทั่วไป"))).sort()];
+  const visible = products.filter(p => (category === "ทั้งหมด" || (p.category || "ทั่วไป") === category)
+    && (typeFilter === "all" || p.type === typeFilter)
+    && (!availableOnly || !p.trackStock || (p.stockByBranch[branchId] ?? 0) > 0)
+    && (!query.trim() || [p.name, p.sku, p.barcode, p.category].join(" ").toLowerCase().includes(query.trim().toLowerCase())));
+  const branchHolds = held.filter(h => h.branchId === branchId);
+  const sales = pastSales.filter(s => s.branch_id === branchId
+    && (historyStatus === "all" || (s.status ?? "completed") === historyStatus)
+    && [s.receipt_number, s.sale_number, s.customer_name, s.customer_phone].join(" ").toLowerCase().includes(historyQuery.toLowerCase()));
+  const count = items.reduce((sum, i) => sum + i.quantity, 0);
+  const patchDraft = (patch: Partial<Draft>) => setDraft(d => ({ ...d, ...patch }));
 
-  // Custom Dropdown State
-  const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
-  const branchDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Modals State
-  const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
-  const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
-  const [selectedReportShiftId, setSelectedReportShiftId] = useState<string | null>(null);
-  const [showClearCartModal, setShowClearCartModal] = useState(false);
-  const [showExitModal, setShowExitModal] = useState(false);
-  const [pendingBranchId, setPendingBranchId] = useState<string | null>(null);
-
-  // Shift Management State
-  const [startingCash, setStartingCash] = useState("1000");
-  const [actualCash, setActualCash] = useState("");
-  const [shiftNote, setShiftNote] = useState("");
-
-  const activeShift = activeShifts.find((s) => s.branch_id === branchId);
-  const currentBranch = branches.find((b) => b.id === branchId) ?? branches[0];
-  const branchNames = useMemo(() => new Map(branches.map((b) => [b.id, b.name])), [branches]);
-
-  // Daily Summary Stats Calculation
-  const todayStats = useMemo(() => {
-    const todayStr = new Date().toDateString();
-    const todaySales = pastSales.filter(
-      (s) => new Date(s.completed_at).toDateString() === todayStr && s.branch_id === branchId
-    );
-    const totalRev = todaySales.reduce((acc, s) => acc + s.total_amount, 0);
-    const cashRev = todaySales
-      .filter((s) => s.payment_method === "cash")
-      .reduce((acc, s) => acc + s.total_amount, 0);
-    const transferRev = todaySales
-      .filter((s) => s.payment_method === "transfer" || s.payment_method === "card")
-      .reduce((acc, s) => acc + s.total_amount, 0);
-    return {
-      count: todaySales.length,
-      totalRev,
-      cashRev,
-      transferRev,
-    };
-  }, [pastSales, branchId]);
-
-  // Filtered History
-  const filteredShifts = useMemo(() => {
-    return pastShifts.filter((s) => s.branch_id === branchId);
-  }, [pastShifts, branchId]);
-
-  const filteredSales = useMemo(() => {
-    const q = historySearch.trim().toLowerCase();
-    return pastSales.filter((s) => {
-      const matchBranch = s.branch_id === branchId;
-      const matchSearch =
-        !q ||
-        s.receipt_number.toLowerCase().includes(q) ||
-        (s.customer_name && s.customer_name.toLowerCase().includes(q));
-      return matchBranch && matchSearch;
-    });
-  }, [pastSales, branchId, historySearch]);
-
-  // Close dropdown on outside click
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (branchDropdownRef.current && !branchDropdownRef.current.contains(e.target as Node)) {
-        setIsBranchDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    const warn = (e: BeforeUnloadEvent) => { if (Object.keys(draft.cart).length || held.length || uncertain) { e.preventDefault(); e.returnValue = ""; } };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [draft.cart, held.length, uncertain]);
 
-  const categoryCounts = useMemo(() => {
-    return {
-      all: products.length,
-      product: products.filter((p) => p.type === "product").length,
-      rental: products.filter((p) => p.type === "rental").length,
-      service: products.filter((p) => p.type === "service").length,
-    };
-  }, [products]);
-
-  const visibleProducts = useMemo(() => {
-    const normalized = query.trim().toLocaleLowerCase();
-    return products.filter((product) => {
-      const matchCategory = selectedCategory === "all" || product.type === selectedCategory;
-      const matchSearch =
-        !normalized || `${product.name} ${product.sku ?? ""}`.toLocaleLowerCase().includes(normalized);
-      return matchCategory && matchSearch;
-    });
-  }, [products, query, selectedCategory]);
-
-  const items = products
-    .filter((product) => cart[product.id])
-    .map((product) => ({ product, quantity: cart[product.id] }));
-
-  const subtotal = items.reduce((total, item) => total + item.product.sellingPrice * item.quantity, 0);
-  const discountAmount = Math.max(0, Number(discount) || 0);
-  const total = Math.max(0, subtotal - discountAmount);
-  const totalItemsCount = items.reduce((acc, curr) => acc + curr.quantity, 0);
-
-  function stockFor(product: PosProduct) {
-    return product.stockByBranch[branchId] ?? 0;
+  function add(p: PosProduct, change: number) {
+    if (busy || uncertain) return;
+    const quantity = (draft.cart[p.id] ?? 0) + change;
+    if (quantity > 100 || (p.trackStock && quantity > (p.stockByBranch[branchId] ?? 0))) { setError("จำนวนเกินสต็อกหรือเกิน 100 ต่อรายการ"); return; }
+    setError("");
+    const cart = { ...draft.cart };
+    if (quantity <= 0) delete cart[p.id]; else cart[p.id] = quantity;
+    patchDraft({ cart });
   }
-
-  function updateQuantity(product: PosProduct, change: number) {
-    setError(null);
-    setCart((current) => {
-      const nextQuantity = (current[product.id] ?? 0) + change;
-      if (product.trackStock && nextQuantity > stockFor(product)) return current;
-      if (nextQuantity <= 0) {
-        const next = { ...current };
-        delete next[product.id];
-        return next;
-      }
-      return { ...current, [product.id]: nextQuantity };
-    });
+  function open(kind: typeof modal) { setError(""); setModal(kind); }
+  async function run(action: () => Promise<void>) {
+    if (operationLock.current) return;
+    operationLock.current = true; setBusy(true); setError("");
+    try { await action(); } catch { setError("การเชื่อมต่อขัดข้อง กรุณาลองอีกครั้ง"); }
+    finally { operationLock.current = false; setBusy(false); }
   }
-
-  function handleRequestClearCart() {
-    if (items.length === 0) return;
-    setShowClearCartModal(true);
+  function hold() {
+    if (!items.length || held.length >= 20) { setError("พักได้สูงสุด 20 บิลต่อหน้าต่าง"); return; }
+    setHeld(h => [...h, { id: crypto.randomUUID(), branchId, draft, time: new Date().toISOString() }]);
+    setDraft(blank()); setNotice("พักบิลแล้ว เรียกคืนได้จากปุ่มพักบิล"); setModal(null);
   }
-
-  function confirmClearCart() {
-    setCart({});
-    setDiscount("0");
-    setCustomerName("");
-    setCustomerPhone("");
-    setBookingCode("");
-    setNote("");
-    setError(null);
-    setShowClearCartModal(false);
+  function startPayment() {
+    if (!active || !items.length || totalError || stockError || !ready) return;
+    setReceived(""); setReference(""); setConfirmed(false); request.current = null; setUncertain(false); open("pay");
   }
-
-  function handleRequestBranchChange(targetId: string) {
-    if (targetId === branchId) {
-      setIsBranchDropdownOpen(false);
-      return;
-    }
-    if (items.length > 0) {
-      setPendingBranchId(targetId);
-      setIsBranchDropdownOpen(false);
-      return;
-    }
-    setBranchId(targetId);
-    setCart({});
-    setError(null);
-    setIsBranchDropdownOpen(false);
-  }
-
-  function confirmSwitchBranch() {
-    if (pendingBranchId) {
-      setBranchId(pendingBranchId);
-      setCart({});
-      setError(null);
-      setPendingBranchId(null);
-    }
-  }
-
-  function handleRequestExit() {
-    if (items.length > 0 && viewMode === "register") {
-      setShowExitModal(true);
-    } else {
-      router.push("/dashboard");
-    }
-  }
-
-  async function handleOpenShift(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    const amount = Number(startingCash);
-    if (isNaN(amount) || amount < 0) {
-      setError("จำนวนเงินเริ่มต้นไม่ถูกต้อง");
-      setBusy(false);
-      return;
-    }
-    const res = await openShift(branchId, amount);
-    if (res.error) {
-      setError(res.error);
-    } else {
-      setStartingCash("");
-      setShowOpenShiftModal(false);
-      setViewMode("register");
-      router.refresh();
-    }
-    setBusy(false);
-  }
-
-  async function handleCloseShift(e: React.FormEvent) {
-    e.preventDefault();
-    if (!activeShift) return;
-    setBusy(true);
-    setError(null);
-    const amount = Number(actualCash);
-    if (isNaN(amount) || amount < 0) {
-      setError("จำนวนเงินสดที่นับได้ไม่ถูกต้อง");
-      setBusy(false);
-      return;
-    }
-    const res = await closeShift(activeShift.id, amount, shiftNote);
-    if (res.error) {
-      setError(res.error);
-    } else {
-      setShowCloseShiftModal(false);
-      setActualCash("");
-      setShiftNote("");
-      setViewMode("hub");
-      router.refresh();
-    }
-    setBusy(false);
-  }
-
   async function checkout() {
-    if (!activeShift) {
-      setError("กรุณาเปิดกะก่อนทำการขาย");
-      return;
-    }
-    if (items.length === 0) return;
-    if (discountAmount > subtotal) {
-      setError("ส่วนลดต้องไม่เกินยอดรวมสินค้า");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    const result = await completePosSale({
-      branchId,
-      shiftId: activeShift.id,
-      items: items.map((item) => ({ productId: item.product.id, quantity: item.quantity })),
-      paymentMethod,
-      customerName,
-      customerPhone,
-      bookingCode,
-      discountAmount,
-      note,
+    if (!active) return;
+    await run(async () => {
+      let change = 0;
+      try { if (method === "cash") change = cashChange(totals.total, Number(received)); } catch { setError("เงินสดที่รับไม่เพียงพอ"); return; }
+      if (!confirmed) { setError("กรุณายืนยันว่าได้รับเงินแล้ว"); return; }
+      request.current ??= {
+        branchId, shiftId: active.id, checkoutKey: crypto.randomUUID(),
+        items: items.map(i => ({ productId: i.product.id, quantity: i.quantity })),
+        paymentMethod: method, expectedTotal: totals.total, cashReceived: method === "cash" ? Number(received) : null,
+        paymentConfirmed: true, paymentReference: reference, customerName: draft.customerName, customerPhone: draft.customerPhone,
+        bookingCode: draft.bookingCode, note: draft.note, discountAmount: totals.discount,
+      };
+      setUncertain(true);
+      try {
+        const result = await completePosSale(request.current);
+        if (result.error) {
+          if (!("retrySafe" in result) || result.retrySafe) { setUncertain(false); request.current = null; }
+          setError(result.error); return;
+        }
+        setLastSale({ id: result.saleId!, receipt: result.receiptNumber!, change });
+        setDraft(blank()); request.current = null; setUncertain(false); setModal("success"); router.refresh();
+      } catch { setError("ยังยืนยันผลการขายไม่ได้ กดลองรายการเดิมอีกครั้งเพื่อป้องกันบิลซ้ำ"); }
     });
-    setBusy(false);
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-    router.push(`/pos/${result.saleId}/receipt`);
-    router.refresh();
   }
+  async function prepareClose() {
+    if (!active) return;
+    if (items.length || branchHolds.length) { setError("จัดการบิลปัจจุบันและบิลพักของสาขานี้ก่อนปิดกะ"); return; }
+    await run(async () => {
+      const result = await getShiftReport(active.id);
+      if (result.error || !result.data) { setError(result.error ?? "โหลดรายงานไม่สำเร็จ"); return; }
+      setCloseReport(result.data); open("close");
+    });
+  }
+  const modalError = error && <p role="alert" className="rounded-xl bg-danger/10 p-3 text-sm text-ink">{error}</p>;
 
-  // ==========================================
-  // VIEW 1: POS HUB / MAIN LANDING PAGE
-  // ==========================================
-  if (viewMode === "hub") {
-    return (
-      <div className="flex min-h-screen flex-col bg-surface/30">
-        {/* Top Hub Navbar */}
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-line bg-surface px-6 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-soft text-brand">
-              <Store className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="font-display text-body-lg font-bold text-ink">SportHub POS Hub</h1>
-              <p className="text-mono-sm text-ink-soft">ศูนย์ควบคุมจุดขาย รายงานย้อนหลัง และเปิด-ปิดกะ</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Custom Branch Selector */}
-            <div className="relative" ref={branchDropdownRef}>
-              <button
-                type="button"
-                onClick={() => setIsBranchDropdownOpen(!isBranchDropdownOpen)}
-                className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3.5 py-2 text-body-sm font-semibold text-ink shadow-xs hover:border-brand/40 transition-colors"
-              >
-                <Store className="h-4 w-4 text-brand" />
-                <span>{currentBranch?.name}</span>
-                <ChevronDown className={`h-4 w-4 text-ink-soft transition-transform ${isBranchDropdownOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {isBranchDropdownOpen && (
-                <div className="absolute right-0 top-full mt-2 w-60 overflow-hidden rounded-2xl border border-line bg-surface p-1.5 shadow-xl z-50 animate-in fade-in-0 zoom-in-95">
-                  <p className="px-3 py-1.5 text-[11px] font-bold text-ink-soft uppercase tracking-wider">สลับสาขา</p>
-                  {branches.map((b) => (
-                    <button
-                      key={b.id}
-                      type="button"
-                      onClick={() => handleRequestBranchChange(b.id)}
-                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-body-sm font-medium transition-colors ${
-                        b.id === branchId
-                          ? "bg-brand-soft text-brand font-bold"
-                          : "text-ink hover:bg-surface/80"
-                      }`}
-                    >
-                      <span>{b.name}</span>
-                      {b.id === branchId && <Check className="h-4 w-4 text-brand" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <Link
-              href="/dashboard/inventory"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3.5 py-2 text-body-sm font-medium text-ink-soft hover:bg-brand-soft hover:text-brand transition-colors"
-            >
-              <PackageOpen className="h-4 w-4" /> สต็อกสินค้า
-            </Link>
-
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3.5 py-2 text-body-sm font-medium text-ink-soft hover:bg-brand-soft hover:text-brand transition-colors"
-            >
-              <LogOut className="h-4 w-4" /> Dashboard
-            </Link>
-          </div>
-        </header>
-
-        {/* Main Hub Content */}
-        <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-6">
-          {/* 1. HERO SHIFT ACTION CARD */}
-          <div className="relative overflow-hidden rounded-3xl border border-line bg-surface p-6 shadow-sm sm:p-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2.5">
-                  {activeShift ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1 text-mono-sm font-bold text-success">
-                      <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-                      กะกำลังเปิดอยู่
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-mono-sm font-semibold text-ink-soft">
-                      <span className="h-2 w-2 rounded-full bg-ink-soft/40" />
-                      กะปิดอยู่ (ยังไม่เปิดกะ)
-                    </span>
-                  )}
-                  <span className="text-body-sm text-ink-soft">สาขา: <strong className="text-ink">{currentBranch?.name}</strong></span>
-                </div>
-
-                <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">
-                  {activeShift ? "ระบบขายหน้าร้านพร้อมใช้งาน" : "เริ่มต้นเปิดกะการขายเพื่อคิดเงิน"}
-                </h2>
-
-                <p className="text-body-sm text-ink-soft max-w-xl">
-                  {activeShift
-                    ? `เปิดกะเมื่อ ${new Date(activeShift.opened_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })} น. · เงินทอนเริ่มต้น ฿${baht(activeShift.starting_cash)}`
-                    : "บันทึกยอดเงินทอนเริ่มต้นในลิ้นชัก เพื่อเปิดกะการขายและออกใบเสร็จ"}
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3">
-                {activeShift ? (
-                  <>
-                    <Button
-                      onClick={() => setViewMode("register")}
-                      size="lg"
-                      className="rounded-2xl px-6 py-3.5 text-body-lg font-bold shadow-md shadow-brand/20"
-                    >
-                      <ShoppingCart className="mr-2 h-5 w-5" />
-                      เข้าสู่หน้าคิดเงิน (Cash Register)
-                    </Button>
-
-                    <Button
-                      variant="secondary"
-                      size="lg"
-                      onClick={() => setSelectedReportShiftId(activeShift.id)}
-                      className="rounded-2xl"
-                    >
-                      <FileText className="mr-2 h-4 w-4 text-brand" />
-                      ดูสรุปยอดกะ
-                    </Button>
-
-                    <Button
-                      variant="danger"
-                      size="lg"
-                      onClick={() => setShowCloseShiftModal(true)}
-                      className="rounded-2xl"
-                    >
-                      ปิดกะ
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    onClick={() => {
-                      setStartingCash("1000");
-                      setError(null);
-                      setShowOpenShiftModal(true);
-                    }}
-                    size="lg"
-                    className="rounded-2xl px-7 py-4 text-body-lg font-bold shadow-md shadow-brand/20"
-                  >
-                    <Banknote className="mr-2 h-5 w-5" />
-                    เปิดกะการขายใหม่ (Open Shift)
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 2. TODAY'S QUICK METRICS */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <div className="card-floating p-5">
-              <div className="flex items-center justify-between text-ink-soft">
-                <span className="text-body-sm font-semibold">ยอดขายวันนี้</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-soft text-brand">
-                  <TrendingUp className="h-4 w-4" />
-                </div>
-              </div>
-              <p className="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">
-                ฿{baht(todayStats.totalRev)}
-              </p>
-              <p className="mt-1 text-[12px] text-ink-soft">{todayStats.count} รายการบิลสำเร็จ</p>
-            </div>
-
-            <div className="card-floating p-5">
-              <div className="flex items-center justify-between text-ink-soft">
-                <span className="text-body-sm font-semibold">ยอดเงินสด (วันนี้)</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-success/10 text-success">
-                  <Banknote className="h-4 w-4" />
-                </div>
-              </div>
-              <p className="mt-2 font-display text-2xl font-bold text-success sm:text-3xl">
-                ฿{baht(todayStats.cashRev)}
-              </p>
-              <p className="mt-1 text-[12px] text-ink-soft">เงินสดรับชำระ</p>
-            </div>
-
-            <div className="card-floating p-5">
-              <div className="flex items-center justify-between text-ink-soft">
-                <span className="text-body-sm font-semibold">ยอดโอน / บัตร (วันนี้)</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-soft text-brand">
-                  <WalletCards className="h-4 w-4" />
-                </div>
-              </div>
-              <p className="mt-2 font-display text-2xl font-bold text-brand sm:text-3xl">
-                ฿{baht(todayStats.transferRev)}
-              </p>
-              <p className="mt-1 text-[12px] text-ink-soft">QR Code & บัตรเครดิต</p>
-            </div>
-
-            <div className="card-floating p-5">
-              <div className="flex items-center justify-between text-ink-soft">
-                <span className="text-body-sm font-semibold">สินค้าพร้อมขาย</span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-warning/12 text-warning">
-                  <Package className="h-4 w-4" />
-                </div>
-              </div>
-              <p className="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">
-                {products.length} <span className="text-body-sm font-normal text-ink-soft">รายการ</span>
-              </p>
-              <p className="mt-1 text-[12px] text-ink-soft">ในระบบสาขานี้</p>
-            </div>
-          </div>
-
-          {/* 3. HISTORICAL REPORTS & AUDIT LOGS TABS */}
-          <div className="card-floating overflow-hidden p-0">
-            {/* Tabs Header */}
-            <div className="flex flex-col border-b border-line bg-surface px-6 py-4 sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setHubTab("shifts")}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-body-sm font-bold transition-all ${
-                    hubTab === "shifts"
-                      ? "bg-brand text-white shadow-sm"
-                      : "text-ink-soft hover:bg-brand-soft/30 hover:text-ink"
-                  }`}
-                >
-                  <History className="h-4 w-4" />
-                  <span>ประวัติกะการขายย้อนหลัง</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] ${hubTab === "shifts" ? "bg-white/20 text-white" : "bg-surface border border-line"}`}>
-                    {filteredShifts.length}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setHubTab("sales")}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-body-sm font-bold transition-all ${
-                    hubTab === "sales"
-                      ? "bg-brand text-white shadow-sm"
-                      : "text-ink-soft hover:bg-brand-soft/30 hover:text-ink"
-                  }`}
-                >
-                  <Receipt className="h-4 w-4" />
-                  <span>ประวัติรายการขาย & ใบเสร็จ</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] ${hubTab === "sales" ? "bg-white/20 text-white" : "bg-surface border border-line"}`}>
-                    {filteredSales.length}
-                  </span>
-                </button>
-              </div>
-
-              {hubTab === "sales" && (
-                <div className="relative w-full sm:w-64">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-                  <input
-                    value={historySearch}
-                    onChange={(e) => setHistorySearch(e.target.value)}
-                    placeholder="ค้นหาเลขที่ใบเสร็จ / ลูกค้า"
-                    className="w-full rounded-xl border border-line bg-surface py-2 pl-9 pr-3 text-body-sm text-ink outline-none focus:border-brand"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* TAB CONTENT 1: SHIFTS HISTORY */}
-            {hubTab === "shifts" && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-body-sm">
-                  <thead className="border-b border-line bg-surface/70 text-[12px] font-semibold text-ink-soft">
-                    <tr>
-                      <th className="px-6 py-3.5">เวลาเปิดกะ</th>
-                      <th className="px-4 py-3.5">เวลาปิดกะ</th>
-                      <th className="px-4 py-3.5 text-right">เงินทอนเริ่ม</th>
-                      <th className="px-4 py-3.5 text-right">เงินสดที่ควรมี</th>
-                      <th className="px-4 py-3.5 text-right">เงินสดที่นับได้</th>
-                      <th className="px-4 py-3.5 text-right">ส่วนต่าง</th>
-                      <th className="px-4 py-3.5 text-center">สถานะ</th>
-                      <th className="px-6 py-3.5 text-right">รายงาน</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line/60">
-                    {filteredShifts.map((shift) => {
-                      const diff =
-                        shift.actual_closing_cash !== null && shift.expected_closing_cash !== null
-                          ? shift.actual_closing_cash - shift.expected_closing_cash
-                          : null;
-                      return (
-                        <tr key={shift.id} className="hover:bg-brand-soft/20 transition-colors">
-                          <td className="px-6 py-4 font-mono font-medium text-ink">
-                            {new Date(shift.opened_at).toLocaleString("th-TH", {
-                              dateStyle: "short",
-                              timeStyle: "short",
-                            })}
-                          </td>
-                          <td className="px-4 py-4 font-mono text-ink-soft">
-                            {shift.closed_at
-                              ? new Date(shift.closed_at).toLocaleString("th-TH", {
-                                  dateStyle: "short",
-                                  timeStyle: "short",
-                                })
-                              : "— (เปิดอยู่)"}
-                          </td>
-                          <td className="px-4 py-4 text-right font-mono text-ink">
-                            ฿{baht(shift.starting_cash)}
-                          </td>
-                          <td className="px-4 py-4 text-right font-mono font-medium text-ink">
-                            {shift.expected_closing_cash !== null ? `฿${baht(shift.expected_closing_cash)}` : "—"}
-                          </td>
-                          <td className="px-4 py-4 text-right font-mono font-bold text-ink">
-                            {shift.actual_closing_cash !== null ? `฿${baht(shift.actual_closing_cash)}` : "—"}
-                          </td>
-                          <td className="px-4 py-4 text-right font-mono font-semibold">
-                            {diff === null ? (
-                              "—"
-                            ) : diff === 0 ? (
-                              <span className="text-success">พอดี</span>
-                            ) : diff > 0 ? (
-                              <span className="text-success">+฿{baht(diff)}</span>
-                            ) : (
-                              <span className="text-danger">-฿{baht(Math.abs(diff))}</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-4 text-center">
-                            {shift.status === "open" ? (
-                              <span className="pill-success inline-block rounded-md px-2 py-0.5 text-[11px] font-bold">
-                                เปิดอยู่
-                              </span>
-                            ) : (
-                              <span className="inline-block rounded-md bg-surface border border-line px-2 py-0.5 text-[11px] text-ink-soft">
-                                ปิดกะแล้ว
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              className="rounded-xl"
-                              onClick={() => setSelectedReportShiftId(shift.id)}
-                            >
-                              <FileText className="mr-1 h-3.5 w-3.5 text-brand" />
-                              ดูรายงาน
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {filteredShifts.length === 0 && (
-                      <tr>
-                        <td colSpan={8} className="px-6 py-12 text-center text-body-sm text-ink-soft">
-                          ยังไม่มีประวัติกะการขายในสาขานี้
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* TAB CONTENT 2: SALES & RECEIPTS HISTORY */}
-            {hubTab === "sales" && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-body-sm">
-                  <thead className="border-b border-line bg-surface/70 text-[12px] font-semibold text-ink-soft">
-                    <tr>
-                      <th className="px-6 py-3.5 font-bold">เลขที่ใบเสร็จ</th>
-                      <th className="px-4 py-3.5 font-bold">ลูกค้า</th>
-                      <th className="px-4 py-3.5 font-bold">ช่องทางชำระ</th>
-                      <th className="px-4 py-3.5 text-right font-bold">ยอดสุทธิ</th>
-                      <th className="px-4 py-3.5 font-bold">วันที่-เวลา</th>
-                      <th className="px-6 py-3.5 text-right font-bold">ใบเสร็จ</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line/60">
-                    {filteredSales.map((sale) => (
-                      <tr key={sale.id} className="hover:bg-brand-soft/20 transition-colors">
-                        <td className="px-6 py-3.5 font-mono font-bold text-ink">
-                          {sale.receipt_number}
-                        </td>
-                        <td className="px-4 py-3.5 text-ink-soft">
-                          {sale.customer_name || "ลูกค้าหน้าร้าน"}
-                          {sale.customer_phone ? ` · ${sale.customer_phone}` : ""}
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <span
-                            className={`inline-block rounded-md px-2 py-0.5 text-[11px] font-bold ${
-                              sale.payment_method === "cash"
-                                ? "pill-success"
-                                : sale.payment_method === "card"
-                                ? "pill-warning"
-                                : "pill-brand"
-                            }`}
-                          >
-                            {sale.payment_method === "cash"
-                              ? "เงินสด"
-                              : sale.payment_method === "card"
-                              ? "บัตรเครดิต"
-                              : "โอนเงิน / QR"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5 text-right font-mono font-bold text-brand">
-                          ฿{baht(sale.total_amount)}
-                        </td>
-                        <td className="px-4 py-3.5 font-mono text-[12px] text-ink-soft">
-                          {new Date(sale.completed_at).toLocaleString("th-TH", {
-                            timeZone: "Asia/Bangkok",
-                            dateStyle: "short",
-                            timeStyle: "short",
-                          })}
-                        </td>
-                        <td className="px-6 py-3.5 text-right">
-                          <Link
-                            href={`/pos/${sale.id}/receipt`}
-                            className="inline-flex items-center gap-1 rounded-xl border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink hover:border-brand hover:text-brand transition-colors"
-                          >
-                            <span>พิมพ์ใบเสร็จ</span>
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredSales.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-body-sm text-ink-soft">
-                          ไม่พบรายการขายที่ตรงกับการค้นหา
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </main>
-
-        {/* OPEN SHIFT MODAL */}
-        {showOpenShiftModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 backdrop-blur-sm animate-in fade-in-0">
-            <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-line bg-surface shadow-2xl">
-              <div className="bg-brand px-8 py-6 text-center text-white">
-                <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md shadow-inner">
-                  <Banknote className="h-7 w-7 text-white" />
-                </div>
-                <h2 className="font-display text-xl font-bold">เปิดกะการขายใหม่</h2>
-                <p className="mt-1 text-body-sm text-white/90">
-                  สาขา: <span className="font-bold">{currentBranch?.name}</span>
-                </p>
-              </div>
-
-              <form onSubmit={handleOpenShift} className="p-6 space-y-5">
-                <div>
-                  <label className="mb-2 block text-body-sm font-semibold text-ink">
-                    ยอดเงินทอนเริ่มต้นในลิ้นชัก (Starting Cash)
-                  </label>
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 font-display text-xl font-bold text-ink-soft">
-                      ฿
-                    </span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      required
-                      value={startingCash}
-                      onChange={(e) => setStartingCash(e.target.value)}
-                      className="w-full rounded-2xl border-2 border-line bg-surface py-3.5 pl-11 pr-4 font-mono text-2xl font-bold text-ink outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all"
-                      placeholder="0"
-                      autoFocus
-                    />
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {QUICK_STARTING_CASH.map((amount) => (
-                      <button
-                        key={amount}
-                        type="button"
-                        onClick={() => setStartingCash(String(amount))}
-                        className={`rounded-xl border px-3 py-1.5 text-mono-sm font-semibold transition-all ${
-                          startingCash === String(amount)
-                            ? "border-brand bg-brand-soft text-brand-dark ring-2 ring-brand/30"
-                            : "border-line bg-surface text-ink-soft hover:border-brand/40 hover:text-ink"
-                        }`}
-                      >
-                        +฿{baht(amount)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {error && (
-                  <div className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-center text-body-sm font-medium text-danger">
-                    {error}
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="flex-1 rounded-xl"
-                    onClick={() => setShowOpenShiftModal(false)}
-                  >
-                    ยกเลิก
-                  </Button>
-                  <Button type="submit" className="flex-1 rounded-xl shadow-md" disabled={busy}>
-                    {busy ? "กำลังเปิดกะ..." : "ยืนยันและเปิดกะ"}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* CLOSE SHIFT MODAL */}
-        {showCloseShiftModal && activeShift && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 backdrop-blur-sm animate-in fade-in-0">
-            <div className="w-full max-w-md overflow-hidden rounded-3xl border border-line bg-surface p-6 shadow-2xl">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-danger/10 text-danger">
-                    <Banknote className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h2 className="font-display text-lg font-bold text-ink">ปิดกะการขาย (สิ้นวัน)</h2>
-                    <p className="text-mono-sm text-ink-soft">สรุปยอดและส่งมอบเงินสด</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowCloseShiftModal(false)}
-                  className="rounded-full p-1.5 text-ink-soft hover:bg-brand-soft hover:text-ink"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleCloseShift} className="space-y-4">
-                <div className="rounded-2xl border border-brand/20 bg-brand-soft p-4">
-                  <p className="text-body-sm text-ink-soft">ยอดเงินทอนเริ่มต้นในกะ</p>
-                  <p className="font-mono text-2xl font-bold text-brand">฿{baht(activeShift.starting_cash)}</p>
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-body-sm font-semibold text-ink">
-                    ยอดเงินสดจริงในลิ้นชักที่นับได้ (รวมเงินทอน)
-                  </label>
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-display text-lg font-bold text-ink-soft">
-                      ฿
-                    </span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      required
-                      value={actualCash}
-                      onChange={(e) => setActualCash(e.target.value)}
-                      className="w-full rounded-xl border border-line bg-surface py-3 pl-9 pr-4 font-mono text-xl font-bold text-ink outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 transition-colors"
-                      placeholder="0.00"
-                      autoFocus
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-1.5 block text-body-sm font-semibold text-ink">
-                    หมายเหตุ (ถ้ามียอดขาด/เกิน)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={shiftNote}
-                    onChange={(e) => setShiftNote(e.target.value)}
-                    className="w-full rounded-xl border border-line bg-surface p-3 text-body-sm text-ink outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 transition-colors resize-none"
-                    placeholder="เช่น เงินสดเกิน 20 บาท หรือ บันทึกเหตุผล"
-                  />
-                </div>
-
-                {error && (
-                  <div className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-center text-body-sm font-medium text-danger">
-                    {error}
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="flex-1 rounded-xl"
-                    onClick={() => setShowCloseShiftModal(false)}
-                  >
-                    ยกเลิก
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="danger"
-                    className="flex-1 rounded-xl shadow-md"
-                    disabled={busy}
-                  >
-                    {busy ? "กำลังปิดกะ..." : "ยืนยันปิดกะ"}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* SHIFT REPORT MODAL */}
-        {selectedReportShiftId && (
-          <ShiftReportModal shiftId={selectedReportShiftId} onClose={() => setSelectedReportShiftId(null)} />
-        )}
+  return <main className="min-h-dvh bg-surface/30 text-ink">
+    <header className="border-b border-line bg-surface">
+      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-4 py-4 md:px-8">
+        <div className="flex items-center gap-3"><Link href="/dashboard" aria-label="กลับแดชบอร์ด" className={secondary}><ArrowLeft size={18}/></Link><div className="rounded-2xl bg-brand-soft p-3 text-brand"><Store size={24}/></div><div><p className="text-xs font-semibold tracking-widest text-ink-soft">SPORTHUB / COUNTER</p><h1 className="text-xl font-bold">ขายหน้าสนาม</h1></div></div>
+        <div className="flex flex-wrap items-center gap-2"><select aria-label="เลือกสาขา" className={field + " w-auto"} disabled={busy || uncertain} value={branchId} onChange={e => { if (items.length) { setError("พักบิลหรือล้างบิลก่อนเปลี่ยนสาขา"); return; } setBranchId(e.target.value); setDraft(blank()); setError(""); }} >{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select><ThemeToggle/>{canInventory && <Link href="/dashboard/inventory" className={secondary}><Package size={16}/>สินค้าและสต็อก</Link>}</div>
       </div>
-    );
-  }
+    </header>
+    <div className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 md:px-8">
+      {!ready && <div role="alert" className="rounded-2xl border border-warning/40 bg-surface p-5"><p className="font-bold">ยังไม่พร้อมรับชำระ</p><p className="mt-1 text-sm">โหลดข้อมูล POS ไม่ครบ กรุณาให้ผู้ดูแลตรวจสอบการเชื่อมต่อและอัปเดตระบบก่อนเริ่มขาย</p></div>}
+      <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface p-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-5"><span className={"rounded-full px-3 py-2 text-sm font-bold " + (active ? "bg-success/10 text-ink" : "bg-warning/10 text-ink")}>{active ? "● กะเปิดอยู่" : "○ ยังไม่เปิดกะ"}</span><div><p className="text-xs text-ink-soft">ยอดขายวันนี้ · เวลาไทย</p><p className="text-xl font-bold tabular-nums">{ready ? "฿" + baht(Number(summary?.revenue ?? 0)) : "—"} <span className="text-xs font-normal text-ink-soft">/ {summary?.sale_count ?? 0} บิล</span></p></div>{active && <p className="hidden text-sm text-ink-soft xl:block">เปิด {date(active.opened_at)} · เงินตั้งต้น ฿{baht(Number(active.starting_cash))}</p>}</div>
+        <div className="flex flex-wrap gap-2">{active ? <><button className={secondary} disabled={busy} onClick={() => setReportId(active.id)}>สรุปกะ</button><button className={secondary} disabled={busy || !ready} onClick={() => { cashRequest.current = crypto.randomUUID(); open("cash"); }}>เงินเข้า / ออก</button><button className={secondary} disabled={busy || !ready} onClick={() => void prepareClose()}>ปิดกะ</button></> : <button className={primary} disabled={!ready || busy} onClick={() => open("open")}><Plus size={18}/>เปิดกะขาย</button>}</div>
+      </section>
+      {notice && <p role="status" className="rounded-xl bg-brand-soft px-4 py-3 text-sm text-ink">{notice}</p>}
+      {error && !modal && modalError}
+      <nav className="flex flex-wrap items-center justify-between gap-3"><div className="flex rounded-2xl bg-surface p-1 shadow-sm">{([{ key: "sell", label: "เคาน์เตอร์", icon: LayoutGrid }, { key: "sales", label: "ประวัติบิล", icon: Receipt }, { key: "shifts", label: "ประวัติกะ", icon: History }] as const).map(t => <button key={t.key} className={"flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold " + (tab === t.key ? "bg-brand-soft text-brand" : "text-ink-soft")} onClick={() => setTab(t.key)}><t.icon size={17}/>{t.label}</button>)}</div><button onClick={() => open("hold")} className={secondary}><Pause size={16}/>บิลพัก {branchHolds.length}</button></nav>
 
-  // ==========================================
-  // VIEW 2: CASH REGISTER MODE (คิดเงินเต็มจอ)
-  // ==========================================
-  return (
-    <div className="flex h-screen flex-col overflow-hidden bg-surface/30">
-      {/* 1. TOP HEADER BAR */}
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-line bg-surface px-5 shadow-xs z-10">
-        {/* Left: Back to Hub & Branch dropdown */}
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => setViewMode("hub")}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-body-sm font-semibold text-ink-soft hover:bg-brand-soft hover:text-brand transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>หน้าหลัก POS</span>
-          </button>
-
-          <div className="flex items-center gap-2">
-            <span className="font-display text-body-lg font-bold text-ink">แคชเชียร์คิดเงิน</span>
-            <div className="h-4 w-px bg-line" />
-            {/* Branch dropdown */}
-            <div className="relative" ref={branchDropdownRef}>
-              <button
-                type="button"
-                onClick={() => setIsBranchDropdownOpen(!isBranchDropdownOpen)}
-                className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-1.5 text-body-sm font-semibold text-ink shadow-xs hover:border-brand/40 transition-colors"
-              >
-                <Store className="h-4 w-4 text-brand" />
-                <span>{currentBranch?.name}</span>
-                <ChevronDown className={`h-3.5 w-3.5 text-ink-soft transition-transform ${isBranchDropdownOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {isBranchDropdownOpen && (
-                <div className="absolute left-0 top-full mt-2 w-60 overflow-hidden rounded-2xl border border-line bg-surface p-1.5 shadow-xl z-50 animate-in fade-in-0 zoom-in-95">
-                  <p className="px-3 py-1.5 text-[11px] font-bold text-ink-soft uppercase tracking-wider">สลับสาขา</p>
-                  {branches.map((b) => (
-                    <button
-                      key={b.id}
-                      type="button"
-                      onClick={() => handleRequestBranchChange(b.id)}
-                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-body-sm font-medium transition-colors ${
-                        b.id === branchId
-                          ? "bg-brand-soft text-brand font-bold"
-                          : "text-ink hover:bg-surface/80"
-                      }`}
-                    >
-                      <span>{b.name}</span>
-                      {b.id === branchId && <Check className="h-4 w-4 text-brand" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Shift Status & Action Controls */}
-        <div className="flex items-center gap-3">
-          {/* Active Shift badge */}
-          {activeShift && (
-            <div className="hidden sm:flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 px-3 py-1.5 text-mono-sm text-success font-medium">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75"></span>
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-success"></span>
-              </span>
-              <span>กะเปิดอยู่</span>
-              <span className="text-ink-soft">
-                ({new Date(activeShift.opened_at).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })})
-              </span>
-            </div>
-          )}
-
-          {activeShift && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setSelectedReportShiftId(activeShift.id)}
-              className="flex items-center gap-1.5 rounded-xl border-line font-medium"
-            >
-              <FileText className="h-4 w-4 text-brand" />
-              <span className="hidden md:inline">รายงานกะ</span>
-            </Button>
-          )}
-
-          {activeShift && (
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={() => setShowCloseShiftModal(true)}
-              className="rounded-xl font-medium"
-            >
-              ปิดกะการขาย
-            </Button>
-          )}
-        </div>
-      </header>
-
-      {/* 2. WORKSPACE AREA: 2 Distinct Panels (Left Catalog & Right Cart) */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* LEFT PANEL: Product Catalog */}
-        <section className="flex flex-1 flex-col overflow-hidden border-r border-line p-5">
-          {/* Search & Category Filter Bar */}
-          <div className="mb-4 space-y-3 shrink-0">
-            {/* Search Input Box */}
-            <div className="relative max-w-xl">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-soft" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="ค้นหาชื่อสินค้า, รหัส SKU หรือ สแกนบาร์โค้ด..."
-                className="w-full rounded-2xl border border-line bg-surface py-3 pl-12 pr-10 text-body font-medium text-ink shadow-xs outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
-              />
-              {query && (
-                <button
-                  type="button"
-                  onClick={() => setQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-ink-soft hover:bg-brand-soft hover:text-ink"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Category Filter Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {CATEGORIES.map((cat) => {
-                const Icon = cat.icon;
-                const active = selectedCategory === cat.key;
-                const count = categoryCounts[cat.key];
-                return (
-                  <button
-                    key={cat.key}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat.key)}
-                    className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-body-sm font-semibold transition-all ${
-                      active
-                        ? "bg-brand text-white shadow-sm ring-2 ring-brand/20"
-                        : "border border-line bg-surface text-ink-soft hover:border-brand/40 hover:bg-brand-soft/20 hover:text-ink"
-                    }`}
-                  >
-                    <Icon className={`h-4 w-4 ${active ? "text-white" : "text-brand"}`} />
-                    <span>{cat.label}</span>
-                    <span
-                      className={`rounded-full px-1.5 py-0.2 text-[11px] font-bold ${
-                        active ? "bg-white/30 text-white" : "bg-brand-soft text-brand-dark"
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Product Cards Grid Area */}
-          <div className="flex-1 overflow-y-auto pr-1">
-            {products.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-line bg-surface p-10 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-soft text-brand">
-                  <Package className="h-8 w-8" />
-                </div>
-                <p className="font-display text-body-lg font-bold text-ink">ยังไม่มีสินค้าในระบบ</p>
-                <p className="text-body-sm text-ink-soft">
-                  เพิ่มสินค้าและกำหนดราคาได้ที่เมนูคลังสินค้า
-                </p>
-                <Link href="/dashboard/inventory">
-                  <Button variant="secondary" size="sm" className="mt-2">
-                    ไปยังคลังสินค้า
-                  </Button>
-                </Link>
-              </div>
-            ) : visibleProducts.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-                <p className="font-display text-body font-semibold text-ink">ไม่พบรายการที่ค้นหา</p>
-                <p className="text-body-sm text-ink-soft">ลองค้นหาด้วยคำอื่น หรือกดเคลียร์ตัวกรอง</p>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    setQuery("");
-                    setSelectedCategory("all");
-                  }}
-                  className="mt-2"
-                >
-                  <RotateCcw className="mr-1.5 h-4 w-4" /> ล้างการค้นหา
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                {visibleProducts.map((product) => {
-                  const stock = stockFor(product);
-                  const inCart = cart[product.id] ?? 0;
-                  const soldOut = product.trackStock && stock <= 0;
-                  const isLowStock = product.trackStock && stock > 0 && stock <= 5;
-
-                  return (
-                    <button
-                      key={product.id}
-                      type="button"
-                      onClick={() => updateQuantity(product, 1)}
-                      disabled={soldOut}
-                      className={`group relative flex aspect-square flex-col justify-between overflow-hidden rounded-2xl border bg-surface p-4 text-left shadow-xs transition-all ${
-                        soldOut
-                          ? "cursor-not-allowed border-line/60 bg-surface/40 opacity-50"
-                          : inCart > 0
-                          ? "border-brand bg-brand-soft/20 shadow-sm ring-2 ring-brand/30"
-                          : "border-line hover:-translate-y-0.5 hover:border-brand/50 hover:shadow-md active:translate-y-0"
-                      }`}
-                    >
-                      {/* Cart Quantity Circle Badge */}
-                      {inCart > 0 && (
-                        <div className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-brand font-mono text-mono-sm font-bold text-white shadow-sm animate-in zoom-in-50">
-                          {inCart}
-                        </div>
-                      )}
-
-                      {/* Header info */}
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase ${
-                              product.type === "product"
-                                ? "pill-brand"
-                                : product.type === "rental"
-                                ? "pill-warning"
-                                : "pill-success"
-                            }`}
-                          >
-                            {product.type === "product"
-                              ? "สินค้า"
-                              : product.type === "rental"
-                              ? "เช่า"
-                              : "บริการ"}
-                          </span>
-                          {product.sku && (
-                            <span className="truncate font-mono text-[10px] text-ink-soft">
-                              {product.sku}
-                            </span>
-                          )}
-                        </div>
-
-                        <h3 className="mt-1.5 line-clamp-2 font-display text-body-sm font-bold leading-snug text-ink group-hover:text-brand">
-                          {product.name}
-                        </h3>
-                      </div>
-
-                      {/* Price & Stock info */}
-                      <div className="border-t border-line/60 pt-2">
-                        <div className="font-display text-body-lg font-bold text-ink">
-                          ฿{baht(product.sellingPrice)}
-                        </div>
-
-                        <div className="mt-0.5 flex items-center gap-1.5 text-[11px]">
-                          {product.trackStock ? (
-                            soldOut ? (
-                              <span className="font-bold text-danger">● สินค้าหมด</span>
-                            ) : isLowStock ? (
-                              <span className="font-semibold text-warning">● เหลือ {stock} ชิ้น</span>
-                            ) : (
-                              <span className="font-medium text-success">● เหลือ {stock}</span>
-                            )
-                          ) : (
-                            <span className="font-medium text-ink-soft">● พร้อมขาย</span>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+      {tab === "sell" && <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="space-y-4">
+          <div className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-1 shadow-sm"><Search size={20} className="text-ink-soft"/><input ref={searchRef} aria-label="ค้นหาหรือสแกนบาร์โค้ด" className="min-h-14 min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="ค้นหาสินค้า ชื่อ SKU หรือสแกนบาร์โค้ดแล้ว Enter" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); const p = products.find(p => p.barcode === query.trim() || p.sku === query.trim()); if (p) { add(p, 1); setQuery(""); } else setError("ไม่พบรหัสสินค้านี้"); } }}/>{query && <button className="p-2 text-sm" onClick={() => setQuery("")}>ล้าง</button>}</div>
+          <div className="flex gap-2 overflow-x-auto pb-1" aria-label="หมวดสินค้า">{categories.map(c => <button key={c} onClick={() => setCategory(c)} className={"shrink-0 rounded-full border px-4 py-2.5 text-sm font-medium " + (category === c ? "border-brand bg-brand-soft text-brand" : "border-line bg-surface text-ink")}>{c}</button>)}</div>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><p className="text-ink-soft">{visible.length} รายการ · แตะสินค้าเพื่อเพิ่มในบิล</p><div className="flex gap-3"><select aria-label="ประเภทสินค้า" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="rounded-lg border border-line bg-surface p-2"><option value="all">ทุกประเภท</option><option value="product">สินค้าขาย</option><option value="rental">ค่าเช่า</option><option value="service">บริการ</option></select><label className="flex items-center gap-2"><input type="checkbox" checked={availableOnly} onChange={e => setAvailableOnly(e.target.checked)}/>พร้อมขาย</label></div></div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{visible.map(p => {
+            const stock = p.stockByBranch[branchId] ?? 0;
+            const soldOut = p.trackStock && stock <= (draft.cart[p.id] ?? 0);
+            return <button key={p.id} onClick={() => add(p, 1)} disabled={busy || soldOut} className="group relative overflow-hidden rounded-2xl border border-line bg-surface p-4 text-left shadow-sm transition hover:border-brand hover:shadow-md disabled:opacity-50">
+              <div className="mb-4 flex h-24 items-center justify-center rounded-xl bg-brand-soft text-brand"><ProductIcon product={p}/></div>
+              {draft.cart[p.id] > 0 && <span className="absolute right-3 top-3 rounded-full bg-brand px-2.5 py-1 text-xs font-bold text-white">{draft.cart[p.id]}</span>}
+              <p className="mb-1 truncate text-xs text-ink-soft">{p.category || "ทั่วไป"} · {p.type === "rental" ? "ค่าเช่า" : p.type === "service" ? "บริการ" : "สินค้า"}</p>
+              <h3 className="min-h-10 text-sm font-semibold leading-5">{p.name}</h3>
+              <div className="mt-3 flex items-center justify-between gap-1"><span className="font-bold tabular-nums">฿{baht(p.sellingPrice)}</span><span className="rounded-lg bg-brand-soft p-1.5 text-brand"><Plus size={16}/></span></div>
+              <p className={"mt-2 text-xs " + (p.trackStock && stock <= (p.lowStockThreshold ?? 0) ? "font-semibold text-danger" : "text-ink-soft")}>{p.trackStock ? "คงเหลือ " + stock : "ไม่จำกัดสต็อก"}</p>
+            </button>;
+          })}</div>
+          {!visible.length && <div className="rounded-2xl bg-surface p-12 text-center"><ShoppingBag className="mx-auto mb-4 text-brand" size={40}/><h3 className="font-bold">ยังไม่มีสินค้าที่ตรงกับการค้นหา</h3><p className="mt-2 text-sm text-ink-soft">เพิ่มอาหาร เครื่องดื่ม อุปกรณ์กีฬา หรือบริการได้ในคลังสินค้า</p>{canInventory && <Link className={secondary + " mt-5"} href="/dashboard/inventory">เพิ่มสินค้า</Link>}</div>}
         </section>
-
-        {/* RIGHT PANEL: Cart & Checkout Sidebar */}
-        <aside className="flex w-[420px] shrink-0 flex-col bg-surface shadow-md">
-          {/* Cart Header */}
-          <div className="flex items-center justify-between border-b border-line px-5 py-4">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-soft text-brand">
-                <ShoppingCart className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="font-display text-body-lg font-bold text-ink">รายการสั่งซื้อ</h2>
-                <p className="text-[12px] text-ink-soft">{totalItemsCount} ชิ้นในตะกร้า</p>
-              </div>
-            </div>
-
-            {items.length > 0 && (
-              <button
-                type="button"
-                onClick={handleRequestClearCart}
-                className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-mono-sm font-medium text-ink-soft hover:bg-danger/10 hover:text-danger transition-colors"
-                title="ล้างตะกร้าสินค้า"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span>ล้าง</span>
-              </button>
-            )}
-          </div>
-
-          {/* Cart Items List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-surface/30">
-            {items.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center p-6 text-center">
-                <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface text-ink-soft/40 shadow-xs border border-line">
-                  <Receipt className="h-8 w-8" />
-                </div>
-                <p className="font-display text-body font-semibold text-ink">ยังไม่มีสินค้าในรายการ</p>
-                <p className="mt-1 text-body-sm text-ink-soft">
-                  แตะเลือกสินค้าจากเมนูทางซ้ายเพื่อเริ่มคิดเงิน
-                </p>
-              </div>
-            ) : (
-              items.map(({ product, quantity }) => (
-                <div
-                  key={product.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-3.5 shadow-xs transition-all"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-display text-body-sm font-bold text-ink">
-                      {product.name}
-                    </p>
-                    <div className="mt-0.5 flex items-center gap-2">
-                      <span className="font-mono text-mono-sm font-semibold text-brand">
-                        ฿{baht(product.sellingPrice)}
-                      </span>
-                      <span className="text-[11px] text-ink-soft">/ ชิ้น</span>
-                    </div>
-                  </div>
-
-                  {/* Quantity Stepper */}
-                  <div className="flex shrink-0 items-center gap-2 rounded-xl border border-line bg-surface/80 p-1">
-                    <button
-                      type="button"
-                      onClick={() => updateQuantity(product, -1)}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface text-ink shadow-xs transition-transform active:scale-90 hover:bg-brand-soft hover:text-brand"
-                    >
-                      <Minus className="h-3.5 w-3.5" />
-                    </button>
-                    <span className="w-6 text-center font-mono text-body-sm font-bold text-ink">
-                      {quantity}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => updateQuantity(product, 1)}
-                      disabled={product.trackStock && quantity >= stockFor(product)}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface text-ink shadow-xs transition-transform active:scale-90 hover:bg-brand-soft hover:text-brand disabled:opacity-30"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Line Total */}
-                  <div className="w-20 text-right font-mono font-bold text-ink">
-                    ฿{baht(product.sellingPrice * quantity)}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Checkout Controls Area */}
-          <div className="border-t border-line bg-surface p-5 space-y-4">
-            {/* Optional Customer info & Discount */}
-            <div className="space-y-2.5">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="relative">
-                  <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-                  <input
-                    placeholder="ชื่อลูกค้า (ถ้ามี)"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className="w-full rounded-xl border border-line bg-surface py-2 pl-9 pr-3 text-body-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/10"
-                  />
-                </div>
-                <div className="relative">
-                  <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-                  <input
-                    placeholder="เบอร์โทร"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="w-full rounded-xl border border-line bg-surface py-2 pl-9 pr-3 text-body-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/10"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="relative">
-                  <Tag className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="ส่วนลด ฿"
-                    value={discount === "0" ? "" : discount}
-                    onChange={(e) => setDiscount(e.target.value)}
-                    className="w-full rounded-xl border border-line bg-surface py-2 pl-9 pr-3 text-body-sm font-semibold text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/10"
-                  />
-                </div>
-                <div className="relative">
-                  <QrCode className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-                  <input
-                    placeholder="รหัสจองสนาม"
-                    value={bookingCode}
-                    onChange={(e) => setBookingCode(e.target.value.toUpperCase())}
-                    maxLength={8}
-                    className="w-full rounded-xl border border-line bg-surface py-2 pl-9 pr-3 font-mono text-body-sm uppercase text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/10"
-                  />
-                </div>
-              </div>
-
-              {/* Quick discount chips */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-medium text-ink-soft">ส่วนลดด่วน:</span>
-                {QUICK_DISCOUNTS.map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setDiscount(String(d))}
-                    className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold transition-all ${
-                      discount === String(d)
-                        ? "bg-brand text-white"
-                        : "bg-brand-soft text-brand-dark hover:bg-brand hover:text-white"
-                    }`}
-                  >
-                    -฿{d}
-                  </button>
-                ))}
-                {discountAmount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setDiscount("0")}
-                    className="text-[11px] text-danger hover:underline ml-auto"
-                  >
-                    ลบส่วนลด
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Payment Method Selector */}
-            <div>
-              <p className="mb-2 text-mono-sm font-bold text-ink">วิธีรับชำระเงิน</p>
-              <div className="grid grid-cols-2 gap-2">
-                {PAYMENT_OPTIONS.map((option) => {
-                  const Icon = option.icon;
-                  const selected = paymentMethod === option.key;
-                  return (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => setPaymentMethod(option.key)}
-                      className={`flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-all ${
-                        selected
-                          ? "border-brand bg-brand-soft text-brand-dark ring-2 ring-brand/30 shadow-xs"
-                          : "border-line bg-surface text-ink-soft hover:border-brand/40 hover:bg-brand-soft/20 hover:text-ink"
-                      }`}
-                    >
-                      <div
-                        className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                          selected ? "bg-brand text-white" : "bg-surface text-ink-soft border border-line"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-body-sm font-bold text-ink">{option.label}</p>
-                        <p className="text-[10px] text-ink-soft">{option.sub}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Financial Summary */}
-            <div className="space-y-2 rounded-2xl bg-surface/80 p-3.5 border border-line">
-              <div className="flex justify-between text-body-sm text-ink-soft">
-                <span>ยอดรวมสินค้า ({totalItemsCount} ชิ้น)</span>
-                <span className="font-mono font-medium text-ink">฿{baht(subtotal)}</span>
-              </div>
-              {discountAmount > 0 && (
-                <div className="flex justify-between text-body-sm text-danger font-medium">
-                  <span>ส่วนลด</span>
-                  <span className="font-mono">-฿{baht(discountAmount)}</span>
-                </div>
-              )}
-              <div className="flex items-baseline justify-between border-t border-line pt-2">
-                <span className="font-display text-body-lg font-bold text-ink">ยอดสุทธิ</span>
-                <span className="font-mono text-2xl font-bold text-brand">฿{baht(total)}</span>
-              </div>
-            </div>
-
-            {error && (
-              <div className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-center text-body-sm font-medium text-danger">
-                {error}
-              </div>
-            )}
-
-            {/* Main Checkout Action Button */}
-            <Button
-              onClick={checkout}
-              disabled={busy || items.length === 0}
-              size="lg"
-              className="w-full py-4 text-body-lg font-bold shadow-md transition-transform active:scale-[0.99]"
-            >
-              {busy ? "กำลังประมวลผล..." : `รับชำระเงิน ฿${baht(total)}`}
-            </Button>
+        <aside className="overflow-hidden rounded-3xl border border-line bg-surface shadow-md lg:sticky lg:top-4">
+          <div className="flex items-center justify-between border-b border-line p-5"><div className="flex items-center gap-3"><ShoppingCart size={21} className="text-brand"/><h2 className="font-bold">บิลปัจจุบัน <span className="text-ink-soft">({count})</span></h2></div><button aria-label="ล้างบิล" disabled={!items.length || busy} className="rounded-lg p-2 text-ink-soft hover:bg-danger/10" onClick={() => open("clear")}><Trash2 size={18}/></button></div>
+          <div className="max-h-80 overflow-y-auto px-5">{items.length ? items.map(({ product: p, quantity }) => <div key={p.id} className="border-b border-line py-4"><div className="flex justify-between gap-3"><p className="text-sm font-semibold">{p.name}</p><p className="shrink-0 text-sm font-bold tabular-nums">฿{baht(p.sellingPrice * quantity)}</p></div><div className="mt-3 flex items-center justify-between"><span className="text-xs text-ink-soft">฿{baht(p.sellingPrice)} / หน่วย</span><div className="flex items-center gap-3"><button className="rounded-lg border border-line p-2" aria-label={"ลด " + p.name} onClick={() => add(p, -1)}><Minus size={14}/></button><span className="min-w-5 text-center text-sm">{quantity}</span><button className="rounded-lg border border-line p-2" aria-label={"เพิ่ม " + p.name} onClick={() => add(p, 1)}><Plus size={14}/></button></div></div></div>) : <div className="py-12 text-center"><ShoppingCart className="mx-auto mb-3 text-ink-soft" size={32}/><p className="text-sm text-ink-soft">เลือกสินค้าด้านซ้ายเพื่อเริ่มบิล</p></div>}</div>
+          <div className="space-y-4 p-5">
+            <details className="rounded-xl border border-line p-3"><summary className="cursor-pointer text-sm font-semibold">ลูกค้า / รหัสจอง / หมายเหตุ {draft.customerName && "· " + draft.customerName}</summary><div className="mt-4 space-y-3"><Label title="ชื่อลูกค้า"><input className={field} maxLength={120} value={draft.customerName} onChange={e => patchDraft({ customerName: e.target.value })}/></Label><Label title="เบอร์โทร"><input className={field} type="tel" maxLength={30} value={draft.customerPhone} onChange={e => patchDraft({ customerPhone: e.target.value })}/></Label><Label title="รหัสจองสนาม (8 ตัว)"><input className={field} maxLength={8} value={draft.bookingCode} onChange={e => patchDraft({ bookingCode: e.target.value.toUpperCase() })}/></Label><p className="text-xs text-ink-soft">เชื่อมอ้างอิงการจอง ไม่รวมค่าจองสนามในบิลนี้</p><Label title="หมายเหตุ เช่น ไม่หวาน / ไม่ใส่น้ำแข็ง"><textarea className={field} maxLength={500} value={draft.note} onChange={e => patchDraft({ note: e.target.value })}/></Label></div></details>
+            <div className="flex items-center gap-2"><label htmlFor="pos-discount" className="flex-1 text-sm">ส่วนลดทั้งบิล</label><input id="pos-discount" type="number" min="0" step="0.01" value={draft.discount} onChange={e => patchDraft({ discount: e.target.value })} placeholder="0" className={field + " max-w-24 text-right"}/><select aria-label="รูปแบบส่วนลด" className={field + " max-w-20"} value={draft.percent ? "percent" : "baht"} onChange={e => patchDraft({ percent: e.target.value === "percent" })}><option value="baht">บาท</option><option value="percent">%</option></select></div>
+            <div className="space-y-2 border-t border-dashed border-line pt-4"><div className="flex justify-between text-sm text-ink-soft"><span>รวมสินค้า</span><span>฿{baht(totals.subtotal)}</span></div><div className="flex justify-between text-sm text-ink-soft"><span>ส่วนลด</span><span>−฿{baht(totals.discount)}</span></div><div className="flex items-center justify-between pt-2"><span className="font-semibold">ยอดชำระ</span><strong className="text-3xl tabular-nums">฿{baht(totals.total)}</strong></div></div>
+            {(totalError || stockError) && <p role="alert" className="text-sm text-danger">{totalError || "สต็อกเปลี่ยนหรือสินค้าปิดขาย กรุณาตรวจรายการใหม่"}</p>}
+            <button className={primary + " w-full"} disabled={!active || !ready || !items.length || !!totalError || stockError || busy} onClick={startPayment}>{active ? "ไปชำระเงิน" : "เปิดกะก่อนรับชำระ"}<ArrowRight size={18}/></button>
+            <button className={secondary + " w-full"} disabled={!items.length || busy} onClick={hold}><Pause size={16}/>พักบิลนี้</button>
           </div>
         </aside>
-      </div>
+      </div>}
 
-      {/* CONFIRMATION DIALOG 1: Clear Cart */}
-      {showClearCartModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 backdrop-blur-sm animate-in fade-in-0">
-          <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-line bg-surface p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-danger/10 text-danger shrink-0">
-                <Trash2 className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="font-display text-body-lg font-bold text-ink">ยืนยันล้างตะกร้า?</h3>
-                <p className="text-body-sm text-ink-soft">รายการสินค้า {totalItemsCount} ชิ้นจะถูกลบออก</p>
-              </div>
-            </div>
-            <p className="text-body-sm text-ink-soft">
-              คุณต้องการยกเลิกรายการสินค้าที่เลือกไว้ทั้งหมดและเริ่มทำรายการใหม่หรือไม่?
-            </p>
-            <div className="flex gap-2.5 pt-2">
-              <Button
-                type="button"
-                variant="secondary"
-                className="flex-1 rounded-xl"
-                onClick={() => setShowClearCartModal(false)}
-              >
-                ยกเลิก
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                className="flex-1 rounded-xl shadow-sm"
-                onClick={confirmClearCart}
-              >
-                ยืนยันล้าง
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {tab === "sales" && <section className="space-y-4 rounded-3xl bg-surface p-5 shadow-sm"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="font-bold">ประวัติการขาย</h2><p className="mt-1 text-xs text-ink-soft">100 บิลล่าสุดของสาขาที่คุณมีสิทธิ์ · ยอดวันนี้ด้านบนคำนวณครบทั้งวัน</p></div><div className="flex gap-2"><input aria-label="ค้นหาประวัติบิล" placeholder="เลขบิล / ลูกค้า / โทร" className={field} value={historyQuery} onChange={e => setHistoryQuery(e.target.value)}/><select aria-label="สถานะบิล" className={field} value={historyStatus} onChange={e => setHistoryStatus(e.target.value)}><option value="all">ทุกสถานะ</option><option value="completed">ชำระแล้ว</option><option value="voided">คืนเงินแล้ว</option></select></div></div>
+        {!sales.length && <p className="py-12 text-center text-ink-soft">ไม่พบบิลในรายการล่าสุด</p>}
+        {sales.map(s => <div key={s.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line p-4"><div><p className="font-mono text-sm font-bold">{s.receipt_number}</p><p className="mt-1 text-xs text-ink-soft">{s.customer_name || "ลูกค้าหน้าสนาม"} · {date(s.completed_at)} · {methods.find(m => m.key === s.payment_method)?.name ?? "อื่น ๆ"}</p></div><div className="flex flex-wrap items-center gap-3"><div className="text-right"><p className="font-bold">฿{baht(s.total_amount)}</p><p className="text-xs text-ink-soft">{s.status === "voided" ? "คืนเงินแล้ว" : "ชำระแล้ว"}</p></div><Link href={"/pos/" + s.id + "/receipt"} className={secondary}>ใบเสร็จ</Link>{canRefund && active?.id === s.shift_id && s.status !== "voided" && <button className={secondary} onClick={() => { setSaleToRefund(s); open("refund"); }}>คืนเงิน</button>}</div></div>)}
+      </section>}
 
-      {/* CONFIRMATION DIALOG 2: Switch Branch with Non-empty Cart */}
-      {pendingBranchId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 backdrop-blur-sm animate-in fade-in-0">
-          <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-line bg-surface p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-warning/12 text-warning shrink-0">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="font-display text-body-lg font-bold text-ink">ยืนยันสลับสาขา?</h3>
-                <p className="text-body-sm text-ink-soft">มีรายการค้างอยู่ในตะกร้า</p>
-              </div>
-            </div>
-            <p className="text-body-sm text-ink-soft">
-              การสลับไปสาขา <span className="font-bold text-ink">{branches.find(b => b.id === pendingBranchId)?.name}</span> จะทำการรีเซ็ตตะกร้าสินค้าปัจจุบัน เนื่องจากสต็อกและราคาแยกตามสาขา
-            </p>
-            <div className="flex gap-2.5 pt-2">
-              <Button
-                type="button"
-                variant="secondary"
-                className="flex-1 rounded-xl"
-                onClick={() => setPendingBranchId(null)}
-              >
-                ยกเลิก
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                className="flex-1 rounded-xl shadow-sm"
-                onClick={confirmSwitchBranch}
-              >
-                สลับสาขา
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CONFIRMATION DIALOG 3: Exit POS with Non-empty Cart */}
-      {showExitModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 backdrop-blur-sm animate-in fade-in-0">
-          <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-line bg-surface p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-warning/12 text-warning shrink-0">
-                <LogOut className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="font-display text-body-lg font-bold text-ink">ออกจากหน้า POS?</h3>
-                <p className="text-body-sm text-ink-soft">มีรายการสินค้า {totalItemsCount} ชิ้น</p>
-              </div>
-            </div>
-            <p className="text-body-sm text-ink-soft">
-              คุณมีรายการสินค้าค้างอยู่ในตะกร้า หากออกจากหน้านี้ รายการที่ยังไม่คิดเงินจะถูกยกเลิก
-            </p>
-            <div className="flex gap-2.5 pt-2">
-              <Button
-                type="button"
-                variant="secondary"
-                className="flex-1 rounded-xl"
-                onClick={() => setShowExitModal(false)}
-              >
-                อยู่หน้านี้ต่อ
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                className="flex-1 rounded-xl shadow-sm"
-                onClick={() => router.push("/dashboard")}
-              >
-                ออกจาก POS
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CONFIRMATION DIALOG 4: Close Shift Modal */}
-      {showCloseShiftModal && activeShift && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 backdrop-blur-sm animate-in fade-in-0">
-          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-line bg-surface p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-danger/10 text-danger">
-                  <Banknote className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="font-display text-lg font-bold text-ink">ปิดกะการขาย (สิ้นวัน)</h2>
-                  <p className="text-mono-sm text-ink-soft">สรุปยอดและส่งมอบเงินสด</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowCloseShiftModal(false)}
-                className="rounded-full p-1.5 text-ink-soft hover:bg-brand-soft hover:text-ink"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCloseShift} className="space-y-4">
-              <div className="rounded-2xl border border-brand/20 bg-brand-soft p-4">
-                <p className="text-body-sm text-ink-soft">ยอดเงินทอนเริ่มต้นในกะ</p>
-                <p className="font-mono text-2xl font-bold text-brand">฿{baht(activeShift.starting_cash)}</p>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-body-sm font-semibold text-ink">
-                  ยอดเงินสดจริงในลิ้นชักที่นับได้ (รวมเงินทอน)
-                </label>
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-display text-lg font-bold text-ink-soft">
-                    ฿
-                  </span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    required
-                    value={actualCash}
-                    onChange={(e) => setActualCash(e.target.value)}
-                    className="w-full rounded-xl border border-line bg-surface py-3 pl-9 pr-4 font-mono text-xl font-bold text-ink outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 transition-colors"
-                    placeholder="0.00"
-                    autoFocus
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-body-sm font-semibold text-ink">
-                  หมายเหตุ (ถ้ามียอดขาด/เกิน)
-                </label>
-                <textarea
-                  rows={2}
-                  value={shiftNote}
-                  onChange={(e) => setShiftNote(e.target.value)}
-                  className="w-full rounded-xl border border-line bg-surface p-3 text-body-sm text-ink outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 transition-colors resize-none"
-                  placeholder="เช่น เงินสดเกิน 20 บาท หรือ บันทึกเหตุผล"
-                />
-              </div>
-
-              {error && (
-                <div className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-center text-body-sm font-medium text-danger">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="flex-1 rounded-xl"
-                  onClick={() => setShowCloseShiftModal(false)}
-                >
-                  ยกเลิก
-                </Button>
-                <Button
-                  type="submit"
-                  variant="danger"
-                  className="flex-1 rounded-xl shadow-md"
-                  disabled={busy}
-                >
-                  {busy ? "กำลังปิดกะ..." : "ยืนยันปิดกะ"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* SHIFT REPORT MODAL */}
-      {selectedReportShiftId && (
-        <ShiftReportModal shiftId={selectedReportShiftId} onClose={() => setSelectedReportShiftId(null)} />
-      )}
+      {tab === "shifts" && <section className="space-y-3 rounded-3xl bg-surface p-5 shadow-sm"><h2 className="font-bold">ประวัติกะ · 30 กะล่าสุด</h2>{pastShifts.filter(s => s.branch_id === branchId).map(s => <button key={s.id} className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-line p-4 text-left hover:bg-brand-soft" onClick={() => setReportId(s.id)}><div><p className="text-sm font-semibold">{date(s.opened_at)}</p><p className="mt-1 text-xs text-ink-soft">{s.status === "open" ? "กะยังเปิดอยู่" : "ปิด " + date(s.closed_at!)}</p></div><div className="text-right"><p className="text-sm">เงินตั้งต้น ฿{baht(s.starting_cash)}</p>{s.status === "closed" && <p className="text-sm">เงินขาด / เกิน ฿{baht((s.actual_closing_cash ?? 0) - (s.expected_closing_cash ?? 0))}</p>}</div><ArrowRight size={18}/></button>)}{!pastShifts.some(s => s.branch_id === branchId) && <p className="py-10 text-center text-ink-soft">ยังไม่มีประวัติกะ</p>}</section>}
     </div>
-  );
+
+    {modal && <CounterDialog title={{ open: "เปิดกะขาย", close: "ตรวจนับและปิดกะ", pay: "รับชำระเงิน", hold: "บิลที่พักไว้", clear: "ล้างบิลปัจจุบัน", cash: "เงินสดเข้า / ออกลิ้นชัก", refund: "คืนเงินเต็มบิล", success: "รับชำระสำเร็จ" }[modal]} busy={busy || uncertain} onClose={() => setModal(null)}>
+      {modal === "pay" && <>
+        <div className="rounded-2xl bg-brand-soft p-6 text-center"><p className="text-sm text-ink-soft">ยอดที่ต้องรับชำระ · {count} ชิ้น</p><p className="mt-2 text-4xl font-bold">฿{baht(totals.total)}</p></div>
+        <fieldset disabled={busy || uncertain} className="space-y-4">
+          <div className="grid grid-cols-4 gap-2">{methods.map(m => <button key={m.key} onClick={() => { setMethod(m.key); setConfirmed(false); }} className={"flex flex-col items-center gap-2 rounded-xl border py-3 text-xs " + (method === m.key ? "border-brand bg-brand-soft font-bold text-brand" : "border-line")}><m.icon size={22}/>{m.name}</button>)}</div>
+          {method === "cash" ? <><Label title="รับเงินสด (บาท)"><input className={field + " text-xl"} type="number" min={totals.total} step="0.01" value={received} onChange={e => setReceived(e.target.value)}/></Label><div className="flex flex-wrap gap-2">{Array.from(new Set([totals.total, ...[100, 500, 1000].filter(n => n >= totals.total)])).map(n => <button key={n} onClick={() => setReceived(String(n))} className={secondary}>{n === totals.total ? "พอดี" : "฿" + baht(n)}</button>)}</div><div className="flex justify-between rounded-xl bg-success/10 p-4 font-bold"><span>เงินทอน</span><span>฿{baht(Math.max(0, Number(received) - totals.total))}</span></div></> : <><p className="rounded-xl bg-warning/10 p-3 text-sm">ตรวจสอบยอดเข้าบัญชีหรือผลบนเครื่องรูดบัตรก่อนยืนยัน ระบบนี้บันทึกการรับชำระด้วยพนักงาน</p><Label title="เลขอ้างอิงรายการ (ถ้ามี)"><input className={field} maxLength={120} value={reference} onChange={e => setReference(e.target.value)}/></Label></>}
+          <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" checked={confirmed} onChange={e => setConfirmed(e.target.checked)}/>ตรวจสอบและได้รับเงินครบแล้ว</label>
+        </fieldset>
+        {modalError}<button className={primary + " w-full"} disabled={busy || !confirmed || (method === "cash" && (received === "" || Number(received) < totals.total))} onClick={() => void checkout()}>{busy ? "กำลังบันทึก…" : uncertain ? "ลองยืนยันรายการเดิมอีกครั้ง" : "ยืนยันรับชำระ"}</button>
+      </>}
+      {modal === "success" && lastSale && <div className="space-y-5 text-center"><span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/10 text-success"><Check size={32}/></span><p className="font-mono font-bold">{lastSale.receipt}</p><p className="text-2xl font-bold">เงินทอน ฿{baht(lastSale.change)}</p><Link className={secondary + " w-full"} href={"/pos/" + lastSale.id + "/receipt"}><Receipt size={18}/>เปิด / พิมพ์ใบเสร็จ</Link><button className={primary + " w-full"} onClick={() => { setModal(null); searchRef.current?.focus(); }}>ขายบิลถัดไป</button></div>}
+      {modal === "open" && <form className="space-y-4" onSubmit={e => { e.preventDefault(); const amount = Number(new FormData(e.currentTarget).get("amount")); void run(async () => { const r = await openShift(branchId, amount); if (r.error) setError(r.error); else { setModal(null); router.refresh(); } }); }}><p className="text-sm text-ink-soft">นับเงินทอนเริ่มต้นในลิ้นชัก สาขา {branches.find(b => b.id === branchId)?.name}</p><Label title="เงินทอนเริ่มต้น"><input autoFocus className={field} name="amount" type="number" min="0" max="1000000" step="0.01" required defaultValue="1000"/></Label>{modalError}<button className={primary + " w-full"} disabled={busy}>เปิดกะและเริ่มขาย</button></form>}
+      {modal === "close" && active && closeReport && <form className="space-y-4" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void run(async () => { const r = await closeShift(active.id, Number(f.get("amount")), String(f.get("reason"))); if (r.error) setError(r.error); else { setModal(null); router.refresh(); } }); }}><div className="rounded-xl bg-brand-soft p-4"><p className="text-sm">เงินสดที่ควรมี</p><p className="text-3xl font-bold">฿{baht(closeReport.expectedCash)}</p><p className="mt-2 text-xs">รวมเงินตั้งต้น ยอดขายเงินสดสุทธิ และเงินเข้า / ออกแล้ว</p></div><Label title="เงินสดที่นับได้จริง"><input autoFocus className={field} required name="amount" type="number" min="0" step="0.01"/></Label><Label title="หมายเหตุ (ต้องระบุเมื่อยอดไม่ตรง)"><textarea name="reason" className={field} maxLength={500}/></Label>{modalError}<button className={primary + " w-full"} disabled={busy}>ยืนยันปิดกะ</button></form>}
+      {modal === "cash" && active && <form className="space-y-4" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void run(async () => { const r = await recordCashMovement({ shiftId: active.id, amount: Number(f.get("amount")) * Number(f.get("direction")), reason: String(f.get("reason")), requestId: cashRequest.current! }); if (r.error) setError(r.error); else { setModal(null); setNotice("บันทึกเงินสดเข้า / ออกแล้ว"); router.refresh(); } }); }}><Label title="ประเภทรายการ"><select className={field} name="direction"><option value="1">นำเงินเข้าลิ้นชัก</option><option value="-1">นำเงินออกจากลิ้นชัก</option></select></Label><Label title="จำนวนเงิน"><input className={field} name="amount" type="number" min="0.01" step="0.01" max="1000000" required/></Label><Label title="เหตุผล"><input className={field} name="reason" maxLength={500} required placeholder="เช่น เติมเงินทอน / ฝากเงินสด"/></Label>{modalError}<button className={primary + " w-full"} disabled={busy}>บันทึกเงินสด</button></form>}
+      {modal === "refund" && saleToRefund && <form className="space-y-4" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); void run(async () => { const r = await refundPosSale({ saleId: saleToRefund.id, reason: String(f.get("reason")), restock: f.get("restock") === "on", confirmed: f.get("confirmed") === "on" }); if (r.error) setError(r.error); else { setModal(null); setNotice("บันทึกคืนเงินแล้ว"); router.refresh(); } }); }}><p className="text-sm">{saleToRefund.receipt_number} · คืนเต็มจำนวน <strong>฿{baht(saleToRefund.total_amount)}</strong></p><p className="rounded-xl bg-warning/10 p-3 text-sm">คืนเงินผ่านช่องทางเดิมให้ลูกค้าก่อนบันทึก หน้านี้ไม่สั่งคืนเงินผ่านธนาคาร คืนได้เฉพาะกะเดิมที่ยังเปิดอยู่</p><Label title="เหตุผลคืนเงิน"><textarea className={field} name="reason" required maxLength={500}/></Label><label className="flex items-start gap-2 text-sm"><input name="restock" type="checkbox"/>คืนสินค้าทั้งบิลกลับสต็อก (เฉพาะของที่พร้อมขายต่อ)</label><label className="flex items-start gap-2 text-sm"><input name="confirmed" type="checkbox" required/>ยืนยันว่าได้คืนเงินเต็มจำนวนให้ลูกค้าแล้ว</label>{modalError}<button className={primary + " w-full"} disabled={busy}>บันทึกคืนเงิน</button></form>}
+      {modal === "clear" && <><p className="text-sm">ล้างสินค้า ส่วนลด และข้อมูลลูกค้าในบิลที่ยังไม่ได้ชำระนี้?</p><button className={primary + " w-full"} onClick={() => { setDraft(blank()); setModal(null); }}>ยืนยันล้างบิล</button></>}
+      {modal === "hold" && <><p className="rounded-xl bg-brand-soft p-3 text-sm">บิลพักเก็บเฉพาะในหน้าต่างนี้ รีเฟรชหรือปิดหน้าต่างแล้วจะหาย และยังไม่จองสต็อก</p>{branchHolds.map(h => <div className="flex items-center justify-between gap-3 rounded-xl border border-line p-4" key={h.id}><div><p className="text-sm font-bold">{h.draft.customerName || "ลูกค้าหน้าสนาม"}</p><p className="text-xs text-ink-soft">{date(h.time)} · {Object.values(h.draft.cart).reduce((a,b) => a+b,0)} ชิ้น</p></div><button className={secondary} onClick={() => { if (items.length) { setError("พักหรือล้างบิลปัจจุบันก่อนเรียกคืน"); return; } setDraft(h.draft); setHeld(all => all.filter(x => x.id !== h.id)); setModal(null); setTab("sell"); }}>เรียกคืน</button></div>)}{!branchHolds.length && <p className="py-8 text-center text-ink-soft">ยังไม่มีบิลพักในสาขานี้</p>}{modalError}</>}
+    </CounterDialog>}
+    {reportId && <ShiftReportModal shiftId={reportId} onClose={() => setReportId(null)}/>}
+  </main>;
 }

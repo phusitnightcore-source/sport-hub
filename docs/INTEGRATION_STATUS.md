@@ -1,6 +1,6 @@
 # สถานะการเชื่อมต่อระบบ (Integration Status)
 
-อัปเดต: 2026-07-16 — รวมทุกจุดที่ "โค้ดพร้อมแล้ว เหลือใส่ข้อมูล/ตั้งค่าภายนอก" และฟีเจอร์ที่ยังไม่ได้สร้าง
+อัปเดต: 2026-09-12 — รวมทุกจุดที่ "โค้ดพร้อมแล้ว เหลือใส่ข้อมูล/ตั้งค่าภายนอก" และฟีเจอร์ที่ยังไม่ได้สร้าง
 
 สัญลักษณ์: ✅ เสร็จ/ทำงาน · 🟡 โค้ดพร้อม รอ config/key · 🔴 ยังไม่สร้าง
 
@@ -10,7 +10,7 @@
 
 | ระบบ | สถานะ | ใส่ตรงไหน | เหลืออะไร |
 |---|---|---|---|
-| **Supabase** (DB/Auth/Storage) | ✅ | `.env.local` | ใช้งานจริงแล้ว (migration ครบ 10 ไฟล์) |
+| **Supabase** (DB/Auth/Storage) | 🟡 | `.env.local` / production environment | มี migration พร้อม deploy 26 ไฟล์; project ที่ link ไว้ยัง `INACTIVE` จึงต้อง Restore/Activate, backup และ `supabase db push` ไป production — ดู `docs/TOURNAMENT_DATABASE_DEPLOYMENT.md` |
 | **LINE OA (per-tenant)** | 🟡 | Dashboard → ตั้งค่า → เชื่อมต่อ LINE OA | สนามวาง Channel Access Token + Secret เอง + ตั้ง Webhook URL ในคอนโซล |
 | ↳ LINE webhook (เก็บ userId) | 🟡 | `/api/line/webhook/{tenantId}` | ลูกค้าแอด OA + พิมพ์เบอร์ → ผูกอัตโนมัติ (โค้ดพร้อม รอสนามตั้ง URL) |
 | ↳ LINE token กลาง (fallback) | 🟡 | `.env` `LINE_CHANNEL_ACCESS_TOKEN` | ไม่บังคับ — ใช้เมื่อสนามไม่ได้ตั้งเอง |
@@ -59,15 +59,16 @@ _ครบทุกฟีเจอร์ในสโคปแล้ว — เ�
 - **Motion polish**: `PageTransition` (slide-fade ทุกหน้าใน layout /me,/dashboard,/blog) + loading skeleton (dashboard, me/bookings, me/blog, book) — เคารพ prefers-reduced-motion
 - **Member search** (`/dashboard/members?q=`) + **Waitlist admin** (`/dashboard/waitlist`) + **OCR verify UI** (แสดงยอดที่อ่านได้เทียบยอดจริง) + **Package edit** (updatePackage)
 - **Customer recurring booking**: จองซ้ำรายสัปดาห์ 2–8 ครั้งใน `/book` → `POST /api/bookings/recurring` (reuse `lib/booking/create.ts createBooking`) ข้ามสัปดาห์ที่เต็ม
-- **Tests**: vitest 39 ผ่าน (เพิ่ม plans/line-login/ocr)
+- **Tests**: vitest 55 ผ่าน, production build ผ่านแบบไม่ดึง Google Fonts, public E2E 6 flow ผ่าน
 - **แจ้งเตือนเรียลไทม์ + เสียง** (ทุก role): migration `20260716000000` เพิ่ม `notifications` เข้า realtime publication + RLS ให้ staff/member เห็นของตน. `NotificationBell` (กระดิ่ง+badge+toast+เสียง) วางที่ dashboard/`/me`/super-admin. เสียง default = WebAudio synth แยกตามประเภท (`lib/sounds.ts`); สนามอัปโหลดเสียงเองได้ต่อประเภท (Settings → tenant-media). จุด dispatch หา admin: จองใหม่/แนบสลิป/ขอ Freeze/ลงคิว waitlist + super_admin เมื่อสนามออก invoice. หน้า `/me/notifications` ใหม่. **แก้ gap เดิม**: dashboard/notifications เคยว่าง เพราะไม่มีใคร dispatch หา admin
 
 ---
 
 ## 5. Testing gaps
 
-- ✅ Unit tests (vitest): 22 ผ่าน (money/slots/status)
-- ✅ Build + lint + tsc เขียว
+- ✅ Unit tests (vitest): 55 ผ่าน
+- ✅ Production build + lint + tsc ผ่าน
+- ✅ Public E2E: landing/login/signup/blog/auth gate/Badminton Group theme toggle ผ่าน
 - 🔴 **Authenticated e2e ยังไม่ได้ทำ** — ต้อง login เป็น venue_admin/super_admin/member คลิกจริง
   (AI กรอกรหัสผ่านไม่ได้ตามกฎ) → ใช้ `docs/PLAN_GATING_CHECKLIST.md`
 - 🔴 Integration test (จอง→สลิป→notification จริง, LINE webhook จริง) — ต้องมี key + login

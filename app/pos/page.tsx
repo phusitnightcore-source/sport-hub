@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStaffContext, hasPermission } from "@/lib/auth";
+import type { DailySummary } from "@/lib/pos/types";
 import {
   PosClient,
   type PosProduct,
@@ -18,10 +19,12 @@ export default async function PosPage() {
     ctx.role === "staff" && ctx.staffId
       ? await admin
           .from("staff")
-          .select("multi_branch_access, staff_branches(branch_id)")
+          .select("status, multi_branch_access, staff_branches(branch_id)")
           .eq("id", ctx.staffId)
+          .eq("tenant_id", ctx.tenantId)
           .maybeSingle()
       : { data: null };
+  if (ctx.role === "staff" && staffAccess?.status !== "active") redirect("/dashboard");
 
   const branchQuery = admin
     .from("branches")
@@ -54,10 +57,11 @@ export default async function PosPage() {
     activeShiftsResult,
     allShiftsResult,
     recentSalesResult,
+    summaryResult,
   ] = await Promise.all([
     admin
       .from("products")
-      .select("id, name, sku, product_type, selling_price, track_stock, low_stock_threshold")
+      .select("id, name, sku, barcode, product_categories(name), product_type, selling_price, track_stock, low_stock_threshold")
       .eq("tenant_id", ctx.tenantId)
       .eq("is_active", true)
       .order("name"),
@@ -93,13 +97,14 @@ export default async function PosPage() {
         completed_at,
         branch_id,
         shift_id,
+        status,
         pos_payments(method, amount)
       `)
       .eq("tenant_id", ctx.tenantId)
       .in("branch_id", branchIds)
-      .eq("status", "completed")
       .order("completed_at", { ascending: false })
-      .limit(40),
+      .limit(100),
+    admin.rpc("pos_daily_summary", { p_tenant_id: ctx.tenantId, p_branch_ids: branchIds }),
   ]);
 
   const stockByProduct = new Map<string, Record<string, number>>();
@@ -113,6 +118,9 @@ export default async function PosPage() {
     id: product.id,
     name: product.name,
     sku: product.sku,
+    barcode: product.barcode,
+    category: (product.product_categories as unknown as { name: string } | null)?.name ?? "ทั่วไป",
+    lowStockThreshold: product.low_stock_threshold,
     type: product.product_type,
     sellingPrice: Number(product.selling_price),
     trackStock: product.track_stock,
@@ -145,6 +153,7 @@ export default async function PosPage() {
     completed_at: s.completed_at,
     branch_id: s.branch_id,
     shift_id: s.shift_id,
+    status: s.status,
     payment_method: s.pos_payments?.[0]?.method ?? "cash",
   }));
 
@@ -155,6 +164,10 @@ export default async function PosPage() {
       activeShifts={activeShiftsResult.data ?? []}
       pastShifts={pastShifts}
       pastSales={pastSales}
+      dailySummary={(summaryResult.data ?? []) as unknown as DailySummary[]}
+      canRefund={hasPermission(ctx, "confirm_refund")}
+      canInventory={hasPermission(ctx, "manage_inventory")}
+      ready={![productsResult, inventoryResult, activeShiftsResult, allShiftsResult, recentSalesResult, summaryResult].some(r => r.error)}
     />
   );
 }

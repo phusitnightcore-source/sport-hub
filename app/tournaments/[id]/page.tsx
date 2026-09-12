@@ -87,7 +87,7 @@ export default async function TournamentDetailPage({
       .eq("tournament_id", id),
     (admin as any)
       .from("matches")
-      .select("id, round, match_number, status, score_a, score_b, winner_id, team_a_id, team_b_id, court_id, scheduled_at, match_type, notes")
+      .select("id, round, match_number, status, score_a, score_b, winner_id, team_a_id, team_b_id, court_id, scheduled_at, match_type, notes, tournament_event_groups(name)")
       .eq("tournament_id", id)
       .order("round", { ascending: true })
       .order("match_number", { ascending: true }),
@@ -103,6 +103,7 @@ export default async function TournamentDetailPage({
   // Connect team objects to matches
   const allMatches = ((rawMatches ?? []) as any[]).map((m: any) => ({
     ...m,
+    group_name: m.tournament_event_groups?.name ?? null,
     team_a: m.team_a_id ? teamMap.get(m.team_a_id) ?? null : null,
     team_b: m.team_b_id ? teamMap.get(m.team_b_id) ?? null : null,
   }));

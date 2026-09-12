@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ScoringConsole } from "@/components/court/ScoringConsole";
-import { syncMatchResultAction } from "@/app/umpire/actions";
-import type { Team, EventType } from "@/lib/scoring/types";
+import { saveLiveTournamentScoreAction, syncMatchResultAction } from "@/app/umpire/actions";
+import type { Team, EventType, MatchState } from "@/lib/scoring/types";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -28,6 +28,18 @@ export function UmpireScoringClient({
 }: UmpireScoringClientProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleStateChange(state: MatchState) {
+    if (state.status === "match_finished" || state.status === "walkover" || state.status === "retired") {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      return;
+    }
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void saveLiveTournamentScoreAction(matchId, state);
+    }, 250);
+  }
 
   async function handleMatchFinish(winnerTeamId: string, finalScores: string) {
     setSaving(true);
@@ -79,6 +91,7 @@ export function UmpireScoringClient({
         team2={team2}
         eventType={eventType}
         onMatchFinish={handleMatchFinish}
+        onStateChange={handleStateChange}
       />
     </div>
   );

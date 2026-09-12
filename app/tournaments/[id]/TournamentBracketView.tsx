@@ -16,6 +16,7 @@ interface MatchData {
   court_name?: string;
   scheduled_at?: string;
   match_type?: string;
+  group_name?: string | null;
   notes?: string | null;
   score_details?: any;
 }
@@ -40,6 +41,26 @@ export function TournamentBracketView({ matches }: { matches: MatchData[] }) {
   // Check if there are group stage matches
   const groupMatches = matches.filter((m) => m.match_type === "group");
   const knockoutMatches = matches.filter((m) => m.match_type !== "group");
+  const groupStandings = groupMatches.reduce((groups, match) => {
+    const groupName = match.group_name || "รอบแบ่งกลุ่ม";
+    if (!groups[groupName]) groups[groupName] = new Map();
+    const table = groups[groupName];
+    for (const team of [match.team_a, match.team_b]) {
+      if (!team) continue;
+      if (!table.has(team.id)) table.set(team.id, { id: team.id, name: team.name, played: 0, won: 0, lost: 0 });
+    }
+    if (match.status === "completed" && match.team_a && match.team_b && match.winner_id) {
+      const teamA = table.get(match.team_a.id);
+      const teamB = table.get(match.team_b.id);
+      if (teamA && teamB) {
+        teamA.played += 1;
+        teamB.played += 1;
+        if (match.winner_id === teamA.id) { teamA.won += 1; teamB.lost += 1; }
+        if (match.winner_id === teamB.id) { teamB.won += 1; teamA.lost += 1; }
+      }
+    }
+    return groups;
+  }, {} as Record<string, Map<string, { id: string; name: string; played: number; won: number; lost: number }>>);
 
   // Group matches by round for Knockout
   const roundsMap = knockoutMatches.reduce((acc, m) => {
@@ -171,6 +192,58 @@ export function TournamentBracketView({ matches }: { matches: MatchData[] }) {
             })}
           </div>
         </div>
+      )}
+
+      {groupMatches.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-lg font-bold text-ink">รอบแบ่งกลุ่ม</h3>
+            <span className="text-xs font-bold text-ink-soft">ผลอัปเดตจากกรรมการ</span>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {Object.entries(groupStandings).map(([groupName, table]) => {
+              const rows = Array.from(table.values()).sort((a, b) => b.won - a.won || a.lost - b.lost || a.name.localeCompare(b.name));
+              return (
+                <div key={groupName} className="overflow-hidden rounded-2xl border border-line bg-surface shadow-xs">
+                  <div className="flex items-center justify-between border-b border-line bg-surface-raised px-4 py-3">
+                    <h4 className="font-display text-sm font-bold text-ink">ตารางคะแนน {groupName}</h4>
+                    <span className="text-[11px] font-bold text-brand">อันดับ 1–2 ผ่านเข้ารอบ</span>
+                  </div>
+                  <div className="grid grid-cols-[30px_1fr_32px_32px_32px] gap-2 border-b border-line bg-surface-raised px-4 py-2 text-[10px] font-bold text-ink-soft">
+                    <span>#</span><span>ทีม</span><span className="text-center">แข่ง</span><span className="text-center">ชนะ</span><span className="text-center">แพ้</span>
+                  </div>
+                  <div className="divide-y divide-line/60">
+                    {rows.map((row, index) => (
+                      <div key={row.id} className="grid grid-cols-[30px_1fr_32px_32px_32px] items-center gap-2 px-4 py-2.5 text-xs">
+                        <span className={`flex h-6 w-6 items-center justify-center rounded-full font-black ${index < 2 ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" : "bg-surface-raised text-ink-soft"}`}>{index + 1}</span>
+                        <span className="truncate font-bold text-ink">{row.name}</span>
+                        <span className="text-center text-ink-soft" title="แข่ง">{row.played}</span>
+                        <span className="text-center font-bold text-emerald-600" title="ชนะ">{row.won}</span>
+                        <span className="text-center text-ink-soft" title="แพ้">{row.lost}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {groupMatches.map((match) => {
+              const completed = match.status === "completed";
+              return (
+                <button key={match.id} onClick={() => setSelectedMatch(match)} className="rounded-2xl border border-line bg-surface p-4 text-left shadow-xs transition hover:border-brand">
+                  <div className="mb-3 flex items-center justify-between text-[11px] font-bold text-ink-soft">
+                    <span>{match.group_name || "รอบแบ่งกลุ่ม"} · รอบ {match.round}</span>
+                    <span className={completed ? "text-emerald-600" : "text-brand"}>{completed ? "จบแล้ว" : "รอแข่ง"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-xs font-bold text-ink"><span className="truncate">{match.team_a?.name ?? "TBD"}</span><span className="font-mono">{match.score_a ?? "-"}</span></div>
+                  <div className="my-1 border-t border-line/60" />
+                  <div className="flex items-center justify-between gap-3 text-xs font-bold text-ink"><span className="truncate">{match.team_b?.name ?? "TBD"}</span><span className="font-mono">{match.score_b ?? "-"}</span></div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       {/* Match Details Popup Modal */}

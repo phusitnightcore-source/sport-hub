@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getStaffContext } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
+import type { GeneratedMatch } from "@/lib/bracket/generator";
 
 const createTournamentSchema = z.object({
   name: z.string().trim().min(3, "ชื่อการแข่งขันต้องมีอย่างน้อย 3 ตัวอักษร").max(100),
@@ -25,6 +26,25 @@ const createTournamentSchema = z.object({
   prize_info: z.string().trim().max(1000).optional(),
   categories: z.string().optional(), // Comma separated e.g. "ชายเดี่ยว, ชายคู่, ผสม"
 });
+
+async function canManageTournament(admin: ReturnType<typeof createAdminClient>, tournamentId: string, tenantId: string) {
+  const { data } = await (admin as any)
+    .from("tournaments")
+    .select("id")
+    .eq("id", tournamentId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+function inferBadmintonEventType(name: string): "MS" | "WS" | "MD" | "WD" | "XD" {
+  const value = name.toLowerCase();
+  if (value.includes("หญิงเดี่ยว") || value.includes("women's singles") || value.includes("ws")) return "WS";
+  if (value.includes("ชายคู่") || value.includes("men's doubles") || value.includes("md")) return "MD";
+  if (value.includes("หญิงคู่") || value.includes("women's doubles") || value.includes("wd")) return "WD";
+  if (value.includes("คู่ผสม") || value.includes("mixed") || value.includes("xd")) return "XD";
+  return "MS";
+}
 
 export async function createTournamentAction(formData: FormData) {
   const ctx = await getStaffContext();
@@ -99,13 +119,25 @@ export async function createTournamentAction(formData: FormData) {
       .filter(Boolean);
 
     if (cats.length > 0) {
-      await (admin as any).from("tournament_categories").insert(
+      const { data: categories } = await (admin as any).from("tournament_categories").insert(
         cats.map((catName) => ({
           tournament_id: tournament.id,
           name: catName,
           max_teams: Math.floor(data.max_teams / cats.length) || data.max_teams,
         }))
-      );
+      ).select("id, name");
+
+      if (categories?.length) {
+        await (admin as any).from("tournament_events").insert(
+          categories.map((category: { id: string; name: string }) => ({
+            tournament_id: tournament.id,
+            category_id: category.id,
+            name: category.name,
+            event_type: inferBadmintonEventType(category.name),
+            format: data.format === "round_robin" ? "round_robin" : data.format === "group_knockout" ? "group_knockout" : "single_elim",
+          }))
+        );
+      }
     }
   }
 
@@ -117,6 +149,9 @@ export async function createTournamentAction(formData: FormData) {
 export async function updateTournamentStatusAction(tournamentId: string, status: string) {
   const ctx = await getStaffContext();
   if (!ctx) return { success: false, error: "Unauthorized" };
+
+  const allowedStatuses = ["registration_open", "registration_closed", "in_progress", "completed"];
+  if (!allowedStatuses.includes(status)) return { success: false, error: "สถานะการแข่งขันไม่ถูกต้อง" };
 
   const admin = createAdminClient();
   const { error } = await (admin as any)
@@ -146,6 +181,9 @@ export async function addTeamAction(tournamentId: string, teamName: string, cate
   }
 
   const admin = createAdminClient();
+  if (!await canManageTournament(admin, tournamentId, ctx.tenantId)) {
+    return { success: false, error: "ไม่มีสิทธิ์เพิ่มทีมในรายการนี้" };
+  }
   const { error } = await (admin as any).from("teams").insert({
     tournament_id: tournamentId,
     category_id: categoryId || null,
@@ -170,7 +208,7 @@ export async function generateBracketAction(tournamentId: string) {
 
   // 1. Fetch tournament & teams
   const [{ data: tournament }, { data: teams }] = await Promise.all([
-    (admin as any).from("tournaments").select("id, status").eq("id", tournamentId).single(),
+    (admin as any).from("tournaments").select("id, status").eq("id", tournamentId).eq("tenant_id", ctx.tenantId).single(),
     (admin as any).from("teams").select("id, name, seed").eq("tournament_id", tournamentId),
   ]);
 
@@ -298,12 +336,30 @@ export async function updateMatchScoreAction(
   // 1. Fetch match
   const { data: match, error: mErr } = await (admin as any)
     .from("matches")
-    .select("id, tournament_id, round, next_match_id, team_a_id, team_b_id")
+    .select("id, tournament_id, round, status, team_a_id, team_b_id")
     .eq("id", matchId)
     .single();
 
   if (mErr || !match) {
     return { success: false, error: "ไม่พบแมตช์" };
+  }
+
+  const { data: tournament } = await (admin as any)
+    .from("tournaments")
+    .select("id")
+    .eq("id", match.tournament_id)
+    .eq("tenant_id", ctx.tenantId)
+    .maybeSingle();
+
+  if (!tournament) return { success: false, error: "ไม่มีสิทธิ์บันทึกผลแมตช์นี้" };
+  if (!match.team_a_id || !match.team_b_id) {
+    return { success: false, error: "รอให้ทั้งสองทีมเข้าคู่ก่อนจึงจะบันทึกผลได้" };
+  }
+  if (match.status === "completed") {
+    return { success: false, error: "แมตช์นี้บันทึกผลแล้ว ใช้หน้ากรรมการเมื่อต้องการแก้ไข" };
+  }
+  if (![match.team_a_id, match.team_b_id].includes(winnerId)) {
+    return { success: false, error: "ผู้ชนะต้องเป็นหนึ่งในสองทีมของแมตช์นี้" };
   }
 
   // 2. Update current match
@@ -319,30 +375,10 @@ export async function updateMatchScoreAction(
     })
     .eq("id", matchId);
 
-  // 3. Advance winner to next match if exists
-  if (match.next_match_id) {
-    const { data: nextMatch } = await (admin as any)
-      .from("matches")
-      .select("id, team_a_id, team_b_id")
-      .eq("id", match.next_match_id)
-      .single();
+  // The database trigger advances winners (and semifinal losers) using the
+  // explicit bracket slot. This avoids overwriting the wrong side of a match.
 
-    if (nextMatch) {
-      if (!nextMatch.team_a_id) {
-        await (admin as any)
-          .from("matches")
-          .update({ team_a_id: winnerId })
-          .eq("id", match.next_match_id);
-      } else if (!nextMatch.team_b_id && nextMatch.team_a_id !== winnerId) {
-        await (admin as any)
-          .from("matches")
-          .update({ team_b_id: winnerId })
-          .eq("id", match.next_match_id);
-      }
-    }
-  }
-
-  // 4. Update player Elo rating stats
+  // 3. Update player Elo rating stats
   const loserId = winnerId === match.team_a_id ? match.team_b_id : match.team_a_id;
   if (winnerId && loserId) {
     // Fetch members of winner team & loser team
@@ -407,6 +443,15 @@ export async function verifyRegistrationAction(
   if (!ctx) return { success: false, error: "Unauthorized" };
 
   const admin = createAdminClient();
+  const { data: existing } = await (admin as any)
+    .from("tournament_registrations")
+    .select("tournament_id")
+    .eq("id", registrationId)
+    .maybeSingle();
+  if (!existing || !await canManageTournament(admin, existing.tournament_id, ctx.tenantId)) {
+    return { success: false, error: "ไม่มีสิทธิ์ตรวจสอบผู้สมัครรายนี้" };
+  }
+
   const { data: reg, error } = await (admin as any)
     .from("tournament_registrations")
     .update({
@@ -428,6 +473,43 @@ export async function verifyRegistrationAction(
   return { success: true };
 }
 
+export async function verifyTournamentPaymentAction(
+  registrationId: string,
+  approved: boolean,
+  notes?: string
+) {
+  const ctx = await getStaffContext();
+  if (!ctx) return { success: false, error: "Unauthorized" };
+
+  const admin = createAdminClient();
+  const { data: registration } = await (admin as any)
+    .from("tournament_registrations")
+    .select("tournament_id, slip_image_url")
+    .eq("id", registrationId)
+    .maybeSingle();
+  if (!registration || !await canManageTournament(admin, registration.tournament_id, ctx.tenantId)) {
+    return { success: false, error: "ไม่มีสิทธิ์ตรวจสอบการชำระเงินนี้" };
+  }
+  if (approved && !registration.slip_image_url) {
+    return { success: false, error: "ไม่พบสลิปค่าสมัคร" };
+  }
+
+  const { error } = await (admin as any)
+    .from("tournament_registrations")
+    .update({
+      payment_status: approved ? "paid" : "pending",
+      payment_notes: notes?.trim() || null,
+      payment_verified_by: ctx.userId,
+      payment_verified_at: new Date().toISOString(),
+    })
+    .eq("id", registrationId);
+  if (error) return { success: false, error: "อัปเดตสถานะชำระเงินไม่สำเร็จ" };
+
+  revalidatePath(`/dashboard/tournaments/${registration.tournament_id}`);
+  revalidatePath(`/tournaments/${registration.tournament_id}`);
+  return { success: true };
+}
+
 export async function checkInAthleteAction(registrationId: string) {
   const ctx = await getStaffContext();
   if (!ctx) return { success: false, error: "Unauthorized" };
@@ -440,6 +522,9 @@ export async function checkInAthleteAction(registrationId: string) {
     .single();
 
   if (!current) return { success: false, error: "ไม่พบข้อมูลการลงทะเบียน" };
+  if (!await canManageTournament(admin, current.tournament_id, ctx.tenantId)) {
+    return { success: false, error: "ไม่มีสิทธิ์เช็กอินผู้สมัครรายนี้" };
+  }
 
   const nextStatus = current.checkin_status === "checked_in" ? "not_checked_in" : "checked_in";
   await (admin as any)
@@ -463,79 +548,243 @@ export async function generateTournamentDrawAction(
 
   const admin = createAdminClient();
 
-  const [{ data: tournament }, { data: teams }] = await Promise.all([
-    (admin as any).from("tournaments").select("id, has_third_place_match, format").eq("id", tournamentId).single(),
-    (admin as any).from("teams").select("id, name, seed").eq("tournament_id", tournamentId),
+  const [{ data: tournament }, { data: teams }, { data: categories }, { data: events }, { data: existingMatches }] = await Promise.all([
+    (admin as any)
+      .from("tournaments")
+      .select("id, has_third_place_match, format, status")
+      .eq("id", tournamentId)
+      .eq("tenant_id", ctx.tenantId)
+      .single(),
+    (admin as any).from("teams").select("id, name, seed, category_id").eq("tournament_id", tournamentId),
+    (admin as any).from("tournament_categories").select("id, name").eq("tournament_id", tournamentId),
+    (admin as any).from("tournament_events").select("id, category_id").eq("tournament_id", tournamentId),
+    (admin as any).from("matches").select("id, status").eq("tournament_id", tournamentId),
   ]);
 
   if (!tournament) return { success: false, error: "ไม่พบข้อมูลการแข่งขัน" };
-  const teamList = (teams ?? []).map((t: any) => ({
-    id: t.id,
-    name: t.name,
-    seed: mode === "seeded" ? t.seed : undefined,
-  }));
-
-  if (teamList.length < 2) {
+  if ((existingMatches ?? []).some((match: any) => match.status === "completed")) {
+    return { success: false, error: "มีผลการแข่งขันแล้ว จึงไม่สามารถสร้างสายทับได้" };
+  }
+  if (tournament.status === "completed") {
+    return { success: false, error: "รายการนี้จบการแข่งขันแล้ว" };
+  }
+  const teamRecords = (teams ?? []) as { id: string; name: string; seed: number | null; category_id: string | null }[];
+  if (teamRecords.length < 2) {
     return { success: false, error: "ต้องมีทีมสมัครอย่างน้อย 2 ทีมจึงจะจัดสายได้" };
   }
 
   // Import generator functions
-  const { generateSingleElimination, generateRoundRobin } = await import("@/lib/bracket/generator");
+  const { generateSingleElimination, generateRoundRobin, generateDoubleElimination } = await import("@/lib/bracket/generator");
 
-  // Clear existing matches
-  await (admin as any).from("matches").delete().eq("tournament_id", tournamentId);
+  const eventByCategory = new Map((events ?? []).map((event: { id: string; category_id: string | null }) => [event.category_id, event.id]));
+  const categoriesToDraw = (categories?.length
+    ? categories.map((category: { id: string; name: string }) => ({ id: category.id, name: category.name }))
+    : [{ id: null, name: "ประเภททั่วไป" }]
+  ).map((category: { id: string | null; name: string }) => ({
+    ...category,
+    teams: teamRecords.filter((team) => team.category_id === category.id),
+  })).filter((category: { teams: unknown[] }) => category.teams.length >= 2);
 
-  let generatedMatches: any[] = [];
-  if (mode === "group") {
-    generatedMatches = generateRoundRobin(teamList);
-  } else {
-    generatedMatches = generateSingleElimination(teamList, {
-      hasThirdPlaceMatch: tournament.has_third_place_match,
-    });
+  if (!categoriesToDraw.length) {
+    return { success: false, error: "แต่ละประเภทต้องมีอย่างน้อย 2 ทีมจึงจะจัดสายได้" };
+  }
+
+  const drawSets: { id: string | null; name: string; eventId: string | null; teams: typeof teamRecords; matches: GeneratedMatch[] }[] = categoriesToDraw.map((category: { id: string | null; name: string; teams: typeof teamRecords }) => {
+    const teamList = category.teams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      seed: mode === "seeded" ? team.seed : undefined,
+    }));
+    const matches = mode === "group" || tournament.format === "round_robin"
+      ? generateRoundRobin(teamList)
+      : tournament.format === "double_elimination"
+      ? generateDoubleElimination(teamList)
+      : generateSingleElimination(teamList, { hasThirdPlaceMatch: tournament.has_third_place_match });
+    return { ...category, eventId: eventByCategory.get(category.id) ?? null, matches };
+  });
+  const generatedMatches = drawSets.flatMap((drawSet) => drawSet.matches);
+
+  if (generatedMatches.length === 0) {
+    return { success: false, error: "ไม่สามารถสร้างสายแข่งขันจากรายชื่อปัจจุบันได้" };
+  }
+
+  // A redraw is allowed only before any result is recorded.
+  const { error: clearError } = await (admin as any).from("matches").delete().eq("tournament_id", tournamentId);
+  if (clearError) return { success: false, error: "ล้างสายเดิมไม่สำเร็จ กรุณาลองใหม่" };
+
+  if (tournament.format === "group_knockout" && mode === "group") {
+    for (const drawSet of drawSets) {
+      if (!drawSet.eventId) {
+        return { success: false, error: `ไม่พบ Event ของ ${drawSet.name}; กรุณาบันทึกรายการใหม่อีกครั้ง` };
+      }
+      await (admin as any).from("tournament_event_groups").delete().eq("event_id", drawSet.eventId);
+      const groupCount = drawSet.teams.length >= 16 ? 4 : 2;
+      const { data: groups, error: groupError } = await (admin as any)
+        .from("tournament_event_groups")
+        .insert(Array.from({ length: groupCount }, (_, index) => ({ event_id: drawSet.eventId, name: `กลุ่ม ${String.fromCharCode(65 + index)}`, sort_order: index })))
+        .select("id, name");
+      if (groupError || !groups?.length) return { success: false, error: "สร้างกลุ่มแข่งขันไม่สำเร็จ" };
+
+      const orderedTeams = [...drawSet.teams].sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999));
+      const groupTeams = groups.map((group: { id: string; name: string }) => ({ ...group, teams: [] as typeof orderedTeams }));
+      orderedTeams.forEach((team, index) => groupTeams[index % groupTeams.length].teams.push(team));
+      drawSet.matches = [];
+      for (const group of groupTeams) {
+        await (admin as any).from("teams").update({ event_id: drawSet.eventId, group_id: group.id }).in("id", group.teams.map((team: { id: string }) => team.id));
+        drawSet.matches.push(...generateRoundRobin(group.teams.map((team: { id: string; name: string; seed: number | null }) => ({ id: team.id, name: team.name, seed: team.seed })), group.id));
+      }
+    }
   }
 
   const roundMap = new Map<string, string>();
 
-  for (let r = 1; r <= Math.max(...generatedMatches.map((m) => m.round)); r++) {
-    const roundMatches = generatedMatches.filter((m) => m.round === r);
-
-    for (const m of roundMatches) {
+  for (const drawSet of drawSets) {
+    for (const m of drawSet.matches) {
       const { data: inserted } = await (admin as any)
         .from("matches")
         .insert({
           tournament_id: tournamentId,
+          category_id: drawSet.id,
+          event_id: drawSet.eventId,
           round: m.round,
           match_number: m.bracket_pos + 1,
           team_a_id: m.team_a_id,
           team_b_id: m.team_b_id,
           status: m.status === "completed" ? "completed" : "scheduled",
+          winner_id: m.status === "completed" ? (m.team_a_id || m.team_b_id) : null,
+          stage: m.stage || "knockout",
           match_type: m.match_type || "knockout",
+          group_id: m.group_id || null,
           notes: m.notes || null,
         })
         .select("id")
         .single();
 
       if (inserted) {
-        roundMap.set(`${m.round}_${m.bracket_pos}`, inserted.id);
+        roundMap.set(`${drawSet.id ?? "general"}_${m.round}_${m.bracket_pos}`, inserted.id);
       }
     }
   }
 
-  // Link next_match_id
-  for (const m of generatedMatches) {
-    if (m.next_match_round && typeof m.next_match_pos === "number") {
-      const currentId = roundMap.get(`${m.round}_${m.bracket_pos}`);
-      const nextId = roundMap.get(`${m.next_match_round}_${m.next_match_pos}`);
+  // Persist every route, including its exact destination slot and the losers
+  // of semifinals going to the bronze match.
+  for (const drawSet of drawSets) {
+    for (const m of drawSet.matches) {
+      const key = drawSet.id ?? "general";
+      if (m.next_match_round && typeof m.next_match_pos === "number") {
+      const currentId = roundMap.get(`${key}_${m.round}_${m.bracket_pos}`);
+      const nextId = roundMap.get(`${key}_${m.next_match_round}_${m.next_match_pos}`);
       if (currentId && nextId) {
         await (admin as any)
           .from("matches")
-          .update({ next_match_id: nextId })
+          .update({ next_match_id: nextId, next_match_slot: m.next_match_slot || 1 })
           .eq("id", currentId);
+      }
+      }
+
+      if (m.loser_next_match_round && typeof m.loser_next_match_pos === "number") {
+      const currentId = roundMap.get(`${key}_${m.round}_${m.bracket_pos}`);
+      const loserNextId = roundMap.get(`${key}_${m.loser_next_match_round}_${m.loser_next_match_pos}`);
+      if (currentId && loserNextId) {
+        await (admin as any)
+          .from("matches")
+          .update({
+            loser_next_match_id: loserNextId,
+            loser_next_match_slot: m.loser_next_match_slot || 1,
+          })
+          .eq("id", currentId);
+      }
       }
     }
   }
 
+  await (admin as any)
+    .from("tournaments")
+    .update({ status: "in_progress", updated_at: new Date().toISOString() })
+    .eq("id", tournamentId)
+    .eq("tenant_id", ctx.tenantId);
+
   revalidatePath(`/dashboard/tournaments/${tournamentId}`);
   revalidatePath(`/tournaments/${tournamentId}`);
-  return { success: true, count: generatedMatches.length };
+  return { success: true, count: drawSets.reduce((total, drawSet) => total + drawSet.matches.length, 0) };
+}
+
+export async function generateGroupKnockoutStageAction(tournamentId: string) {
+  const ctx = await getStaffContext();
+  if (!ctx) return { success: false, error: "Unauthorized" };
+  const admin = createAdminClient();
+  const { data: tournament } = await (admin as any)
+    .from("tournaments")
+    .select("id, has_third_place_match, format")
+    .eq("id", tournamentId)
+    .eq("tenant_id", ctx.tenantId)
+    .maybeSingle();
+  if (!tournament || tournament.format !== "group_knockout") {
+    return { success: false, error: "รายการนี้ไม่ได้ใช้รูปแบบรอบกลุ่ม + น็อกเอาต์" };
+  }
+
+  const [{ data: events }, { data: groups }, { data: teams }, { data: groupMatches }, { data: existingKnockout }] = await Promise.all([
+    (admin as any).from("tournament_events").select("id, category_id").eq("tournament_id", tournamentId),
+    (admin as any).from("tournament_event_groups").select("id, event_id, name").in("event_id", (await (admin as any).from("tournament_events").select("id").eq("tournament_id", tournamentId)).data?.map((event: { id: string }) => event.id) ?? ["00000000-0000-0000-0000-000000000000"]),
+    (admin as any).from("teams").select("id, name, group_id").eq("tournament_id", tournamentId),
+    (admin as any).from("matches").select("id, event_id, group_id, team_a_id, team_b_id, winner_id, score_a, score_b, status").eq("tournament_id", tournamentId).eq("match_type", "group"),
+    (admin as any).from("matches").select("id").eq("tournament_id", tournamentId).eq("match_type", "knockout"),
+  ]);
+  if ((existingKnockout ?? []).length) return { success: false, error: "มีรอบน็อกเอาต์แล้ว" };
+  if (!(groups ?? []).length) return { success: false, error: "ยังไม่ได้สร้างรอบแบ่งกลุ่ม" };
+  if ((groupMatches ?? []).some((match: { status: string }) => match.status !== "completed")) {
+    return { success: false, error: "ต้องบันทึกผลรอบแบ่งกลุ่มให้ครบก่อน" };
+  }
+
+  const { calculateRoundRobinStandings, generateGroupKnockoutCrossBracket } = await import("@/lib/bracket/generator");
+  let createdCount = 0;
+  for (const event of events ?? []) {
+    const eventGroups = (groups ?? []).filter((group: { event_id: string }) => group.event_id === event.id);
+    if (eventGroups.length < 2) continue;
+    const qualifiers = eventGroups.map((group: { id: string; name: string }) => {
+      const groupTeams = (teams ?? []).filter((team: { group_id: string | null }) => team.group_id === group.id);
+      const completed = (groupMatches ?? []).filter((match: { group_id: string | null }) => match.group_id === group.id).map((match: { team_a_id: string; team_b_id: string; winner_id: string; score_a: string | null; score_b: string | null }) => ({
+        ...match,
+        score_a_games: Number(match.score_a) || 0,
+        score_b_games: Number(match.score_b) || 0,
+      }));
+      const standings = calculateRoundRobinStandings(groupTeams.map((team: { id: string; name: string }) => ({ id: team.id, name: team.name })), completed);
+      return { groupName: group.name, firstTeamId: standings[0]?.teamId, secondTeamId: standings[1]?.teamId };
+    }).filter((qualifier: { firstTeamId?: string; secondTeamId?: string }) => qualifier.firstTeamId && qualifier.secondTeamId);
+    if (qualifiers.length < 2) continue;
+    const bracket = generateGroupKnockoutCrossBracket(qualifiers as { groupName: string; firstTeamId: string; secondTeamId: string }[], tournament.has_third_place_match);
+    const idMap = new Map<string, string>();
+    for (const match of bracket) {
+      const { data: inserted } = await (admin as any).from("matches").insert({
+        tournament_id: tournamentId,
+        category_id: event.category_id,
+        event_id: event.id,
+        round: match.round,
+        match_number: match.bracket_pos + 1,
+        team_a_id: match.team_a_id,
+        team_b_id: match.team_b_id,
+        status: "scheduled",
+        stage: "knockout",
+        match_type: match.match_type ?? "knockout",
+        notes: match.notes ?? null,
+      }).select("id").single();
+      if (inserted) idMap.set(`${match.round}_${match.bracket_pos}`, inserted.id);
+    }
+    for (const match of bracket) {
+      const id = idMap.get(`${match.round}_${match.bracket_pos}`);
+      const next = match.next_match_round ? idMap.get(`${match.next_match_round}_${match.next_match_pos}`) : null;
+      const loserNext = match.loser_next_match_round ? idMap.get(`${match.loser_next_match_round}_${match.loser_next_match_pos}`) : null;
+      if (id) await (admin as any).from("matches").update({
+        next_match_id: next,
+        next_match_slot: match.next_match_slot ?? null,
+        loser_next_match_id: loserNext,
+        loser_next_match_slot: match.loser_next_match_slot ?? null,
+      }).eq("id", id);
+    }
+    createdCount += bracket.length;
+  }
+  if (!createdCount) return { success: false, error: "ไม่สามารถหาทีมผ่านเข้ารอบจากคะแนนกลุ่มได้" };
+  revalidatePath(`/dashboard/tournaments/${tournamentId}`);
+  revalidatePath(`/tournaments/${tournamentId}`);
+  return { success: true, count: createdCount };
 }

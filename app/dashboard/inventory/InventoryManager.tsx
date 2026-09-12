@@ -17,9 +17,10 @@ import {
   ArrowUpDown
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { CounterDialog } from "@/components/ui/CounterDialog";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { createProduct, recordStockMovement } from "./actions";
+import { createProduct, updateProduct, recordStockMovement } from "./actions";
 
 type Branch = { id: string; name: string };
 type ProductType = "product" | "rental" | "service";
@@ -78,6 +79,8 @@ export function InventoryManager({
   const router = useRouter();
   const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<InventoryProduct | null>(null);
+  const [template, setTemplate] = useState("ทั่วไป");
   const [selectedProduct, setSelectedProduct] = useState<InventoryProduct | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +106,7 @@ export function InventoryManager({
     return products.filter(
       (product) =>
         !q ||
-        `${product.name} ${product.sku ?? ""} ${product.category ?? ""}`.toLocaleLowerCase().includes(q)
+        `${product.name} ${product.sku ?? ""} ${product.barcode ?? ""} ${product.category ?? ""}`.toLocaleLowerCase().includes(q)
     );
   }, [products, query]);
 
@@ -122,7 +125,7 @@ export function InventoryManager({
     const data = new FormData(form);
     setBusy(true);
     setError(null);
-    const result = await createProduct({
+    const payload = {
       branchId,
       name: String(data.get("name") ?? ""),
       category: String(data.get("category") ?? ""),
@@ -134,7 +137,8 @@ export function InventoryManager({
       lowStockThreshold: Number(data.get("lowStockThreshold") ?? 0),
       trackStock: data.get("trackStock") === "on",
       initialStock: Number(data.get("initialStock") ?? 0),
-    });
+    };
+    const result = await (editing ? updateProduct({ ...payload, productId: editing.id, isActive: data.get("isActive") === "on" }) : createProduct(payload)).catch(() => ({ error: "การเชื่อมต่อขัดข้อง ตรวจสอบคลังสินค้าก่อนลองเพิ่มซ้ำ" }));
     setBusy(false);
     if (result.error) return setError(result.error);
     form.reset();
@@ -153,7 +157,7 @@ export function InventoryManager({
       movementType: String(data.get("movementType")) as "purchase" | "return" | "adjustment" | "damage",
       quantityChange: Number(data.get("quantityChange") ?? 0),
       note: String(data.get("note") ?? ""),
-    });
+    }).catch(() => ({ error: "การเชื่อมต่อขัดข้อง ตรวจสอบประวัติสต็อกก่อนลองซ้ำ" }));
     setBusy(false);
     if (result.error) return setError(result.error);
     setSelectedProduct(null);
@@ -217,7 +221,7 @@ export function InventoryManager({
           </div>
           <Button
             onClick={() => {
-              setShowCreate(true);
+              setEditing(null); setTemplate("ทั่วไป"); setShowCreate(true);
               setError(null);
             }}
             className="rounded-xl shadow-xs"
@@ -278,6 +282,7 @@ export function InventoryManager({
                     <tr key={product.id} className="hover:bg-brand-soft/20 transition-colors">
                       <td className="px-6 py-3.5">
                         <p className="font-bold text-ink">{product.name}</p>
+                        {!product.isActive && <span className="rounded-full bg-warning/10 px-2 py-1 text-xs font-semibold text-ink">ปิดขาย</span>}
                         <p className="font-mono text-mono-sm text-ink-soft">
                           {product.sku ?? product.barcode ?? "ไม่มี SKU"}
                           {product.category ? ` · ${product.category}` : ""}
@@ -311,7 +316,8 @@ export function InventoryManager({
                         {product.trackStock ? product.lowStockThreshold : "—"}
                       </td>
                       <td className="px-6 py-3.5 text-right">
-                        {product.trackStock && (
+                        <Button size="sm" variant="secondary" className="mr-2" onClick={() => { setEditing(product); setShowCreate(true); setError(null); }}>แก้ไข</Button>
+                        {product.trackStock && product.isActive && (
                           <Button
                             size="sm"
                             variant="secondary"
@@ -344,7 +350,7 @@ export function InventoryManager({
           <p className="p-6 text-body-sm text-ink-soft text-center">ยังไม่มีประวัติการเคลื่อนไหว</p>
         ) : (
           <div className="divide-y divide-line/60">
-            {movements.map((movement) => (
+            {movements.filter(m => m.branchId === branchId).map((movement) => (
               <div key={movement.id} className="flex items-center justify-between gap-4 px-6 py-3.5 text-body-sm hover:bg-surface/60 transition-colors">
                 <div className="min-w-0">
                   <p className="truncate font-bold text-ink">{movement.productName}</p>
@@ -373,7 +379,8 @@ export function InventoryManager({
       {/* CREATE PRODUCT MODAL */}
       {showCreate && (
         <Modal
-          title="เพิ่มสินค้า / บริการใหม่"
+          title={editing ? "แก้ไขสินค้า / บริการ" : "เพิ่มสินค้า / บริการใหม่"}
+          busy={busy}
           onClose={() => {
             setShowCreate(false);
             setError(null);
@@ -386,20 +393,24 @@ export function InventoryManager({
             }}
             className="flex flex-col gap-4"
           >
+            {!editing && <div className="flex flex-wrap gap-2">{["ทั่วไป", "อาหาร", "เครื่องดื่ม", "อุปกรณ์กีฬา", "ค่าเช่า", "บริการ"].map(t => <button key={t} type="button" className="rounded-full bg-brand-soft px-3 py-2 text-sm text-brand" onClick={() => setTemplate(t)}>{t}</button>)}</div>}
+            <p className="rounded-xl bg-brand-soft p-3 text-sm text-ink">สินค้าใช้ร่วมกันทุกสาขา สต็อกแยกตามสาขาที่เลือก อาหารทำตามสั่งหรือค่าบริการสามารถปิดการติดตามสต็อกได้ รุ่นหรือขนาดต่างกันให้แยก SKU</p>
+            {editing && <label className="flex gap-2 text-sm"><input name="isActive" type="checkbox" defaultChecked={editing.isActive}/>เปิดขายสินค้าใน POS</label>}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input name="name" label="ชื่อสินค้า" required />
-              <Input name="category" label="หมวดสินค้า" placeholder="เช่น เครื่องดื่ม, ลูกขนไก่" />
+              <Input name="name" label="ชื่อสินค้า" required defaultValue={editing?.name ?? ""} />
+              <Input key={template} name="category" label="หมวดสินค้า (ตั้งเองได้)" defaultValue={editing?.category ?? template} placeholder="เช่น อาหาร, เครื่องดื่ม, ลูกขนไก่" />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input name="sku" label="SKU (ถ้ามี)" />
-              <Input name="barcode" label="Barcode (ถ้ามี)" />
+              <Input name="sku" label="SKU (ถ้ามี)" defaultValue={editing?.sku ?? ""} />
+              <Input name="barcode" label="Barcode (ถ้ามี)" defaultValue={editing?.barcode ?? ""} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <span className="text-body-sm font-semibold text-ink">ประเภทสินค้า</span>
                 <select
                   name="productType"
-                  defaultValue="product"
+                  defaultValue={editing?.productType ?? "product"}
+                  disabled={!!editing}
                   className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-body text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 transition-colors cursor-pointer"
                 >
                   <option value="product">สินค้าทั่วไป / เครื่องดื่ม</option>
@@ -408,13 +419,13 @@ export function InventoryManager({
                 </select>
               </div>
               <label className="mt-7 flex items-center gap-2 text-body-sm font-semibold text-ink cursor-pointer">
-                <input name="trackStock" type="checkbox" defaultChecked className="h-4 w-4 accent-brand rounded" />
+                <input name="trackStock" type="checkbox" defaultChecked={editing?.trackStock ?? true} disabled={!!editing} className="h-4 w-4 accent-brand rounded" />
                 ติดตามจำนวนสต็อกคงเหลือ
               </label>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input name="costPrice" label="ต้นทุน (บาท)" type="number" min="0" step="0.01" defaultValue="0" required />
-              <Input name="sellingPrice" label="ราคาขาย (บาท)" type="number" min="0" step="0.01" defaultValue="0" required />
+              <Input name="costPrice" label="ต้นทุน (บาท)" type="number" min="0" step="0.01" defaultValue={editing?.costPrice ?? 0} required />
+              <Input name="sellingPrice" label="ราคาขาย (บาท)" type="number" min="0" step="0.01" defaultValue={editing?.sellingPrice ?? 0} required />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Input
@@ -423,12 +434,13 @@ export function InventoryManager({
                 type="number"
                 min="0"
                 step="1"
-                defaultValue="5"
+                defaultValue={editing?.lowStockThreshold ?? 5}
                 required
               />
               <Input
                 name="initialStock"
-                label="ยอดสต็อกเริ่มต้นสาขานี้"
+                label={editing ? "ปรับยอดผ่านเมนูปรับสต็อก" : "ยอดสต็อกเริ่มต้นสาขานี้"}
+                disabled={!!editing}
                 type="number"
                 min="0"
                 step="1"
@@ -451,7 +463,7 @@ export function InventoryManager({
                 ยกเลิก
               </Button>
               <Button type="submit" className="flex-1 rounded-xl" disabled={busy}>
-                {busy ? "กำลังบันทึก..." : "ยืนยันเพิ่มสินค้า"}
+                {busy ? "กำลังบันทึก..." : editing ? "บันทึกการแก้ไข" : "ยืนยันเพิ่มสินค้า"}
               </Button>
             </div>
           </form>
@@ -462,6 +474,7 @@ export function InventoryManager({
       {selectedProduct && (
         <Modal
           title={`ปรับสต็อก · ${selectedProduct.name}`}
+          busy={busy}
           onClose={() => {
             setSelectedProduct(null);
             setError(null);
@@ -534,32 +547,14 @@ function Modal({
   title,
   onClose,
   children,
+  busy,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  busy?: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/60 p-4 backdrop-blur-sm animate-in fade-in-0">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-line bg-surface p-6 shadow-2xl"
-      >
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="font-display text-body-lg font-bold text-ink">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-2 text-ink-soft hover:bg-brand-soft hover:text-ink transition-colors"
-            aria-label="ปิด"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
+    <CounterDialog title={title} onClose={onClose} busy={busy}>{children}</CounterDialog>
   );
 }

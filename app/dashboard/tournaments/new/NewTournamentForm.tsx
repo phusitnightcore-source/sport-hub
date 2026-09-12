@@ -268,6 +268,7 @@ export function NewTournamentForm({
               <option value="knockout">แพ้คัดออก (Knockout / Single Elimination)</option>
               <option value="group_knockout">รอบกลุ่ม + แพ้คัดออก (Group Stage + Knockout)</option>
               <option value="round_robin">พบกันหมด (Round Robin Group Stage)</option>
+              <option value="double_elimination">แพ้สองครั้งตกรอบ (Double Elimination · 4 หรือ 8 ทีม)</option>
             </select>
           </div>
 

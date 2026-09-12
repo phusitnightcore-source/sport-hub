@@ -1,32 +1,36 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { Sun, Moon } from "lucide-react";
 
-// อ่าน data-theme บน <html> แบบ reactive (ไม่ setState ใน effect) ผ่าน MutationObserver
-function subscribe(callback: () => void) {
-  const obs = new MutationObserver(callback);
-  obs.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["data-theme"],
-  });
-  return () => obs.disconnect();
-}
-function getSnapshot(): "light" | "dark" {
+function readTheme(): "light" | "dark" {
   return document.documentElement.getAttribute("data-theme") === "dark"
     ? "dark"
     : "light";
 }
-function getServerSnapshot(): "light" | "dark" {
-  return "light";
-}
 
 // ปุ่มสลับโหมดสว่าง/มืด — เขียน data-theme บน <html> + จำใน localStorage
 export function ThemeToggle({ className }: { className?: string }) {
-  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const syncTheme = () => setTheme(readTheme());
+    syncTheme();
+    setIsReady(true);
+
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   function toggle() {
-    const next = theme === "dark" ? "light" : "dark";
+    // Read the document at click time so the toggle stays correct when another
+    // surface (or the no-FOUC script) changes the theme before hydration ends.
+    const next = readTheme() === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
     if (next === "dark") {
       document.documentElement.classList.add("dark");
@@ -38,6 +42,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     } catch {
       /* localStorage อาจถูกปิด — ไม่เป็นไร */
     }
+    setTheme(next);
   }
 
   return (
@@ -46,6 +51,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       onClick={toggle}
       suppressHydrationWarning
       aria-label={theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด"}
+      data-theme-ready={isReady ? "true" : "false"}
       className={
         "flex h-9 w-9 items-center justify-center rounded-full bg-surface text-ink-soft shadow-sm ring-1 ring-inset ring-line transition-colors duration-fast hover:text-brand " +
         (className ?? "")

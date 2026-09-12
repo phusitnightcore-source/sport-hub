@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getStaffContext, hasPermission, type StaffContext } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { canUsePosBranch } from "@/lib/pos/access";
 
 const productSchema = z.object({
   branchId: z.string().uuid(),
@@ -29,21 +30,34 @@ const movementSchema = z.object({
 });
 
 async function canUseBranch(ctx: StaffContext, branchId: string) {
-  if (ctx.role === "venue_admin") return true;
-  if (!ctx.staffId) return false;
-  const admin = createAdminClient();
-  const { data: staff } = await admin
-    .from("staff")
-    .select("multi_branch_access, status, staff_branches(branch_id)")
-    .eq("id", ctx.staffId)
-    .eq("tenant_id", ctx.tenantId)
-    .maybeSingle();
-  if (!staff || staff.status !== "active") return false;
-  return staff.multi_branch_access || (staff.staff_branches ?? []).some((row: any) => row.branch_id === branchId);
+  return canUsePosBranch(ctx, branchId);
 }
 
 function canManageInventory(ctx: StaffContext | null) {
   return Boolean(ctx && hasPermission(ctx, "manage_inventory"));
+}
+
+export async function updateProduct(input: z.input<typeof productSchema> & { productId: string; isActive: boolean }) {
+  const ctx = await getStaffContext();
+  if (!ctx || !canManageInventory(ctx)) return { error: "ไม่มีสิทธิ์แก้ไขสินค้า" };
+  const parsed = productSchema.extend({ productId: z.string().uuid(), isActive: z.boolean() }).safeParse(input);
+  if (!parsed.success || !(await canUseBranch(ctx, parsed.data.branchId))) return { error: "ข้อมูลสินค้าไม่ถูกต้องหรือไม่มีสิทธิ์" };
+  const p = parsed.data;
+  const admin = createAdminClient();
+  const { data: before } = await admin.from("products").select("id, name, selling_price, is_active, track_stock, product_type").eq("id", p.productId).eq("tenant_id", ctx.tenantId).maybeSingle();
+  if (!before) return { error: "ไม่พบสินค้า" };
+  let categoryId: string | null = null;
+  if (p.category) {
+    const { data, error } = await admin.from("product_categories").upsert({ tenant_id: ctx.tenantId, name: p.category }, { onConflict: "tenant_id,name" }).select("id").single();
+    if (error || !data) return { error: "บันทึกหมวดสินค้าไม่สำเร็จ" };
+    categoryId = data.id;
+  }
+  // Type/tracking remain fixed so historic movements and refunds keep their meaning.
+  const { error } = await admin.from("products").update({ name: p.name, category_id: categoryId, sku: p.sku || null, barcode: p.barcode || null, cost_price: p.costPrice, selling_price: p.sellingPrice, low_stock_threshold: p.lowStockThreshold, is_active: p.isActive }).eq("id", p.productId).eq("tenant_id", ctx.tenantId);
+  if (error) return { error: error.code === "23505" ? "SKU หรือบาร์โค้ดนี้มีแล้ว" : "แก้ไขสินค้าไม่สำเร็จ" };
+  await logAudit({ tenantId: ctx.tenantId, actorId: ctx.userId, actorRole: ctx.role, action: "update_product", module: "inventory", referenceId: p.productId, before, after: { name: p.name, sellingPrice: p.sellingPrice, isActive: p.isActive } });
+  revalidatePath("/dashboard/inventory"); revalidatePath("/pos");
+  return { success: true };
 }
 
 export async function createProduct(input: z.input<typeof productSchema>) {
@@ -55,54 +69,11 @@ export async function createProduct(input: z.input<typeof productSchema>) {
   if (!(await canUseBranch(ctx!, product.branchId))) return { error: "คุณไม่มีสิทธิ์ใช้งานสาขานี้" };
 
   const admin = createAdminClient();
-  let categoryId: string | null = null;
-  if (product.category) {
-    const { data: category, error } = await admin
-      .from("product_categories")
-      .upsert({ tenant_id: ctx!.tenantId, name: product.category }, { onConflict: "tenant_id,name" })
-      .select("id")
-      .single();
-    if (error || !category) return { error: "ไม่สามารถบันทึกหมวดสินค้าได้" };
-    categoryId = category.id;
-  }
-
-  const { data: created, error } = await admin
-    .from("products")
-    .insert({
-      tenant_id: ctx!.tenantId,
-      category_id: categoryId,
-      name: product.name,
-      sku: product.sku || null,
-      barcode: product.barcode || null,
-      product_type: product.productType,
-      cost_price: product.costPrice,
-      selling_price: product.sellingPrice,
-      low_stock_threshold: product.lowStockThreshold,
-      track_stock: product.trackStock,
-    })
-    .select("id")
-    .single();
-  if (error || !created) {
-    console.error("create product failed:", error);
-    return { error: error?.code === "23505" ? "SKU หรือ Barcode นี้ถูกใช้งานแล้ว" : "ไม่สามารถเพิ่มสินค้าได้" };
-  }
-
-  if (product.trackStock && product.initialStock > 0) {
-    const { error: stockError } = await admin.rpc("adjust_inventory", {
-      p_tenant_id: ctx!.tenantId,
-      p_branch_id: product.branchId,
-      p_product_id: created.id,
-      p_quantity_change: product.initialStock,
-      p_movement_type: "initial",
-      p_note: "ยอดตั้งต้นเมื่อสร้างสินค้า",
-      p_created_by: ctx!.staffId,
-      p_sale_id: null,
-    });
-    if (stockError) {
-      console.error("initial stock failed:", stockError);
-      return { error: "เพิ่มสินค้าแล้ว แต่บันทึกยอดตั้งต้นไม่สำเร็จ" };
-    }
-  }
+  const { data: productId, error } = await admin.rpc("create_pos_product", {
+    p_tenant_id: ctx!.tenantId, p_branch_id: product.branchId, p_staff_id: ctx!.staffId, p_product: product,
+  });
+  if (error || !productId) return { error: error?.code === "23505" ? "SKU หรือ Barcode นี้ถูกใช้งานแล้ว" : "เพิ่มสินค้าไม่สำเร็จ ตรวจสอบว่าระบบคลังสินค้าอัปเดตครบแล้ว" };
+  const created = { id: productId };
 
   await logAudit({
     tenantId: ctx!.tenantId,

@@ -311,6 +311,14 @@
   }
 
   .receipt-print {
+    /* Printed receipts must remain legible when the screen uses dark mode. */
+    --surface: 255 255 255;
+    --ink: 22 33 62;
+    --ink-soft: 22 33 62;
+    --line: 231 238 252;
+    color-scheme: light;
+    background: rgb(var(--surface));
+    color: rgb(var(--ink));
     position: absolute;
     inset: 0;
     width: 80mm;

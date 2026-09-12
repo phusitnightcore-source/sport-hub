@@ -38,9 +38,9 @@ export async function registerTournamentAction(formData: FormData) {
   const data = parsed.data;
 
   // Verify tournament is open for registration
-  const { data: tournament, error: tErr } = await admin
+  const { data: tournament, error: tErr } = await (admin as any)
     .from("tournaments")
-    .select("id, status, max_teams, entry_fee")
+    .select("id, status, max_teams, entry_fee, registration_deadline, require_video_proof, skill_verification_mode")
     .eq("id", data.tournament_id)
     .single();
 
@@ -50,6 +50,46 @@ export async function registerTournamentAction(formData: FormData) {
 
   if (tournament.status !== "registration_open") {
     return { success: false, error: "ทัวร์นาเมนต์นี้ไม่ได้อยู่ในช่วงเปิดรับสมัคร" };
+  }
+
+  if (tournament.registration_deadline && new Date(tournament.registration_deadline) < new Date()) {
+    return { success: false, error: "หมดเวลารับสมัครรายการนี้แล้ว" };
+  }
+
+  const { count: registrationCount } = await (admin as any)
+    .from("tournament_registrations")
+    .select("id", { count: "exact", head: true })
+    .eq("tournament_id", data.tournament_id);
+  if (tournament.max_teams && (registrationCount ?? 0) >= tournament.max_teams) {
+    return { success: false, error: "รายการนี้เต็มแล้ว" };
+  }
+
+  const videoUrl = (formData.get("video_url") as string)?.trim() || null;
+  const partnerVideoUrl = (formData.get("partner_video_url") as string)?.trim() || null;
+  if (tournament.skill_verification_mode === "skill_level" && tournament.require_video_proof && !videoUrl) {
+    return { success: false, error: "รายการนี้ต้องแนบลิงก์คลิปเพื่อตรวจระดับมือ" };
+  }
+
+  const slip = formData.get("payment_slip");
+  const hasPaidEntry = Number(tournament.entry_fee) > 0;
+  if (hasPaidEntry && (!(slip instanceof File) || slip.size === 0)) {
+    return { success: false, error: "กรุณาแนบสลิปชำระค่าสมัคร" };
+  }
+  if (slip instanceof File && slip.size > 10 * 1024 * 1024) {
+    return { success: false, error: "ไฟล์สลิปต้องมีขนาดไม่เกิน 10 MB" };
+  }
+  if (slip instanceof File && slip.size > 0 && !["image/jpeg", "image/png", "image/webp"].includes(slip.type)) {
+    return { success: false, error: "รองรับสลิป JPG, PNG หรือ WebP เท่านั้น" };
+  }
+
+  let slipPath: string | null = null;
+  if (slip instanceof File && slip.size > 0) {
+    const extension = slip.type === "image/png" ? "png" : slip.type === "image/webp" ? "webp" : "jpg";
+    slipPath = `tournament/${data.tournament_id}/${user.id}-${Date.now()}.${extension}`;
+    const { error: uploadError } = await (admin as any).storage
+      .from("slips")
+      .upload(slipPath, Buffer.from(await slip.arrayBuffer()), { contentType: slip.type, upsert: false });
+    if (uploadError) return { success: false, error: "อัปโหลดสลิปไม่สำเร็จ กรุณาลองใหม่" };
   }
 
   // Check if player already registered in this tournament
@@ -100,19 +140,8 @@ export async function registerTournamentAction(formData: FormData) {
       .maybeSingle();
 
     partnerId = existingPartner?.id || null;
-    if (!partnerId) {
-      const { data: newPartner } = await (admin as any)
-        .from("profiles")
-        .insert({
-          full_name: partnerName,
-          display_name: partnerName,
-          role: "member",
-        })
-        .select("id")
-        .single();
-      partnerId = newPartner?.id || null;
-    }
-
+    // A partner can be named before they have a SportHub account.  Do not
+    // fabricate a profile row, because profiles are tied to auth users.
     if (partnerId) {
       await (admin as any).from("team_members").insert({
         team_id: team.id,
@@ -125,9 +154,6 @@ export async function registerTournamentAction(formData: FormData) {
         .eq("id", team.id);
     }
   }
-
-  const videoUrl = (formData.get("video_url") as string)?.trim() || null;
-  const partnerVideoUrl = (formData.get("partner_video_url") as string)?.trim() || null;
 
   // Determine verification status
   const requireVideo = (tournament as any).require_video_proof;
@@ -150,6 +176,7 @@ export async function registerTournamentAction(formData: FormData) {
       team_id: team.id,
       player_id: user.id,
       payment_status: Number(tournament.entry_fee) === 0 ? "paid" : "pending",
+      slip_image_url: slipPath,
       video_url: videoUrl,
       partner_video_url: partnerVideoUrl,
       partner_name: data.partner_name || null,
@@ -160,6 +187,9 @@ export async function registerTournamentAction(formData: FormData) {
 
   if (regErr) {
     console.error("Registration error:", regErr);
+    // Registration can be rejected by the database when another person takes
+    // the last place simultaneously; do not leave an orphan team behind.
+    await (admin as any).from("teams").delete().eq("id", team.id);
     return { success: false, error: "ลงทะเบียนไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" };
   }
 
