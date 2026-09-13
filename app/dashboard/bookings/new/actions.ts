@@ -3,7 +3,8 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getStaffContext } from "@/lib/auth";
+import { getStaffContext, hasPermission } from "@/lib/auth";
+import { canUsePosBranch } from "@/lib/pos/access";
 import { logAudit } from "@/lib/audit";
 import { bangkokToday, bangkokNowTime } from "@/lib/api";
 import { buildSlots, toMinutes } from "@/lib/booking/slots";
@@ -16,6 +17,7 @@ const schema = z.object({
   endTime: z.string().regex(/^\d{2}:\d{2}$/),
   userName: z.string().trim().min(2).max(100),
   userPhone: z.string().regex(/^0\d{8,9}$/),
+  collectAtPos: z.boolean().default(false),
   method: z.enum(["walk_in_cash", "walk_in_transfer"]),
   note: z.string().trim().max(500).optional(),
 });
@@ -30,6 +32,7 @@ export async function createWalkInBooking(input: z.input<typeof schema>) {
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
+  if (d.collectAtPos && !hasPermission(ctx, "use_pos")) return { error: "ไม่มีสิทธิ์รับชำระผ่าน POS" };
 
   const admin = createAdminClient();
   const { data: court } = await admin
@@ -55,6 +58,7 @@ export async function createWalkInBooking(input: z.input<typeof schema>) {
     if (!allowed) return { error: "ไม่มีสิทธิ์จองสนามสาขานี้" };
   }
 
+  if (!(await canUsePosBranch(ctx, court.branch_id))) return { error: "ไม่มีสิทธิ์ใช้งานสาขานี้" };
   const today = bangkokToday();
   if (d.date < today) return { error: "จองย้อนหลังไม่ได้" };
 
@@ -115,7 +119,8 @@ export async function createWalkInBooking(input: z.input<typeof schema>) {
       price_per_hour: Number(satangToBahtString(Math.round(totalSatang / chosen.length))),
       total_price: Number(satangToBahtString(totalSatang)),
       price_type: anyPeak ? "peak" : "standard",
-      status: "confirmed", // รับเงินหน้าร้านแล้ว
+      status: d.collectAtPos ? "pending_payment" : "confirmed",
+      slot_locked_until: d.collectAtPos ? new Date(Date.now() + 15 * 60_000).toISOString() : null,
       payment_method: d.method,
       created_by: ctx.staffId,
       note: d.note ?? null,
@@ -130,15 +135,23 @@ export async function createWalkInBooking(input: z.input<typeof schema>) {
   }
 
   // บันทึกการรับเงิน (verified ทันที → trigger ออกใบเสร็จ §9.8)
-  await admin.from("payments").insert({
+  if (!d.collectAtPos) {
+  const { error: paymentError } = await admin.from("payments").insert({
     tenant_id: ctx.tenantId,
     booking_id: booking.id,
     amount: booking.total_price,
+    method: d.method,
     status: "verified",
     verified_by: ctx.staffId,
     verified_at: new Date().toISOString(),
     sender_name: d.method === "walk_in_cash" ? "เงินสด (หน้าเคาน์เตอร์)" : "โอน (หน้าเคาน์เตอร์)",
   });
+
+  if (paymentError) {
+    console.error("walk-in payment failed:", paymentError);
+    return { error: `สร้างการจอง ${booking.booking_code} แล้ว แต่บันทึกรับเงินไม่สำเร็จ กรุณาให้ผู้ดูแลตรวจสอบก่อนรับเงินซ้ำ` };
+  }
+  }
 
   await logAudit({
     tenantId: ctx.tenantId,
@@ -151,7 +164,7 @@ export async function createWalkInBooking(input: z.input<typeof schema>) {
   });
 
   revalidatePath("/dashboard/bookings");
-  return { success: true, bookingCode: booking.booking_code };
+  return { success: true, bookingCode: booking.booking_code, branchId: court.branch_id, collectAtPos: d.collectAtPos };
 }
 
 // บวกวันแบบ UTC (เลี่ยง DST/timezone) — คืน YYYY-MM-DD
@@ -167,6 +180,7 @@ export async function createRecurringWalkIn(
   input: z.input<typeof schema>,
   weeks: number,
 ): Promise<{ error?: string; created?: string[]; conflicts?: string[] }> {
+  if (input.collectAtPos) return { error: "จองซ้ำยังไม่รองรับรวมหลายการจองในบิลเดียว กรุณาจองทีละรายการ" };
   const n = Math.max(2, Math.min(12, Math.floor(weeks) || 0));
   const created: string[] = [];
   const conflicts: string[] = [];

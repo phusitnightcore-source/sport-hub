@@ -93,7 +93,7 @@ export default async function DashboardPage() {
     // 5. Completed POS sales today
     supabase
       .from("sales")
-      .select("id, total_amount, completed_at")
+      .select("id, total_amount, booking_charge, completed_at")
       .eq("tenant_id", ctx.tenantId)
       .eq("status", "completed")
       .gte("completed_at", `${today}T00:00:00+07:00`)
@@ -157,7 +157,7 @@ export default async function DashboardPage() {
 
   const posSalesList = posSalesRes.data ?? [];
   const posRevenueSatang = posSalesList.reduce(
-    (sum, sale) => sum + toSatang(sale.total_amount),
+    (sum, sale) => sum + toSatang(sale.total_amount) - toSatang(sale.booking_charge),
     0
   );
   const posSalesCount = posSalesList.length;

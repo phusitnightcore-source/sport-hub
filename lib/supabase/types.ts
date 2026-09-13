@@ -2161,6 +2161,8 @@ export type Database = {
       sales: {
         Row: {
           cash_received: number | null
+          booking_charge: number
+          booking_payment_id: string | null
           change_amount: number | null
           id: string
           tenant_id: string
@@ -3746,6 +3748,8 @@ export type Database = {
         Args: { p_tenant_id: string; p_sale_id: string; p_staff_id: string | null; p_reason: string; p_restock: boolean }
         Returns: void
       }
+      checkout_pos_booking: Database["public"]["Functions"]["checkout_pos_counter"]
+      void_pos_booking_sale: Database["public"]["Functions"]["void_pos_counter_sale"]
       checkout_pos_counter: {
         Args: {
           p_tenant_id: string; p_branch_id: string; p_staff_id: string | null; p_shift_id: string;

@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getStaffContext, hasPermission, type StaffContext } from "@/lib/auth";
+import { getStaffContext, hasPermission } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/supabase/types";
 import { canUsePosBranch } from "@/lib/pos/access";
-import type { CounterReport } from "@/lib/pos/types";
+import type { CounterBooking, CounterReport } from "@/lib/pos/types";
 
 const checkoutSchema = z.object({
   checkoutKey: z.string().uuid(),
@@ -19,17 +19,33 @@ const checkoutSchema = z.object({
   shiftId: z.string().uuid(),
   items: z
     .array(z.object({ productId: z.string().uuid(), quantity: z.number().int().min(1).max(100) }))
-    .min(1)
     .max(100),
   paymentMethod: z.enum(["cash", "transfer", "card", "other"]),
   customerName: z.string().trim().max(120).optional(),
   customerPhone: z.string().trim().max(30).optional(),
   bookingCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{8}$/).optional().or(z.literal("")),
+  collectBooking: z.boolean().default(false),
   note: z.string().trim().max(500).optional(),
   discountAmount: z.number().min(0).max(1_000_000).default(0),
-});
+}).refine(s => (s.items.length > 0 || s.collectBooking) && (!s.collectBooking || !!s.bookingCode));
 
 const canUseBranch = canUsePosBranch;
+
+export async function lookupPosBooking(branchId: string, code: string): Promise<{ data?: CounterBooking; error?: string }> {
+  const ctx = await getStaffContext();
+  if (!ctx || !hasPermission(ctx, "use_pos") || !(await canUseBranch(ctx, branchId))) return { error: "ไม่มีสิทธิ์ใช้งานสาขานี้" };
+  if (!/^[A-Z0-9]{8}$/.test(code.trim().toUpperCase())) return { error: "ระบุรหัสจอง 8 ตัว" };
+  const admin = createAdminClient();
+  const { data: b, error } = await admin.from("bookings")
+    .select("booking_code,user_name,user_phone,total_price,booking_date,start_time,end_time,status,slot_locked_until,payments(status,refund_status)")
+    .eq("tenant_id", ctx.tenantId).eq("branch_id", branchId).eq("booking_code", code.trim().toUpperCase()).maybeSingle();
+  if (error || !b) return { error: "ไม่พบการจองในสาขานี้ หรือโหลดข้อมูลไม่สำเร็จ" };
+  const pendingPayment = b.payments.some(p => p.status !== "rejected" || p.refund_status === "awaiting_refund");
+  const canCollect = b.status === "pending_payment" && !pendingPayment && (!b.slot_locked_until || Date.parse(b.slot_locked_until) > Date.now());
+  return { data: { code: b.booking_code, customerName: b.user_name, customerPhone: b.user_phone, amount: Number(b.total_price),
+    description: `${b.booking_date} · ${b.start_time.slice(0,5)}–${b.end_time.slice(0,5)}`, canCollect,
+    reason: canCollect ? "พร้อมรับชำระค่าจองพร้อมสินค้า" : "ชำระแล้ว / มีสลิปรอตรวจ / หมดเวลา หรือสถานะไม่พร้อมรับชำระ — อ้างอิงรหัสได้แต่ไม่เก็บค่าจองซ้ำ" } };
+}
 
 export async function openShift(branchId: string, startingCash: number) {
   if (!z.number().finite().min(0).max(1000000).safeParse(startingCash).success) return { error: "ยอดเงินตั้งต้นไม่ถูกต้อง" };
@@ -97,7 +113,7 @@ export async function getActiveShift(branchId: string) {
   const ctx = await getStaffContext();
   if (!ctx || !hasPermission(ctx, "use_pos") || !(await canUseBranch(ctx, branchId))) return { error: "ไม่มีสิทธิ์ใช้งานสาขานี้" };
   const admin = createAdminClient();
-  let query = admin
+  const query = admin
     .from("pos_shifts")
     .select("id, opened_at, starting_cash")
     .eq("tenant_id", ctx.tenantId)
@@ -165,7 +181,7 @@ export async function completePosSale(input: z.input<typeof checkoutSchema>) {
     customerPhone ||= booking.user_phone;
   }
 
-  const { data, error } = await admin.rpc("checkout_pos_counter", {
+  const { data, error } = await admin.rpc(sale.collectBooking ? "checkout_pos_booking" : "checkout_pos_counter", {
     p_checkout_key: sale.checkoutKey,
     p_expected_total: sale.expectedTotal,
     p_cash_received: sale.cashReceived,
@@ -206,6 +222,7 @@ export async function completePosSale(input: z.input<typeof checkoutSchema>) {
   revalidatePath("/pos");
   revalidatePath("/dashboard/inventory");
   revalidatePath("/dashboard/reports");
+  revalidatePath("/dashboard/bookings");
   return { success: true, saleId: result.sale_id, receiptNumber: result.receipt_number };
 }
 export async function recordCashMovement(input: { shiftId: string; amount: number; reason: string; requestId: string }) {
@@ -231,9 +248,9 @@ export async function refundPosSale(input: { saleId: string; reason: string; res
   const admin = createAdminClient();
   const { data: sale } = await admin.from("sales").select("branch_id").eq("id", input.saleId).eq("tenant_id", ctx.tenantId).maybeSingle();
   if (!sale || !(await canUseBranch(ctx, sale.branch_id))) return { error: "ไม่มีสิทธิ์เข้าถึงบิลนี้" };
-  const { error } = await admin.rpc("void_pos_counter_sale", { p_tenant_id: ctx.tenantId, p_sale_id: input.saleId, p_staff_id: ctx.staffId, p_reason: parsed.data.reason, p_restock: input.restock });
+  const { error } = await admin.rpc("void_pos_booking_sale", { p_tenant_id: ctx.tenantId, p_sale_id: input.saleId, p_staff_id: ctx.staffId, p_reason: parsed.data.reason, p_restock: input.restock });
   if (error) return { error: /[ก-๙]/.test(error.message) ? error.message : "คืนเงินไม่สำเร็จ" };
   await logAudit({ tenantId: ctx.tenantId, actorId: ctx.userId, actorRole: ctx.role, action: "refund_pos_sale", module: "pos", referenceId: input.saleId, after: parsed.data });
-  for (const path of ["/pos", "/dashboard", "/dashboard/inventory", "/dashboard/reports", "/pos/" + input.saleId + "/receipt"]) revalidatePath(path);
+  for (const path of ["/pos", "/dashboard", "/dashboard/bookings", "/dashboard/inventory", "/dashboard/reports", "/pos/" + input.saleId + "/receipt"]) revalidatePath(path);
   return { success: true };
 }

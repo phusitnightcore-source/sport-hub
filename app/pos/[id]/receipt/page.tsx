@@ -81,7 +81,7 @@ export default async function PosReceiptPage({ params }: { params: Promise<{ id:
 
         <section className="space-y-1.5 pt-4 text-body-sm">
           {sale.status === "voided" && <div className="mb-4 rounded-xl border border-danger/30 p-3 text-ink">บิลนี้ถูกคืนเงินแล้ว · {sale.void_reason}{sale.voided_at && <p className="mt-1 text-xs">{new Date(sale.voided_at).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}</p>}</div>}
-          <div className="flex justify-between text-ink-soft"><span>รวมสินค้า</span><span>฿{formatBahtFromDb(sale.subtotal)}</span></div>
+          <div className="flex justify-between text-ink-soft"><span>รวมรายการก่อนส่วนลด</span><span>฿{formatBahtFromDb(sale.subtotal)}</span></div>
           {Number(sale.discount_amount) > 0 && <div className="flex justify-between text-ink-soft"><span>ส่วนลด</span><span>-฿{formatBahtFromDb(sale.discount_amount)}</span></div>}
           <div className="flex justify-between border-t border-line pt-3 font-display text-body-lg font-bold text-ink"><span>รวมทั้งสิ้น</span><span>฿{formatBahtFromDb(sale.total_amount)}</span></div>
           <div className="flex justify-between pt-2 text-ink-soft"><span>ชำระโดย</span><span>{PAYMENT_METHOD_LABEL[payment?.method ?? ""] ?? "-"}</span></div>

@@ -1,6 +1,6 @@
 # สถานะการเชื่อมต่อระบบ (Integration Status)
 
-อัปเดต: 2026-09-12 — รวมทุกจุดที่ "โค้ดพร้อมแล้ว เหลือใส่ข้อมูล/ตั้งค่าภายนอก" และฟีเจอร์ที่ยังไม่ได้สร้าง
+อัปเดต: 2026-09-13 — รวมงานตั้งค่าภายนอกและช่องว่างที่พบจากการตรวจโค้ดล่าสุด
 
 สัญลักษณ์: ✅ เสร็จ/ทำงาน · 🟡 โค้ดพร้อม รอ config/key · 🔴 ยังไม่สร้าง
 
@@ -10,7 +10,7 @@
 
 | ระบบ | สถานะ | ใส่ตรงไหน | เหลืออะไร |
 |---|---|---|---|
-| **Supabase** (DB/Auth/Storage) | 🟡 | `.env.local` / production environment | มี migration พร้อม deploy 26 ไฟล์; project ที่ link ไว้ยัง `INACTIVE` จึงต้อง Restore/Activate, backup และ `supabase db push` ไป production — ดู `docs/TOURNAMENT_DATABASE_DEPLOYMENT.md` |
+| **Supabase** (DB/Auth/Storage) | 🟡 | `.env.local` / production environment | ผู้ใช้แจ้งว่าเปิดโปรเจกต์แล้ว แต่ยังตรวจสถานะ/migration history จริงไม่ได้เพราะการเข้าถึงถูกปฏิเสธ ต้องตรวจ สำรอง และ push migration ตามลำดับ รวมชุด POS `20260913000000` — ดู `docs/TOURNAMENT_DATABASE_DEPLOYMENT.md` และ `docs/POS_USAGE_AND_READINESS.md` |
 | **LINE OA (per-tenant)** | 🟡 | Dashboard → ตั้งค่า → เชื่อมต่อ LINE OA | สนามวาง Channel Access Token + Secret เอง + ตั้ง Webhook URL ในคอนโซล |
 | ↳ LINE webhook (เก็บ userId) | 🟡 | `/api/line/webhook/{tenantId}` | ลูกค้าแอด OA + พิมพ์เบอร์ → ผูกอัตโนมัติ (โค้ดพร้อม รอสนามตั้ง URL) |
 | ↳ LINE token กลาง (fallback) | 🟡 | `.env` `LINE_CHANNEL_ACCESS_TOKEN` | ไม่บังคับ — ใช้เมื่อสนามไม่ได้ตั้งเอง |
@@ -27,7 +27,7 @@
 
 ## 2. ฟีเจอร์ที่ยังไม่ได้สร้าง (🔴)
 
-_ครบทุกฟีเจอร์ในสโคปแล้ว — เหลือเฉพาะการตั้งค่าภายนอก/ใส่ key (ดู §1, §3) และ Sentry (§30, ต้อง `npm i`)_
+ไม่ควรตีความว่าทั้ง SOW ครบแล้ว การตรวจ POS ล่าสุดพบว่ายังไม่รวมค่าจองสนามกับสินค้าในรายการรับชำระเดียวตาม §13.3 และยังไม่มีระบบติดตามยืม–คืนอุปกรณ์เช่า ดูขอบเขตที่ทำแล้วและข้อจำกัดเพิ่มเติมใน `docs/POS_USAGE_AND_READINESS.md` การผ่าน build/unit tests ไม่ทดแทน UAT ฐานข้อมูลจริง
 
 ---
 

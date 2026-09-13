@@ -11,3 +11,4 @@ export type CounterReport = {
   cashMovements: { amount: number; reason: string; created_at: string }[];
 };
 export type DailySummary = { branch_id: string; sale_count: number; revenue: number };
+export type CounterBooking = { code: string; customerName: string; customerPhone: string; amount: number; description: string; canCollect: boolean; reason: string };

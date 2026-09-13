@@ -18,6 +18,7 @@ create table public.pos_cash_movements (
   unique (tenant_id, request_id)
 );
 alter table public.pos_cash_movements enable row level security;
+create index pos_cash_movements_shift on public.pos_cash_movements(tenant_id,shift_id,created_at);
 create policy pos_cash_branch_read on public.pos_cash_movements for select to authenticated
   using (tenant_id = auth_tenant_id() and (is_venue_admin() or branch_id = any(my_branch_ids())));
 grant select on public.pos_cash_movements to authenticated;

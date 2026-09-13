@@ -8,18 +8,13 @@ import {
   History,
   PackagePlus,
   PencilLine,
-  X,
   Store,
   ChevronDown,
   Check,
-  Package,
-  Layers,
-  ArrowUpDown
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { CounterDialog } from "@/components/ui/CounterDialog";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import { createProduct, updateProduct, recordStockMovement } from "./actions";
 
 type Branch = { id: string; name: string };
@@ -253,7 +248,7 @@ export function InventoryManager({
           <h2 className="font-display font-bold text-ink">
             รายการสินค้า ({visibleProducts.length} รายการ)
           </h2>
-          <span className="text-body-sm text-ink-soft">กด "ปรับสต็อก" เพื่อบันทึกเพิ่ม/ลดสินค้า</span>
+          <span className="text-body-sm text-ink-soft">กด “ปรับสต็อก” เพื่อบันทึกเพิ่ม/ลดสินค้า</span>
         </div>
         {visibleProducts.length === 0 ? (
           <div className="flex flex-col items-center gap-3 p-12 text-center text-body-sm text-ink-soft">

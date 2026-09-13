@@ -32,12 +32,13 @@ export async function POST(
   const admin = createAdminClient();
   const { data: payment } = await admin
     .from("payments")
-    .select("id, tenant_id, booking_id, refund_status")
+    .select("id, tenant_id, booking_id, refund_status, reference_module")
     .eq("id", id)
     .single();
   if (!payment || payment.tenant_id !== ctx.tenantId) {
     return apiError("NOT_FOUND", "ไม่พบรายการ", 404);
   }
+  if (payment.reference_module === "pos_counter") return apiError("VALIDATION_ERROR", "กรุณาคืนเงินบิลรวมที่หน้า POS เพื่อให้ยอดขายและค่าจองตรงกัน", 400);
   if (payment.refund_status !== "awaiting_refund") {
     return apiError("VALIDATION_ERROR", "รายการนี้ไม่อยู่ในคิวรอคืนเงิน", 400);
   }

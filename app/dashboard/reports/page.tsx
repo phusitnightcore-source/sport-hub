@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getStaffContext } from "@/lib/auth";
+import { getStaffContext, hasPermission } from "@/lib/auth";
 import { getTenantEntitlements } from "@/lib/entitlements.server";
 import { bangkokToday } from "@/lib/api";
 import {
@@ -17,6 +17,7 @@ import {
 export default async function ReportsPage() {
   const ctx = await getStaffContext();
   if (!ctx) redirect("/login");
+  if (!hasPermission(ctx, "view_revenue")) redirect("/dashboard");
 
   const supabase = await createClient();
   const admin = createAdminClient();
@@ -49,7 +50,9 @@ export default async function ReportsPage() {
     admin
       .from("payments")
       .select("id, amount, method, booking_id, member_id, verified_at, status")
+      .eq("tenant_id", ctx.tenantId)
       .eq("status", "verified")
+      .or("refund_status.is.null,refund_status.neq.refunded")
       .order("verified_at", { ascending: false }),
     admin
       .from("sales")
@@ -57,6 +60,7 @@ export default async function ReportsPage() {
         id,
         branch_id,
         total_amount,
+        booking_charge,
         subtotal,
         discount_amount,
         completed_at,
@@ -70,6 +74,7 @@ export default async function ReportsPage() {
     admin
       .from("bookings")
       .select("id, court_id, branch_id, booking_date, total_price, status, created_at, payment_method")
+      .eq("tenant_id", ctx.tenantId)
       .order("created_at", { ascending: false }),
     admin
       .from("members")
@@ -103,8 +108,8 @@ export default async function ReportsPage() {
   const posSales: ReportPosSale[] = (posSalesResult.data ?? []).map((s: any) => ({
     id: s.id,
     branch_id: s.branch_id,
-    total_amount: Number(s.total_amount),
-    subtotal: Number(s.subtotal),
+    total_amount: Number(s.total_amount) - Number(s.booking_charge ?? 0),
+    subtotal: Number(s.subtotal) - Number(s.booking_charge ?? 0),
     discount_amount: Number(s.discount_amount),
     completed_at: s.completed_at,
     receipt_number: s.receipt_number,

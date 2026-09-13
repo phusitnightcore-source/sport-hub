@@ -9,7 +9,9 @@ import {
   type SaleHistoryItem,
 } from "./PosClient";
 
-export default async function PosPage() {
+        booking_charge,
+export default async function PosPage({ searchParams }: { searchParams: Promise<{ booking?: string; branch?: string }> }) {
+  const initial = await searchParams;
   const ctx = await getStaffContext();
   if (!ctx) redirect("/login");
   if (!hasPermission(ctx, "use_pos")) redirect("/dashboard");
@@ -141,7 +143,7 @@ export default async function PosPage() {
     notes: s.notes,
   }));
 
-  const pastSales: SaleHistoryItem[] = (recentSalesResult.data ?? []).map((s: any) => ({
+  const pastSales: SaleHistoryItem[] = (recentSalesResult.data ?? []).map((s) => ({
     id: s.id,
     receipt_number: s.receipt_number,
     sale_number: s.sale_number,
@@ -159,6 +161,8 @@ export default async function PosPage() {
 
   return (
     <PosClient
+      initialBookingCode={typeof initial.booking === "string" && /^[A-Z0-9]{8}$/.test(initial.booking) ? initial.booking : ""}
+      initialBranchId={initial.branch}
       branches={branches ?? []}
       products={products}
       activeShifts={activeShiftsResult.data ?? []}

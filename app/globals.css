@@ -92,6 +92,16 @@
 }
 
 @layer utilities {
+  /* Counter primary actions follow the explicit theme toggle, not OS preference. */
+  .pos-primary {
+    background-color: rgb(var(--brand-dark));
+    color: rgb(255 255 255);
+  }
+  :root[data-theme="dark"] .pos-primary {
+    background-color: rgb(var(--brand));
+    color: rgb(var(--surface));
+  }
+  .pos-primary:hover:not(:disabled) { filter: brightness(0.95); }
   /* ---- Status pill พื้นฐาน (ใช้ผ่าน components/ui/StatusPill.tsx เท่านั้น) ---- */
   .pill-success  { background: rgb(var(--success) / 0.1);  color: rgb(var(--success)); }
   .pill-danger   { background: rgb(var(--danger) / 0.1);   color: rgb(var(--danger)); }

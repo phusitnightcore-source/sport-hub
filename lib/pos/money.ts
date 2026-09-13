@@ -4,11 +4,12 @@ export function satang(value: number) {
   return Math.round((value + Number.EPSILON) * 100);
 }
 
-export function cartTotals(items: { price: number; quantity: number }[], discount: number, percent = false) {
+export function cartTotals(items: { price: number; quantity: number }[], discount: number, percent = false, courtCharge = 0) {
   const subtotal = items.reduce((sum, item) => sum + satang(item.price) * item.quantity, 0);
   const reduction = percent ? Math.round(subtotal * discount / 100) : satang(discount);
   if (!Number.isFinite(reduction) || reduction < 0 || reduction > subtotal) throw new Error("ส่วนลดต้องไม่เกินยอดสินค้า");
-  return { subtotal: subtotal / 100, discount: reduction / 100, total: (subtotal - reduction) / 100 };
+  // The booking is already priced; product discounts must not reduce its payment.
+  return { subtotal: subtotal / 100, discount: reduction / 100, total: (subtotal - reduction + satang(courtCharge)) / 100 };
 }
 
 export function cashChange(total: number, received: number) {

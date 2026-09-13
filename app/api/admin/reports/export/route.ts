@@ -83,6 +83,7 @@ export async function GET(request: Request) {
         "amount, status, method, booking_id, member_id, verified_at, submitted_at",
       )
       .eq("status", "verified")
+      .or("refund_status.is.null,refund_status.neq.refunded")
       .gte("verified_at", monthStartIso)
       .lt("verified_at", nextMonth.toISOString())
       .order("verified_at");
@@ -100,7 +101,7 @@ export async function GET(request: Request) {
     // รายงานการขาย POS หน้าร้าน
     const { data } = await supabase
       .from("sales")
-      .select("receipt_number, sale_number, customer_name, customer_phone, subtotal, discount_amount, total_amount, completed_at, branches(name)")
+      .select("receipt_number, sale_number, customer_name, customer_phone, subtotal, discount_amount, total_amount, booking_charge, completed_at, branches(name)")
       .eq("status", "completed")
       .gte("completed_at", monthStartIso)
       .lt("completed_at", nextMonth.toISOString())
@@ -113,7 +114,9 @@ export async function GET(request: Request) {
       เบอร์โทร: s.customer_phone || "",
       ยอดรวมก่อนลด: s.subtotal,
       ส่วนลด: s.discount_amount,
-      ยอดสุทธิ: s.total_amount,
+      ยอดรับชำระรวม: s.total_amount,
+      ค่าจองที่รวมในบิล: s.booking_charge,
+      รายได้สินค้าและบริการสุทธิ: Number(s.total_amount) - Number(s.booking_charge ?? 0),
       วันที่ทำรายการ: s.completed_at,
     }));
     csv = toCsv(rows, Object.keys(rows[0] ?? { ไม่มีข้อมูล: "" }));

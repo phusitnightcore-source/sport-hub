@@ -39,6 +39,7 @@ export function WalkInForm({
   const [start, setStart] = useState(defaultStart ?? "");
   const [hours, setHours] = useState(1);
   const [method, setMethod] = useState<"walk_in_cash" | "walk_in_transfer">("walk_in_cash");
+  const [collectAtPos, setCollectAtPos] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -67,6 +68,7 @@ export function WalkInForm({
       userName: String(f.get("userName")),
       userPhone: String(f.get("userPhone")),
       method,
+      collectAtPos,
       note: String(f.get("note") ?? "").trim() || undefined,
     };
 
@@ -86,6 +88,10 @@ export function WalkInForm({
     if (res.error) {
       setError(res.error);
       setBusy(false);
+      return;
+    }
+    if (res.collectAtPos) {
+      router.push(`/pos?booking=${encodeURIComponent(res.bookingCode!)}&branch=${encodeURIComponent(res.branchId!)}`);
       return;
     }
     setDone(res.bookingCode!);
@@ -186,7 +192,8 @@ export function WalkInForm({
       </div>
       <Input label="หมายเหตุ (ถ้ามี)" name="note" icon={<StickyNote />} />
 
-      <div className="flex flex-col gap-2">
+      <label className="flex items-start gap-3 rounded-xl border border-line bg-brand-soft p-4 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" checked={collectAtPos} disabled={repeat} onChange={e => setCollectAtPos(e.target.checked)}/><span><strong>รับชำระพร้อมสินค้าใน POS</strong><span className="mt-1 block">กันสนาม 15 นาที แล้วย้ายไปเลือกสินค้าและรับชำระในใบเสร็จเดียว ยังไม่ถือว่ารับเงินแล้ว</span></span></label>
+      {!collectAtPos && <div className="flex flex-col gap-2">
         <label className="text-body-sm font-medium text-ink">วิธีรับชำระ</label>
         <div className="grid grid-cols-2 gap-3">
           {([
@@ -214,12 +221,14 @@ export function WalkInForm({
         </div>
       </div>
 
+      }
       {/* จองซ้ำรายสัปดาห์ (ทีมประจำ) */}
       <div className="flex flex-col gap-2 rounded-sm bg-brand-soft/30 p-4 ring-1 ring-inset ring-line">
         <label className="flex items-center gap-2 text-body-sm font-medium text-ink">
           <input
             type="checkbox"
             checked={repeat}
+            disabled={collectAtPos}
             onChange={(e) => setRepeat(e.target.checked)}
             className="h-4 w-4 accent-brand"
           />
@@ -247,7 +256,7 @@ export function WalkInForm({
           ? "กำลังจอง..."
           : repeat
             ? `ยืนยันจองซ้ำ ${weeks} สัปดาห์ (รับเงินแล้ว)`
-            : "ยืนยันการจอง (รับเงินแล้ว)"}
+            : collectAtPos ? "กันสนามและไปชำระที่ POS" : "ยืนยันการจอง (รับเงินแล้ว)"}
       </Button>
     </form>
   );
