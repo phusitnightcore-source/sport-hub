@@ -6,8 +6,9 @@ test.describe("public pages", () => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveTitle(/SportHub/i);
   });
-  
 
+
+  
   test("login แสดงฟอร์ม", async ({ page }) => {
     await page.goto("/login", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("button", { name: "เข้าสู่ระบบ" })).toBeVisible();
