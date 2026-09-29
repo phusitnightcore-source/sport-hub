@@ -77,7 +77,7 @@ export function addPoint(state: MatchState, scoringTeam: 1 | 2): MatchState {
   const scoringScore = scoringTeam === 1 ? newTeam1Score : newTeam2Score;
 
   let newPositions: CourtPositions = { ...state.positions };
-  let newServingTeam: 1 | 2 = scoringTeam;
+  const newServingTeam: 1 | 2 = scoringTeam;
   let newServerId = state.server_player_id;
   let newReceiverId = state.receiver_player_id;
 

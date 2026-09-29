@@ -30,7 +30,7 @@ export function autoGenerateMatch(availablePlayers: AvailablePlayer[]): {
   const candidatePool = sorted.slice(0, Math.min(8, sorted.length));
 
   // Find the combination of 4 players with the closest MMR variance
-  let bestFour = candidatePool.slice(0, 4);
+  const bestFour = candidatePool.slice(0, 4);
 
   // 3. Balance 2 teams (Team A vs Team B) from these 4 players: (P1 + P4) vs (P2 + P3)
   const sortedFour = [...bestFour].sort((a, b) => b.mmr - a.mmr);

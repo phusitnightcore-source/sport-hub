@@ -280,7 +280,7 @@ export function QueueMasterStationClient({
                 <Icon icon="solar:play-circle-bold-duotone" width={48} className="opacity-20 mb-2" style={{ color: 'var(--bg-gray-500)' }} />
                 <h3 className="font-bold text-lg">ยังไม่มีการแข่งขัน</h3>
                 <p className="text-sm max-w-sm mb-3" style={{ color: 'var(--bg-gray-500)' }}>
-                  กดปุ่ม "Magic Match" หรือเลือกแท็บจัดคู่ เพื่อนำผู้เล่นลงคอร์ท
+                  กดปุ่ม &quot;Magic Match&quot; หรือเลือกแท็บจัดคู่ เพื่อนำผู้เล่นลงคอร์ท
                 </p>
                 <button onClick={handleMagicMatch} className="bg-btn bg-btn-primary px-6">
                   <Icon icon="solar:magic-stick-3-bold-duotone" width={18} />

@@ -46,7 +46,7 @@ export default async function LeaderboardPage({
   const admin = createAdminClient();
 
   // 1. Fetch top players from profiles (MMR ecosystem)
-  let profilesQuery = admin
+  const profilesQuery = admin
     .from("profiles")
     .select("id, display_name, full_name, avatar_url, skill_level, mmr")
     .not("mmr", "is", null)
@@ -67,15 +67,16 @@ export default async function LeaderboardPage({
   let leaders: LeaderItem[] = [];
 
   if (pData && pData.length > 0) {
-    leaders = pData.map((p) => ({
+    leaders = pData.map((p, index) => ({
       id: p.id,
       name: p.display_name || p.full_name || "นักกีฬา",
       avatar_url: p.avatar_url,
       sport: "badminton",
       skill_level: p.skill_level || "ทั่วไป",
       mmr: p.mmr || 1000,
-      games_played: Math.floor(Math.random() * 20) + 5, // fallback realistic activity
-      wins: Math.floor(Math.random() * 15) + 3,
+      // Stable fallback values keep server rendering deterministic.
+      games_played: 5 + ((index * 7) % 20),
+      wins: 3 + ((index * 5) % 15),
     }));
   } else if (eloData && eloData.length > 0) {
     leaders = eloData.map((e: any) => ({

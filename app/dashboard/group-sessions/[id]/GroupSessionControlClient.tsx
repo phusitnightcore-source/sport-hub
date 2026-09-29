@@ -551,7 +551,7 @@ export function GroupSessionControlClient({
                   ยังไม่มีแมตช์ที่กำลังเล่น
                 </p>
                 <p className="text-sm mt-1" style={{ color: "var(--bg-gray-500)" }}>
-                  กดปุ่ม Magic Match หรือไปที่แท็บ "จัดคิว & จับคู่" เพื่อส่งคู่นักกีฬาลงสนาม
+                  กดปุ่ม Magic Match หรือไปที่แท็บ &quot;จัดคิว &amp; จับคู่&quot; เพื่อส่งคู่นักกีฬาลงสนาม
                 </p>
               </div>
             ) : (
