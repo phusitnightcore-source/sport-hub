@@ -310,7 +310,7 @@ export type Database = {
           note: string | null
           reason: string
           start_time: string
-          tenant_id: string
+          tenant_id: string | null
         }
         Insert: {
           block_date: string
@@ -362,6 +362,9 @@ export type Database = {
       }
       bookings: {
         Row: {
+          attendance_status: string
+          checked_in_at: string | null
+          completed_at: string | null
           booking_code: string
           booking_date: string
           booking_range: unknown
@@ -395,6 +398,9 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
         }
         Insert: {
+          attendance_status?: string
+          checked_in_at?: string | null
+          completed_at?: string | null
           booking_code?: string
           booking_date: string
           booking_range?: unknown
@@ -428,6 +434,9 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
         }
         Update: {
+          attendance_status?: string
+          checked_in_at?: string | null
+          completed_at?: string | null
           booking_code?: string
           booking_date?: string
           booking_range?: unknown
@@ -2642,6 +2651,11 @@ export type Database = {
       }
       coach_bookings: {
         Row: {
+          accepted_at: string | null
+          booking_range: unknown
+          branch_id: string | null
+          court_booking_id: string | null
+          court_id: string | null
           id: string
           coach_profile_id: string
           player_profile_id: string
@@ -2659,10 +2673,17 @@ export type Database = {
           cancel_reason: string | null
           cancelled_by: "player" | "coach" | null
           completed_at: string | null
+          started_at: string | null
+          tenant_id: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
+          accepted_at?: string | null
+          booking_range?: unknown
+          branch_id?: string | null
+          court_booking_id?: string | null
+          court_id?: string | null
           id?: string
           coach_profile_id: string
           player_profile_id: string
@@ -2680,10 +2701,17 @@ export type Database = {
           cancel_reason?: string | null
           cancelled_by?: "player" | "coach" | null
           completed_at?: string | null
+          started_at?: string | null
+          tenant_id?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
+          accepted_at?: string | null
+          booking_range?: unknown
+          branch_id?: string | null
+          court_booking_id?: string | null
+          court_id?: string | null
           id?: string
           coach_profile_id?: string
           player_profile_id?: string
@@ -2701,10 +2729,19 @@ export type Database = {
           cancel_reason?: string | null
           cancelled_by?: "player" | "coach" | null
           completed_at?: string | null
+          started_at?: string | null
+          tenant_id?: string | null
           created_at?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "coach_bookings_court_booking_id_fkey"
+            columns: ["court_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "coach_bookings_coach_profile_id_fkey"
             columns: ["coach_profile_id"]
@@ -2921,7 +2958,7 @@ export type Database = {
       tournaments: {
         Row: {
           id: string
-          tenant_id: string
+          tenant_id: string | null
           branch_id: string | null
           organizer_id: string
           name: string
@@ -2936,13 +2973,19 @@ export type Database = {
           rules: string | null
           prize_info: string | null
           bracket_type: "single_elimination" | "double_elimination" | "round_robin" | "group_knockout"
+          format: "knockout" | "round_robin" | "group_knockout" | "double_elimination"
+          skill_verification_mode: "open" | "skill_level" | "rating"
+          require_video_proof: boolean
+          has_third_place_match: boolean
+          check_in_time: string | null
+          start_time: string | null
           status: "draft" | "registration_open" | "registration_closed" | "in_progress" | "completed" | "cancelled"
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
-          tenant_id: string
+          tenant_id?: string | null
           branch_id?: string | null
           organizer_id: string
           name: string
@@ -2969,7 +3012,7 @@ export type Database = {
         }
         Update: {
           id?: string
-          tenant_id?: string
+          tenant_id?: string | null
           branch_id?: string | null
           organizer_id?: string
           name?: string
@@ -3087,6 +3130,11 @@ export type Database = {
           rating_at_registration: number | null
           checkin_status: "not_checked_in" | "checked_in"
           checked_in_at: string | null
+          payment_notes: string | null
+          payment_verified_by: string | null
+          payment_verified_at: string | null
+          verified_by: string | null
+          verified_at: string | null
         }
         Insert: {
           id?: string
@@ -3106,6 +3154,11 @@ export type Database = {
           rating_at_registration?: number | null
           checkin_status?: "not_checked_in" | "checked_in"
           checked_in_at?: string | null
+          payment_notes?: string | null
+          payment_verified_by?: string | null
+          payment_verified_at?: string | null
+          verified_by?: string | null
+          verified_at?: string | null
         }
         Update: {
           id?: string
@@ -3125,8 +3178,15 @@ export type Database = {
           rating_at_registration?: number | null
           checkin_status?: "not_checked_in" | "checked_in"
           checked_in_at?: string | null
+          payment_notes?: string | null
+          payment_verified_by?: string | null
+          payment_verified_at?: string | null
+          verified_by?: string | null
+          verified_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          { foreignKeyName: "tournament_registrations_player_id_fkey"; columns: ["player_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ]
       }
       matches: {
         Row: {
@@ -3647,8 +3707,152 @@ export type Database = {
         }
         Relationships: []
       }
+      organizer_plans: {
+        Row: {
+          code: Database["public"]["Enums"]["organizer_plan_code"]
+          name: string
+          description: string
+          price_satang: number
+          can_manage_groups: boolean
+          can_manage_tournaments: boolean
+          badge_label: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          code: Database["public"]["Enums"]["organizer_plan_code"]
+          name: string
+          description: string
+          price_satang: number
+          can_manage_groups?: boolean
+          can_manage_tournaments?: boolean
+          badge_label: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          code?: Database["public"]["Enums"]["organizer_plan_code"]
+          name?: string
+          description?: string
+          price_satang?: number
+          can_manage_groups?: boolean
+          can_manage_tournaments?: boolean
+          badge_label?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      organizer_subscriptions: {
+        Row: {
+          id: string
+          profile_id: string
+          plan_code: Database["public"]["Enums"]["organizer_plan_code"]
+          status: Database["public"]["Enums"]["organizer_subscription_status"]
+          current_period_start: string | null
+          current_period_end: string | null
+          auto_renew: boolean
+          activated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          plan_code: Database["public"]["Enums"]["organizer_plan_code"]
+          status?: Database["public"]["Enums"]["organizer_subscription_status"]
+          current_period_start?: string | null
+          current_period_end?: string | null
+          auto_renew?: boolean
+          activated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          plan_code?: Database["public"]["Enums"]["organizer_plan_code"]
+          status?: Database["public"]["Enums"]["organizer_subscription_status"]
+          current_period_start?: string | null
+          current_period_end?: string | null
+          auto_renew?: boolean
+          activated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          { foreignKeyName: "organizer_subscriptions_profile_id_fkey"; columns: ["profile_id"]; isOneToOne: true; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "organizer_subscriptions_activated_by_fkey"; columns: ["activated_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "organizer_subscriptions_plan_code_fkey"; columns: ["plan_code"]; isOneToOne: false; referencedRelation: "organizer_plans"; referencedColumns: ["code"] },
+        ]
+      }
+      organizer_subscription_orders: {
+        Row: {
+          id: string
+          profile_id: string
+          plan_code: Database["public"]["Enums"]["organizer_plan_code"]
+          amount_satang: number
+          status: Database["public"]["Enums"]["organizer_order_status"]
+          sender_name: string
+          transfer_at: string
+          payment_reference: string | null
+          slip_path: string | null
+          review_note: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          plan_code: Database["public"]["Enums"]["organizer_plan_code"]
+          amount_satang: number
+          status?: Database["public"]["Enums"]["organizer_order_status"]
+          sender_name: string
+          transfer_at: string
+          payment_reference?: string | null
+          slip_path?: string | null
+          review_note?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          plan_code?: Database["public"]["Enums"]["organizer_plan_code"]
+          amount_satang?: number
+          status?: Database["public"]["Enums"]["organizer_order_status"]
+          sender_name?: string
+          transfer_at?: string
+          payment_reference?: string | null
+          slip_path?: string | null
+          review_note?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          { foreignKeyName: "organizer_subscription_orders_profile_id_fkey"; columns: ["profile_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "organizer_subscription_orders_reviewed_by_fkey"; columns: ["reviewed_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "organizer_subscription_orders_plan_code_fkey"; columns: ["plan_code"]; isOneToOne: false; referencedRelation: "organizer_plans"; referencedColumns: ["code"] },
+        ]
+      }
     }
     Views: {
+      organizer_badges: {
+        Row: {
+          profile_id: string | null
+          badge_type: string | null
+          label: string | null
+          priority: number | null
+          valid_until: string | null
+        }
+        Relationships: []
+      }
       rallies: {
         Row: {
           id: number | null
@@ -3686,11 +3890,30 @@ export type Database = {
       }
     }
     Functions: {
+      next_member_number: { Args: { p_tenant_id: string }; Returns: string }
+      has_organizer_entitlement: { Args: { p_profile_id: string; p_feature: string }; Returns: boolean }
+      join_community_group: { Args: { p_group_id: string; p_profile_id: string }; Returns: undefined }
+      leave_community_group: { Args: { p_group_id: string; p_profile_id: string }; Returns: undefined }
+      review_organizer_order: {
+        Args: { p_order_id: string; p_decision: string; p_note: string; p_reviewer: string }
+        Returns: { profile_id: string; plan_code: Database["public"]["Enums"]["organizer_plan_code"]; order_status: Database["public"]["Enums"]["organizer_order_status"]; current_period_end: string | null }[]
+      }
       auth_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
       auth_tenant_id: { Args: never; Returns: string }
+      cancel_guest_booking: { Args: { p_code: string }; Returns: Json }
+      create_linked_coach_booking: { Args: { p_player_id:string; p_coach_id:string; p_service_id:string; p_court_booking_id:string; p_note:string }; Returns: Json }
+      cancel_player_coach_booking: { Args: { p_actor_id:string; p_booking_id:string; p_reason:string }; Returns: Json }
+      respond_coach_booking: { Args: { p_actor_id:string; p_booking_id:string; p_action:string; p_note:string }; Returns: Json }
+      advance_coach_booking: { Args: { p_actor_id:string; p_booking_id:string; p_action:string }; Returns: Json }
+      platform_coach_booking_summary: { Args: never; Returns: Json }
+      replace_coach_schedule: { Args: { p_actor_id:string; p_schedules:Json }; Returns: Json }
+      reschedule_booking: { Args: { p_tenant_id:string; p_booking_id:string; p_actor_id:string; p_date:string; p_start:string; p_reason:string }; Returns: Json }
+      set_booking_attendance: { Args: { p_tenant_id:string; p_booking_id:string; p_actor_id:string; p_status:string; p_reason:string }; Returns: Json }
+      booking_operation_history: { Args: { p_tenant_id:string; p_booking_id:string }; Returns: Json }
+      verify_booking_payment: { Args: { p_tenant_id:string; p_payment_id:string; p_staff_id:string|null; p_actor_id:string; p_approve:boolean; p_reason:string }; Returns: Json }
       is_staff: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       is_venue_admin: { Args: never; Returns: boolean }
@@ -3749,6 +3972,10 @@ export type Database = {
         Returns: void
       }
       checkout_pos_booking: Database["public"]["Functions"]["checkout_pos_counter"]
+      create_pos_walk_in: {
+        Args: { p_tenant_id: string; p_staff_id: string | null; p_booking: Json; p_collect_at_pos: boolean }
+        Returns: { id: string; booking_code: string; total_price: number }[]
+      }
       void_pos_booking_sale: Database["public"]["Functions"]["void_pos_counter_sale"]
       checkout_pos_counter: {
         Args: {
@@ -3816,6 +4043,9 @@ export type Database = {
         | "membership"
         | "promotion"
         | "system"
+      organizer_plan_code: "group_host" | "tournament_host" | "organizer_pro"
+      organizer_subscription_status: "pending" | "active" | "past_due" | "cancelled" | "expired"
+      organizer_order_status: "awaiting_verification" | "paid" | "rejected" | "expired"
       package_type:
         | "daily"
         | "weekly"
@@ -4015,6 +4245,9 @@ export const Constants = {
         "promotion",
         "system",
       ],
+      organizer_plan_code: ["group_host", "tournament_host", "organizer_pro"],
+      organizer_subscription_status: ["pending", "active", "past_due", "cancelled", "expired"],
+      organizer_order_status: ["awaiting_verification", "paid", "rejected", "expired"],
       package_type: [
         "daily",
         "weekly",

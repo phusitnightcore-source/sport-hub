@@ -12,6 +12,7 @@ export const metadata = {
 export default async function NewTournamentPage() {
   const ctx = await getStaffContext();
   if (!ctx) redirect("/login");
+  if (ctx.role !== "venue_admin") redirect("/dashboard");
 
   const admin = createAdminClient();
 

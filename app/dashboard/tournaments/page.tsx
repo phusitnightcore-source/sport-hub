@@ -45,6 +45,7 @@ const STATUS_MAP: Record<string, { label: string; tone: string }> = {
 export default async function DashboardTournamentsPage() {
   const ctx = await getStaffContext();
   if (!ctx) redirect("/login");
+  if (ctx.role !== "venue_admin") redirect("/dashboard");
 
   const admin = createAdminClient();
 

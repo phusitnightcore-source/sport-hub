@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getStaffContext } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
+import { notifyMemberSafely } from "@/lib/membership/notifications";
 
 export async function processFreezeRequest(
   requestId: string,
@@ -83,6 +84,17 @@ export async function processFreezeRequest(
       referenceId: requestId,
     });
   }
+
+  await notifyMemberSafely({
+    tenantId: ctx.tenantId,
+    memberId: request.member_id,
+    title: action === "approve" ? "อนุมัติการระงับสมาชิกแล้ว" : "คำขอระงับสมาชิกไม่ได้รับอนุมัติ",
+    body: action === "approve"
+      ? "สนามอนุมัติคำขอ Freeze แล้ว อายุสมาชิกจะหยุดนับจนกว่าคุณจะกลับมาเปิดใช้งาน"
+      : `เหตุผล: ${rejectReason || "ไม่อนุมัติ"}`,
+    referenceId: requestId,
+    referenceType: "freeze_request",
+  });
 
   revalidatePath("/dashboard/members/freeze-requests");
   revalidatePath("/dashboard/members");

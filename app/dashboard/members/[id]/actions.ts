@@ -5,6 +5,7 @@ import { getStaffContext } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import type { Database } from "@/lib/supabase/types";
+import { notifyMemberSafely } from "@/lib/membership/notifications";
 
 type MemberStatus = Database["public"]["Enums"]["member_status"];
 
@@ -16,7 +17,7 @@ export async function updateMemberStatus(memberId: string, newStatus: MemberStat
 
   const { data: member } = await admin
     .from("members")
-    .select("status, tenant_id")
+    .select("status, tenant_id, first_name")
     .eq("id", memberId)
     .single();
 
@@ -40,6 +41,18 @@ export async function updateMemberStatus(memberId: string, newStatus: MemberStat
     referenceId: memberId,
     before: { status: member.status },
     after: { status: newStatus },
+  });
+
+  const statusLabels: Record<MemberStatus, string> = {
+    active: "เปิดใช้งาน",
+    frozen: "ระงับชั่วคราว",
+    expired: "หมดอายุ",
+  };
+  await notifyMemberSafely({
+    tenantId: ctx.tenantId,
+    memberId,
+    title: "สถานะสมาชิกมีการเปลี่ยนแปลง",
+    body: `${member.first_name} สถานะสมาชิกของคุณถูกเปลี่ยนเป็น “${statusLabels[newStatus]}”`,
   });
 
   revalidatePath(`/dashboard/members/${memberId}`);

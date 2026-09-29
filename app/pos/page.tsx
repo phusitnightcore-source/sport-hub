@@ -9,7 +9,6 @@ import {
   type SaleHistoryItem,
 } from "./PosClient";
 
-        booking_charge,
 export default async function PosPage({ searchParams }: { searchParams: Promise<{ booking?: string; branch?: string }> }) {
   const initial = await searchParams;
   const ctx = await getStaffContext();
@@ -94,6 +93,7 @@ export default async function PosPage({ searchParams }: { searchParams: Promise<
         customer_name,
         customer_phone,
         total_amount,
+        booking_charge,
         discount_amount,
         subtotal,
         completed_at,

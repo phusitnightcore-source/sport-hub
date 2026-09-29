@@ -73,7 +73,7 @@ begin
       p_payment_method,p_items,p_expected_total-v_booking.total_price,p_cash_received,p_customer_name,p_customer_phone,
       p_booking_id,p_note,p_discount_amount,p_reference);
     v_sale:=v_result.sale_id; v_receipt:=v_result.receipt_number;
-    update sales set subtotal=subtotal+v_booking.total_price,total_amount=total_amount+v_booking.total_price where id=v_sale;
+    update sales set subtotal=sales.subtotal+v_booking.total_price,total_amount=sales.total_amount+v_booking.total_price where id=v_sale;
     update pos_payments set amount=amount+v_booking.total_price where pos_payments.sale_id=v_sale;
   else
     if p_discount_amount<>0 or round(p_expected_total,2)<>v_booking.total_price then raise exception 'ค่าจองเปลี่ยน กรุณาตรวจยอดใหม่'; end if;
@@ -92,7 +92,7 @@ begin
   insert into payments(tenant_id,booking_id,amount,method,status,verified_by,verified_at,reference_module,reference_id)
   values(p_tenant_id,p_booking_id,v_booking.total_price,v_method,'verified',p_staff_id,now(),'pos_counter',v_sale) returning id into v_payment;
   -- One receipt number shared by booking and POS, with the full tendered amount.
-  insert into receipts(tenant_id,payment_id,receipt_number,customer_name,description,amount,payment_method)
+  insert into receipts(tenant_id,payment_id,receipt_number,customer_name,item_description,amount,payment_method)
   values(p_tenant_id,v_payment,v_receipt,coalesce(nullif(trim(p_customer_name),''),v_booking.user_name),
     v_description||' และสินค้าตามบิล POS',round(p_expected_total,2),p_payment_method::text);
   update sales set booking_charge=v_booking.total_price,booking_payment_id=v_payment,
@@ -111,7 +111,7 @@ begin
   select * into v_sale from sales where id=p_sale_id and tenant_id=p_tenant_id;
   if v_sale.booking_payment_id is not null then
     perform 1 from bookings where id=v_sale.booking_id for update;
-    update payments set refund_status='refunded',refund_confirmed_at=now()
+    update payments set refund_status='refunded',refund_confirmed_at=now(),refund_confirmed_by=p_staff_id
       where id=v_sale.booking_payment_id and refund_status is distinct from 'refunded'::refund_status;
     update bookings set status='refunded',cancelled_at=coalesce(cancelled_at,now()),cancel_reason=p_reason where id=v_sale.booking_id;
   end if;
@@ -121,3 +121,33 @@ revoke all on function public.checkout_pos_booking(uuid,uuid,uuid,uuid,uuid,pos_
 revoke all on function public.void_pos_booking_sale(uuid,uuid,uuid,text,boolean) from public,anon,authenticated;
 grant execute on function public.checkout_pos_booking(uuid,uuid,uuid,uuid,uuid,pos_payment_method,jsonb,numeric,numeric,text,text,uuid,text,numeric,text) to service_role;
 grant execute on function public.void_pos_booking_sale(uuid,uuid,uuid,text,boolean) to service_role;
+
+-- Walk-in creation must not leave a confirmed booking without its payment.
+create or replace function public.create_pos_walk_in(p_tenant_id uuid,p_staff_id uuid,p_booking jsonb,p_collect_at_pos boolean)
+returns table(id uuid,booking_code text,total_price numeric)
+language plpgsql security definer set search_path=public as $$
+declare v_input bookings%rowtype; v_booking bookings%rowtype; v_payment uuid;
+begin
+  select * into v_input from jsonb_populate_record(null::bookings,p_booking);
+  if not exists(select 1 from courts where courts.id=v_input.court_id and tenant_id=p_tenant_id and branch_id=v_input.branch_id and status='open') then
+    raise exception 'ไม่พบสนามในสาขานี้'; end if;
+  if v_input.total_price is null or v_input.total_price<0 or v_input.payment_method not in ('walk_in_cash','walk_in_transfer') then
+    raise exception 'ข้อมูลการจองไม่ถูกต้อง'; end if;
+  insert into bookings(tenant_id,court_id,branch_id,user_name,user_phone,booking_date,start_time,end_time,
+    price_per_hour,total_price,price_type,status,payment_method,created_by,note,policy_accepted_at,slot_locked_until)
+  values(p_tenant_id,v_input.court_id,v_input.branch_id,v_input.user_name,v_input.user_phone,v_input.booking_date,v_input.start_time,v_input.end_time,
+    v_input.price_per_hour,v_input.total_price,v_input.price_type,
+    case when p_collect_at_pos then 'pending_payment'::booking_status else 'confirmed'::booking_status end,
+    v_input.payment_method,p_staff_id,v_input.note,now(),case when p_collect_at_pos then now()+interval '15 minutes' end)
+  returning * into v_booking;
+  if not p_collect_at_pos then
+    insert into payments(tenant_id,booking_id,amount,method,status,verified_by,verified_at)
+    values(p_tenant_id,v_booking.id,v_booking.total_price,v_booking.payment_method,'verified',p_staff_id,now()) returning payments.id into v_payment;
+    insert into receipts(tenant_id,payment_id,receipt_number,customer_name,item_description,amount,payment_method)
+    values(p_tenant_id,v_payment,next_receipt_number(p_tenant_id),v_booking.user_name,'ค่าจอง '||v_booking.booking_code,
+      v_booking.total_price,v_booking.payment_method::text);
+  end if;
+  return query select v_booking.id,v_booking.booking_code::text,v_booking.total_price;
+end $$;
+revoke all on function public.create_pos_walk_in(uuid,uuid,jsonb,boolean) from public,anon,authenticated;
+grant execute on function public.create_pos_walk_in(uuid,uuid,jsonb,boolean) to service_role;

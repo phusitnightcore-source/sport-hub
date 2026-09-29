@@ -8,10 +8,8 @@ import { z } from "zod";
 const coachProfileSchema = z.object({
   display_name: z.string().trim().min(2, "ชื่อต้องมีอย่างน้อย 2 ตัวอักษร").max(100),
   sport: z.string().trim().min(1, "กรุณาระบุชนิดกีฬา"),
-  bio: z.string().trim().max(1000).optional(),
-  years_experience: z.coerce.number().min(0).max(60).default(1),
-  hourly_rate: z.coerce.number().min(0).default(500),
-  phone: z.string().regex(/^0\d{8,9}$/, "เบอร์โทรศัพท์ไม่ถูกต้อง").optional().or(z.literal("")),
+  biography: z.string().trim().max(1000).optional(),
+  experience_years: z.coerce.number().int().min(0).max(60).default(1),
   cover_image_url: z.string().url().optional().or(z.literal("")),
 });
 
@@ -24,10 +22,8 @@ export async function updateCoachProfileAction(formData: FormData) {
   const raw = {
     display_name: formData.get("display_name"),
     sport: formData.get("sport"),
-    bio: formData.get("bio") || undefined,
-    years_experience: formData.get("years_experience") || 1,
-    hourly_rate: formData.get("hourly_rate") || 500,
-    phone: formData.get("phone") || undefined,
+    biography: formData.get("biography") || undefined,
+    experience_years: formData.get("experience_years") || 1,
     cover_image_url: formData.get("cover_image_url") || undefined,
   };
 
@@ -40,38 +36,37 @@ export async function updateCoachProfileAction(formData: FormData) {
   const data = parsed.data;
 
   // Check if profile exists
-  const { data: existing } = await (admin as any)
+  const { data: existing } = await admin
     .from("coach_profiles")
     .select("id")
     .eq("profile_id", user.id)
     .maybeSingle();
 
   if (existing) {
-    await (admin as any)
+    const {error}=await admin
       .from("coach_profiles")
       .update({
         display_name: data.display_name,
         sport: data.sport,
-        bio: data.bio || null,
-        years_experience: data.years_experience,
-        hourly_rate: data.hourly_rate,
-        phone: data.phone || null,
+        biography: data.biography || null,
+        experience_years: data.experience_years,
         cover_image_url: data.cover_image_url || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", existing.id);
+    if(error)return {success:false,error:"บันทึกโปรไฟล์ไม่สำเร็จ"};
   } else {
-    await (admin as any).from("coach_profiles").insert({
+    const {error}=await admin.from("coach_profiles").insert({
       profile_id: user.id,
       display_name: data.display_name,
       sport: data.sport,
-      bio: data.bio || null,
-      years_experience: data.years_experience,
-      hourly_rate: data.hourly_rate,
-      phone: data.phone || null,
+      biography: data.biography || null,
+      experience_years: data.experience_years,
       cover_image_url: data.cover_image_url || null,
-      approval_status: "approved",
+      approval_status: "pending",
+      is_visible: false,
     });
+    if(error)return {success:false,error:"สร้างโปรไฟล์ไม่สำเร็จ"};
   }
 
   revalidatePath("/me/coach");
@@ -87,39 +82,19 @@ export async function saveCoachScheduleAction(
 
   if (!user) return { success: false, error: "กรุณาเข้าสู่ระบบ" };
 
-  const admin = createAdminClient();
-
-  const { data: coach } = await (admin as any)
-    .from("coach_profiles")
-    .select("id")
-    .eq("profile_id", user.id)
-    .single();
-
-  if (!coach) return { success: false, error: "ไม่พบโปรไฟล์โค้ช" };
-
-  // Delete existing schedules for this coach
-  await (admin as any).from("coach_schedules").delete().eq("coach_profile_id", coach.id);
-
-  // Insert new active schedules
-  const toInsert = schedules
+  const parsed=z.array(z.object({day_of_week:z.number().int().min(0).max(6),start_time:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),end_time:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),is_available:z.boolean()})).max(28).safeParse(schedules);
+  if(!parsed.success)return{success:false,error:"รูปแบบตารางเวลาไม่ถูกต้อง"};
+  const toInsert = parsed.data
     .filter((s) => s.is_available)
     .map((s) => ({
-      coach_profile_id: coach.id,
       day_of_week: s.day_of_week,
       start_time: s.start_time.length === 5 ? `${s.start_time}:00` : s.start_time,
       end_time: s.end_time.length === 5 ? `${s.end_time}:00` : s.end_time,
-      is_available: true,
     }));
-
-  if (toInsert.length > 0) {
-    const { error } = await (admin as any).from("coach_schedules").insert(toInsert);
-    if (error) {
-      console.error("Save schedule error:", error);
-      return { success: false, error: "บันทึกตารางเวลาไม่สำเร็จ" };
-    }
-  }
+  const{error}=await createAdminClient().rpc("replace_coach_schedule",{p_actor_id:user.id,p_schedules:toInsert});
+  if(error)return{success:false,error:error.message.includes("CONFLICTS_BOOKING")?"ตารางใหม่ไม่ครอบคลุมนัดที่กำลังทำงานอยู่ กรุณาจัดการนัดก่อน":"บันทึกตารางเวลาไม่สำเร็จ"};
 
   revalidatePath("/me/coach/schedule");
-  revalidatePath(`/coaches/${coach.id}`);
+  revalidatePath("/coaches/[id]","page");
   return { success: true };
 }

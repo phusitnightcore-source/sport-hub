@@ -6,10 +6,21 @@ import { getStaffContext } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import type { Database } from "@/lib/supabase/types";
+import { verifyMemberQrToken } from "@/lib/membership/qr";
+import { notifyMemberSafely } from "@/lib/membership/notifications";
 
 export type CheckinQueryType = "qr" | "phone" | "code";
 
 type FailReason = Database["public"]["Enums"]["checkin_fail_reason"];
+
+function todayInBangkok(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
 
 export type UnifiedCheckinResult = {
   success: boolean;
@@ -72,10 +83,21 @@ export async function findMemberForCheckin(
     .eq("tenant_id", ctx.tenantId);
 
   if (type === "qr") {
-    if (trimmed.startsWith("sport-hub:checkin:")) {
-      memberQuery = memberQuery.eq("member_number", trimmed.split(":")[2]);
+    if (trimmed.startsWith("sport-hub:member:v1:")) {
+      const verified = verifyMemberQrToken(trimmed);
+      if (!verified.valid) {
+        return {
+          success: false,
+          error: verified.reason === "expired"
+            ? "QR หมดอายุแล้ว กรุณาให้สมาชิกเปิดบัตรใหม่"
+            : "QR สมาชิกไม่ถูกต้อง",
+        };
+      }
+      memberQuery = memberQuery.eq("id", verified.memberId);
+    } else if (trimmed.startsWith("sport-hub:checkin:")) {
+      return { success: false, error: "บัตรรูปแบบเก่าหมดอายุ กรุณาเปิดบัตรสมาชิกใหม่" };
     } else {
-      memberQuery = memberQuery.or(`id.eq.${trimmed},member_number.eq.${trimmed}`);
+      return { success: false, error: "QR สมาชิกไม่ถูกต้อง" };
     }
   } else if (type === "phone") {
     memberQuery = memberQuery.eq("phone", trimmed);
@@ -94,7 +116,7 @@ export async function findMemberForCheckin(
     } else if (member.status !== "active") {
       isValid = false;
       failReason = "สมาชิกหมดอายุ กรุณาต่ออายุ";
-    } else if (member.end_date && new Date(member.end_date) < new Date()) {
+    } else if (member.end_date && member.end_date < todayInBangkok()) {
       isValid = false;
       failReason = "แพ็กเกจหมดอายุแล้ว";
     } else if (
@@ -109,7 +131,7 @@ export async function findMemberForCheckin(
     return {
       success: true,
       targetType: "member",
-      member: member as any,
+      member,
       isValid,
       failReason,
     };
@@ -152,7 +174,7 @@ export async function findMemberForCheckin(
     return {
       success: true,
       targetType: "booking",
-      booking: booking as any,
+      booking,
       isValid,
       failReason,
     };
@@ -194,7 +216,7 @@ export async function processCheckin(memberId: string, branchId: string) {
     await recordFail("frozen");
     return { success: false, error: "สมาชิกถูกระงับชั่วคราว" };
   }
-  if (member.status !== "active" || (member.end_date && new Date(member.end_date) < new Date())) {
+  if (member.status !== "active" || (member.end_date && member.end_date < todayInBangkok())) {
     await recordFail("expired");
     return { success: false, error: "สมาชิกหมดอายุ กรุณาต่ออายุ" };
   }
@@ -244,6 +266,14 @@ export async function processCheckin(memberId: string, branchId: string) {
     module: "checkin",
     referenceId: memberId,
     after: { branch_id: branchId },
+  });
+
+  await notifyMemberSafely({
+    tenantId: ctx.tenantId,
+    memberId,
+    title: "เช็กอินสำเร็จ",
+    body: `เช็กอินเข้าสาขาเรียบร้อยเมื่อ ${new Date().toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}`,
+    referenceType: "checkin",
   });
 
   revalidatePath("/dashboard/checkin");

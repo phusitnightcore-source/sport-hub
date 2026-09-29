@@ -1,79 +1,68 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { dispatchNotification } from "@/lib/notify";
+import { logAudit } from "@/lib/audit";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const formSchema = z.object({
-  coach_profile_id: z.string().uuid(),
-  service_id: z.string().uuid(),
-  booking_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  start_time: z.string(),
-  end_time: z.string(),
-  location_note: z.string().min(1),
-  player_note: z.string().optional(),
-  total_price: z.coerce.number().min(0),
+  coach_profile_id:z.string().uuid(),
+  service_id:z.string().uuid(),
+  court_booking_code:z.string().trim().toUpperCase().regex(/^[A-Z0-9]{8}$/),
+  player_note:z.string().trim().max(1000).optional(),
 });
 
-export async function POST(request: NextRequest) {
+const redirectError = (request:NextRequest,coachId:string,serviceId:string,error:string) =>
+  NextResponse.redirect(new URL(`/book/coach/${coachId}?service=${serviceId}&error=${error}`,request.url),303);
+
+export async function POST(request:NextRequest) {
+  const supabase=await createClient();
+  const {data:{user}}=await supabase.auth.getUser();
+  if (!user) return NextResponse.redirect(new URL("/login",request.url),303);
+
+  let parsed:z.infer<typeof formSchema>;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-
-    const formData = await request.formData();
-    const payload = {
-      coach_profile_id: formData.get("coach_profile_id"),
-      service_id: formData.get("service_id"),
-      booking_date: formData.get("booking_date"),
-      start_time: formData.get("start_time"),
-      end_time: formData.get("end_time"),
-      location_note: formData.get("location_note"),
-      player_note: formData.get("player_note"),
-      total_price: formData.get("total_price"),
-    };
-
-    const parsed = formSchema.parse(payload);
-    const admin = createAdminClient();
-
-    // Verify service belongs to coach
-    const { data: service } = await admin
-      .from("coach_services")
-      .select("id, coach_profile_id")
-      .eq("id", parsed.service_id)
-      .eq("coach_profile_id", parsed.coach_profile_id)
-      .single();
-
-    if (!service) {
-      return NextResponse.redirect(new URL("/discover?error=service_not_found", request.url));
-    }
-
-    // Insert booking
-    const { error } = await admin.from("coach_bookings").insert({
-      coach_profile_id: parsed.coach_profile_id,
-      player_profile_id: user.id,
-      service_id: parsed.service_id,
-      booking_date: parsed.booking_date,
-      start_time: parsed.start_time,
-      end_time: parsed.end_time,
-      location_note: parsed.location_note,
-      player_note: parsed.player_note || null,
-      total_price: parsed.total_price,
-      status: "requested",
+    const form=await request.formData();
+    parsed=formSchema.parse({
+      coach_profile_id:form.get("coach_profile_id"),
+      service_id:form.get("service_id"),
+      court_booking_code:form.get("court_booking_code"),
+      player_note:form.get("player_note") || undefined,
     });
-
-    if (error) {
-      console.error("Coach booking error:", error);
-      return NextResponse.redirect(new URL(`/coaches/${parsed.coach_profile_id}?error=booking_failed`, request.url));
-    }
-
-    // Redirect to the user's tracking page
-    return NextResponse.redirect(new URL("/track?success=coach_booking_requested", request.url), 303);
-    
-  } catch (error) {
-    console.error("Invalid form submission:", error);
-    return NextResponse.redirect(new URL("/discover?error=invalid_form", request.url));
+  } catch {
+    return NextResponse.redirect(new URL("/coaches?error=invalid_booking_request",request.url),303);
   }
+
+  const admin=createAdminClient();
+  const [{data:service},{data:coach},{data:courtBooking}]=await Promise.all([
+    admin.from("coach_services").select("id,coach_profile_id,is_active").eq("id",parsed.service_id).eq("coach_profile_id",parsed.coach_profile_id).maybeSingle(),
+    admin.from("coach_profiles").select("id,profile_id,display_name,approval_status,is_visible").eq("id",parsed.coach_profile_id).maybeSingle(),
+    admin.from("bookings").select("id,tenant_id,booking_code").eq("booking_code",parsed.court_booking_code).maybeSingle(),
+  ]);
+  if (!service?.is_active || !coach || coach.approval_status!=="approved" || !coach.is_visible || !courtBooking) {
+    return redirectError(request,parsed.coach_profile_id,parsed.service_id,"unavailable");
+  }
+
+  const {data,error}=await admin.rpc("create_linked_coach_booking",{
+    p_player_id:user.id,p_coach_id:parsed.coach_profile_id,p_service_id:parsed.service_id,
+    p_court_booking_id:courtBooking.id,p_note:parsed.player_note ?? "",
+  });
+  if (error) {
+    const code=error.message.includes("NOT_OWNED") ? "court_not_owned"
+      : error.message.includes("TOO_SHORT") ? "court_too_short"
+      : error.message.includes("SCHEDULE") ? "outside_schedule"
+      : error.message.includes("CONFLICT") ? "slot_conflict"
+      : "court_booking_unavailable";
+    return redirectError(request,parsed.coach_profile_id,parsed.service_id,code);
+  }
+
+  const bookingId=typeof data==="object" && data && !Array.isArray(data) && typeof data.id==="string" ? data.id : null;
+  await dispatchNotification({
+    tenantId:courtBooking.tenant_id,recipientId:coach.profile_id,recipientType:"member",type:"booking",
+    title:"มีคำขอสอนใหม่",body:`มีผู้เรียนส่งคำขอจองโค้ช ${coach.display_name} โดยผูกกับคอร์ท #${courtBooking.booking_code}`,
+    referenceId:bookingId??undefined,referenceType:"coach_booking",
+  });
+  await logAudit({tenantId:courtBooking.tenant_id,actorId:user.id,actorRole:"member",action:"request_coach",
+    module:"coach_booking",referenceId:bookingId??undefined,after:{court_booking_id:courtBooking.id,coach_profile_id:coach.id,service_id:service.id}});
+  return NextResponse.redirect(new URL("/me/bookings?tab=coach&success=requested",request.url),303);
 }

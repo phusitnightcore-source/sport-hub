@@ -24,11 +24,13 @@ export function WalkInForm({
   defaultCourtId,
   defaultDate,
   defaultStart,
+  canUsePos = false,
 }: {
   courts: CourtOpt[];
   defaultCourtId?: string;
   defaultDate?: string;
   defaultStart?: string;
+  canUsePos?: boolean;
 }) {
   const router = useRouter();
   const [courtId, setCourtId] = useState(defaultCourtId ?? courts[0]?.id ?? "");
@@ -58,6 +60,7 @@ export function WalkInForm({
     if (!start) return setError("เลือกเวลาเริ่ม");
     setBusy(true);
     setError(null);
+    try {
     const f = new FormData(e.currentTarget);
     const endH = parseInt(start, 10) + hours;
     const input = {
@@ -95,7 +98,9 @@ export function WalkInForm({
       return;
     }
     setDone(res.bookingCode!);
-    setBusy(false);
+    } catch {
+      setError("การเชื่อมต่อขัดข้อง กรุณาตรวจรายการจองก่อนลองซ้ำ");
+    } finally { setBusy(false); }
   }
 
   if (summary) {
@@ -145,6 +150,7 @@ export function WalkInForm({
 
   return (
     <form onSubmit={onSubmit} className="card-floating flex flex-col gap-4 p-6">
+      <fieldset disabled={busy} className="contents">
       <Select
         name="courtId"
         label="สนาม"
@@ -192,7 +198,7 @@ export function WalkInForm({
       </div>
       <Input label="หมายเหตุ (ถ้ามี)" name="note" icon={<StickyNote />} />
 
-      <label className="flex items-start gap-3 rounded-xl border border-line bg-brand-soft p-4 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" checked={collectAtPos} disabled={repeat} onChange={e => setCollectAtPos(e.target.checked)}/><span><strong>รับชำระพร้อมสินค้าใน POS</strong><span className="mt-1 block">กันสนาม 15 นาที แล้วย้ายไปเลือกสินค้าและรับชำระในใบเสร็จเดียว ยังไม่ถือว่ารับเงินแล้ว</span></span></label>
+      {canUsePos && <label className="flex items-start gap-3 rounded-xl border border-line bg-brand-soft p-4 text-sm"><input type="checkbox" className="mt-1 h-4 w-4" checked={collectAtPos} disabled={repeat} onChange={e => setCollectAtPos(e.target.checked)}/><span><strong>รับชำระพร้อมสินค้าใน POS</strong><span className="mt-1 block">กันสนาม 15 นาที แล้วย้ายไปเลือกสินค้าและรับชำระในใบเสร็จเดียว ยังไม่ถือว่ารับเงินแล้ว</span></span></label>}
       {!collectAtPos && <div className="flex flex-col gap-2">
         <label className="text-body-sm font-medium text-ink">วิธีรับชำระ</label>
         <div className="grid grid-cols-2 gap-3">
@@ -258,6 +264,7 @@ export function WalkInForm({
             ? `ยืนยันจองซ้ำ ${weeks} สัปดาห์ (รับเงินแล้ว)`
             : collectAtPos ? "กันสนามและไปชำระที่ POS" : "ยืนยันการจอง (รับเงินแล้ว)"}
       </Button>
+      </fieldset>
     </form>
   );
 }

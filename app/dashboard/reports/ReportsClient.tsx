@@ -39,6 +39,7 @@ type Court = { id: string; name: string; branch_id: string };
 
 export type ReportPayment = {
   id: string;
+  branch_id: string | null;
   amount: number;
   method: string;
   booking_id: string | null;
@@ -274,6 +275,7 @@ export function ReportsClient({
       { key: "transfer", label: "โอนเงิน / PromptPay", sub: "QR & Bank Transfer" },
       { key: "cash", label: "เงินสด (Cash)", sub: "หน้าร้าน" },
       { key: "card", label: "บัตรเครดิต", sub: "Credit Card" },
+      { key: "other", label: "อื่น ๆ", sub: "Other" },
     ],
     []
   );
@@ -325,9 +327,10 @@ export function ReportsClient({
         selectedRevenueType === "all" ||
         (selectedRevenueType === "booking" && p.booking_id) ||
         (selectedRevenueType === "member" && p.member_id);
-      return matchDate && matchMethod && matchType;
+      const matchBranch = selectedBranchId === "all" || p.branch_id === selectedBranchId;
+      return matchDate && matchMethod && matchType && matchBranch;
     });
-  }, [payments, activeDateRange, selectedPaymentMethod, selectedRevenueType]);
+  }, [payments, activeDateRange, selectedPaymentMethod, selectedRevenueType, selectedBranchId]);
 
   // Filtered POS Sales
   const filteredPosSales = useMemo(() => {

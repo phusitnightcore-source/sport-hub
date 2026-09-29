@@ -1,17 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Edit3, X, Loader2, GraduationCap, CheckCircle2, AlertCircle } from "lucide-react";
+import { Edit3, X, Loader2, GraduationCap, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { updateCoachProfileAction } from "./actions";
 
 interface CoachData {
   display_name: string;
   sport: string;
-  bio?: string | null;
-  years_experience?: number | null;
-  hourly_rate?: number | null;
-  phone?: string | null;
+  biography?: string | null;
+  experience_years?: number | null;
   cover_image_url?: string | null;
 }
 
@@ -120,39 +118,11 @@ export function CoachProfileModal({ coach }: { coach?: CoachData | null }) {
                     ประสบการณ์สอน (ปี)
                   </label>
                   <input
-                    name="years_experience"
+                    name="experience_years"
                     type="number"
                     min="0"
                     max="60"
-                    defaultValue={coach?.years_experience || 2}
-                    className="w-full rounded-xl border border-line bg-surface-raised px-3.5 py-2 text-body-sm text-ink focus:border-brand focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-body-xs font-bold text-ink mb-1">
-                    อัตราค่าสอนเริ่มต้น (บาท/ชม.)
-                  </label>
-                  <input
-                    name="hourly_rate"
-                    type="number"
-                    min="0"
-                    defaultValue={coach?.hourly_rate || 500}
-                    className="w-full rounded-xl border border-line bg-surface-raised px-3.5 py-2 text-body-sm text-ink focus:border-brand focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-body-xs font-bold text-ink mb-1">
-                    เบอร์โทรศัพท์ติดต่อ
-                  </label>
-                  <input
-                    name="phone"
-                    type="tel"
-                    defaultValue={coach?.phone || ""}
-                    placeholder="08xxxxxxxx"
+                    defaultValue={coach?.experience_years || 2}
                     className="w-full rounded-xl border border-line bg-surface-raised px-3.5 py-2 text-body-sm text-ink focus:border-brand focus:outline-none"
                   />
                 </div>
@@ -176,9 +146,9 @@ export function CoachProfileModal({ coach }: { coach?: CoachData | null }) {
                   ประวัติและผลงาน (Bio)
                 </label>
                 <textarea
-                  name="bio"
+                  name="biography"
                   rows={4}
-                  defaultValue={coach?.bio || ""}
+                  defaultValue={coach?.biography || ""}
                   placeholder="แนะนำตัวเอง ประสบการณ์การเป็นนักกีฬา อดีตทีมชาติ หรือหลักสูตรที่ได้รับรอง..."
                   className="w-full rounded-xl border border-line bg-surface-raised p-3 text-body-sm text-ink focus:border-brand focus:outline-none"
                 />

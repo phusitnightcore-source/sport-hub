@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { PageTransition } from "@/components/ui/PageTransition";
 import { getSelfBellData } from "@/lib/notify/bell-data";
 import { MemberNav } from "./MemberNav";
+import { getOrganizerAccessForUser, type OrganizerBadge } from "@/lib/organizer";
 
 export default async function MeLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -13,6 +14,7 @@ export default async function MeLayout({ children }: { children: React.ReactNode
   let name = "";
   let recipientIds: string[] = [];
   let roles: string[] = ["player"];
+  let organizerBadges: OrganizerBadge[] = [];
   let bell: { items: Awaited<ReturnType<typeof getSelfBellData>>["items"]; unread: number } = {
     items: [],
     unread: 0,
@@ -32,6 +34,7 @@ export default async function MeLayout({ children }: { children: React.ReactNode
     if (userRoles && userRoles.length > 0) {
       roles = userRoles.map(r => r.role);
     }
+    organizerBadges = (await getOrganizerAccessForUser(admin, user.id))?.badges ?? [];
   }
 
   return (
@@ -43,6 +46,7 @@ export default async function MeLayout({ children }: { children: React.ReactNode
           bellItems={bell.items}
           bellUnread={bell.unread}
           roles={roles}
+          organizerBadges={organizerBadges}
         />
       )}
       <PageTransition>{children}</PageTransition>

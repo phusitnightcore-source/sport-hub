@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, Loader2, Users, Calendar, Clock, DollarSign, Sparkles, Check, AlertCircle } from "lucide-react";
+import { Plus, X, Loader2, Users, Sparkles, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { createGroupAction, joinGroupAction, leaveGroupAction } from "./actions";
+import { cancelGroupAction, createGroupAction, joinGroupAction, leaveGroupAction } from "./actions";
+import Link from "next/link";
 
-export function CreateGroupButton() {
+export function CreateGroupButton({ canCreate = false, isSignedIn = false }: { canCreate?: boolean; isSignedIn?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +32,15 @@ export function CreateGroupButton() {
 
   return (
     <>
+      {!canCreate ? (
+        <Link
+          href={isSignedIn ? "/me/organizer" : "/login?next=/groups"}
+          className="inline-flex items-center gap-2 rounded-2xl bg-brand px-5 py-2.5 font-bold text-white shadow-xs hover:bg-brand-dark"
+        >
+          <Sparkles className="h-4 w-4" />
+          <span>{isSignedIn ? "เปิดสิทธิ์ผู้จัดก๊วน" : "เข้าสู่ระบบเพื่อจัดก๊วน"}</span>
+        </Link>
+      ) : (
       <Button
         onClick={() => setIsOpen(true)}
         className="rounded-2xl font-bold bg-brand text-white shadow-xs hover:bg-brand-dark px-5 py-2.5 flex items-center gap-2"
@@ -38,8 +48,9 @@ export function CreateGroupButton() {
         <Plus className="h-4 w-4" />
         <span>สร้างก๊วนใหม่</span>
       </Button>
+      )}
 
-      {isOpen && (
+      {canCreate && isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="relative w-full max-w-lg rounded-3xl border border-line bg-surface p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
@@ -249,15 +260,12 @@ export function JoinGroupButton({
   isCreator: boolean;
 }) {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleJoin() {
     setIsLoading(true);
-    setError(null);
     const res = await joinGroupAction(groupId);
     setIsLoading(false);
     if (!res.success) {
-      setError(res.error || "ไม่สามารถเข้าร่วมได้");
       alert(res.error || "ไม่สามารถเข้าร่วมได้");
     }
   }
@@ -265,11 +273,9 @@ export function JoinGroupButton({
   async function handleLeave() {
     if (!confirm("คุณต้องการออกจากก๊วนนี้ใช่หรือไม่?")) return;
     setIsLoading(true);
-    setError(null);
     const res = await leaveGroupAction(groupId);
     setIsLoading(false);
     if (!res.success) {
-      setError(res.error || "เกิดข้อผิดพลาด");
       alert(res.error || "เกิดข้อผิดพลาด");
     }
   }
@@ -321,5 +327,34 @@ export function JoinGroupButton({
         </>
       )}
     </Button>
+  );
+}
+
+export function CreatorGroupButton({ groupId }: { groupId: string }) {
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function handleCancel() {
+    if (!confirm("ปิดก๊วนนี้และหยุดรับสมาชิกใช่หรือไม่? สมาชิกเดิมจะไม่ถูกลบ")) return;
+    setIsLoading(true);
+    const result = await cancelGroupAction(groupId);
+    setIsLoading(false);
+    if (!result.success) alert(result.error || "ปิดก๊วนไม่สำเร็จ");
+  }
+
+  return (
+    <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+      <span className="inline-flex items-center justify-center rounded-xl border border-brand/20 bg-brand/10 px-3.5 py-2 text-body-xs font-bold text-brand">
+        👑 คุณคือผู้สร้างก๊วน
+      </span>
+      <button
+        type="button"
+        onClick={handleCancel}
+        disabled={isLoading}
+        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-danger/30 bg-danger/10 px-3.5 py-2 text-body-xs font-bold text-danger transition-colors hover:bg-danger/20 disabled:opacity-60"
+      >
+        {isLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+        ปิดก๊วน
+      </button>
+    </div>
   );
 }

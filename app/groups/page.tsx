@@ -4,19 +4,13 @@ import { PublicNav } from "@/components/ui/PublicNav";
 import Link from "next/link";
 import {
   Users,
-  Calendar,
   Clock,
-  MapPin,
-  Trophy,
-  Zap,
-  Sparkles,
-  Search,
-  DollarSign,
-  CheckCircle2,
   ChevronRight,
   Flame,
 } from "lucide-react";
-import { CreateGroupButton, JoinGroupButton } from "./GroupModals";
+import { CreateGroupButton, CreatorGroupButton, JoinGroupButton } from "./GroupModals";
+import { getOrganizerAccessForUser, type OrganizerBadge as OrganizerBadgeData } from "@/lib/organizer";
+import { OrganizerBadges } from "@/components/ui/OrganizerBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +37,7 @@ export default async function GroupsPage({
   const { data: { user } } = await supabase.auth.getUser();
 
   const admin = createAdminClient();
+  const organizerAccess = user ? await getOrganizerAccessForUser(admin, user.id) : null;
 
   // Queries
   let groupsQuery = (admin as any)
@@ -82,6 +77,20 @@ export default async function GroupsPage({
   const groups = (gData ?? []) as any[];
   const facilitySessions = (sData ?? []) as any[];
   const myGroupIds = new Set((myMemberships ?? []).map((m: any) => m.group_id));
+  const creatorIds = [...new Set(groups.map((group) => group.creator_id))];
+  const [{ data: creators }, { data: creatorBadges }] = creatorIds.length
+    ? await Promise.all([
+        admin.from("profiles").select("id, display_name, full_name").in("id", creatorIds),
+        (admin as any).from("organizer_badges").select("profile_id,badge_type,label").in("profile_id", creatorIds),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const creatorMap = new Map((creators ?? []).map((profile) => [profile.id, profile.display_name || profile.full_name || "ผู้จัดก๊วน"]));
+  const badgeMap = new Map<string, OrganizerBadgeData[]>();
+  for (const badge of (creatorBadges ?? []) as any[]) {
+    const current = badgeMap.get(badge.profile_id) ?? [];
+    current.push({ type: badge.badge_type, label: badge.label, validUntil: null });
+    badgeMap.set(badge.profile_id, current);
+  }
 
   return (
     <div className="min-h-screen pb-20">
@@ -109,7 +118,7 @@ export default async function GroupsPage({
             </div>
 
             <div className="shrink-0">
-              <CreateGroupButton />
+              <CreateGroupButton canCreate={Boolean(organizerAccess?.canManageGroups)} isSignedIn={Boolean(user)} />
             </div>
           </div>
 
@@ -232,7 +241,7 @@ export default async function GroupsPage({
                 เป็นคนแรกที่เปิดก๊วนและชวนเพื่อนๆ มาร่วมสนุกไปด้วยกัน
               </p>
               <div className="mt-6">
-                <CreateGroupButton />
+                <CreateGroupButton canCreate={Boolean(organizerAccess?.canManageGroups)} isSignedIn={Boolean(user)} />
               </div>
             </div>
           ) : (
@@ -268,6 +277,10 @@ export default async function GroupsPage({
                       <h3 className="font-display text-lg font-bold text-ink mt-2.5">
                         {group.title}
                       </h3>
+                      <div className="mt-1 flex items-center gap-1.5 text-body-xs font-semibold text-ink-soft">
+                        <span>จัดโดย {creatorMap.get(group.creator_id) ?? "ผู้จัดก๊วน"}</span>
+                        <OrganizerBadges badges={badgeMap.get(group.creator_id) ?? []} />
+                      </div>
 
                       {group.description && (
                         <p className="text-body-xs text-ink-soft mt-2 line-clamp-2">
@@ -312,12 +325,16 @@ export default async function GroupsPage({
 
                     {/* Footer Actions */}
                     <div className="pt-2 border-t border-line/60 flex items-center justify-end gap-3">
-                      <JoinGroupButton
-                        groupId={group.id}
-                        isJoined={isJoined}
-                        isFull={isFull}
-                        isCreator={isCreator}
-                      />
+                      {isCreator ? (
+                        <CreatorGroupButton groupId={group.id} />
+                      ) : (
+                        <JoinGroupButton
+                          groupId={group.id}
+                          isJoined={isJoined}
+                          isFull={isFull}
+                          isCreator={false}
+                        />
+                      )}
                     </div>
                   </div>
                 );

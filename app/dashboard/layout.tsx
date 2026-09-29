@@ -24,6 +24,7 @@ type NavItemConfig = {
   iconName: string;
   permission?: Permission;
   feature?: LockFeature;
+  ownerOnly?: boolean;
 };
 
 const NAV_GROUPS: { title: string; items: NavItemConfig[] }[] = [
@@ -33,7 +34,7 @@ const NAV_GROUPS: { title: string; items: NavItemConfig[] }[] = [
       { href: "/dashboard", label: "ภาพรวม", iconName: "LayoutDashboard" },
       { href: "/dashboard/bookings", label: "การจอง", iconName: "CalendarDays", permission: "view_bookings_own" },
       { href: "/dashboard/schedule", label: "ตารางสนาม", iconName: "CalendarClock", permission: "view_bookings_own" },
-      { href: "/dashboard/group-sessions", label: "ระบบก๊วนแบดมินตัน", iconName: "Sparkles" },
+      { href: "/dashboard/group-sessions", label: "ระบบก๊วนแบดมินตัน", iconName: "Sparkles", ownerOnly: true },
       { href: "/dashboard/waitlist", label: "คิวรอ", iconName: "ListChecks", permission: "view_bookings_own" },
       { href: "/dashboard/checkin", label: "เช็คอิน", iconName: "ScanLine", permission: "checkin_member" },
       { href: "/dashboard/guest-passes", label: "บัตรชั่วคราว", iconName: "TicketCheck", permission: "issue_guest_pass", feature: "guest_pass" },
@@ -47,7 +48,7 @@ const NAV_GROUPS: { title: string; items: NavItemConfig[] }[] = [
   {
     title: "สมาชิก & การตลาด",
     items: [
-      { href: "/dashboard/tournaments", label: "การแข่งขัน", iconName: "Trophy" },
+      { href: "/dashboard/tournaments", label: "การแข่งขัน", iconName: "Trophy", ownerOnly: true },
       { href: "/dashboard/members", label: "สมาชิก", iconName: "Users", permission: "add_member", feature: "member_system" },
       { href: "/dashboard/packages", label: "แพ็กเกจ", iconName: "Package", permission: "manage_package", feature: "member_system" },
       { href: "/dashboard/broadcast", label: "Broadcast", iconName: "Megaphone", permission: "broadcast", feature: "broadcast" },
@@ -99,7 +100,8 @@ export default async function DashboardLayout({
     Boolean(feature && entitlements && !entitlements[feature]);
 
   const canAccess = (item: NavItemConfig) =>
-    !item.permission || (ctx != null && hasPermission(ctx, item.permission));
+    (!item.ownerOnly || ctx?.role === "venue_admin") &&
+    (!item.permission || (ctx != null && hasPermission(ctx, item.permission)));
 
   const visibleNavGroups: NavGroup[] = NAV_GROUPS.map((g) => ({
     title: g.title,

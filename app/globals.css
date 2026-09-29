@@ -1,5 +1,10 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
+
+/* Booking calls to action retain readable foregrounds in both saved themes. */
+.booking-action { background-color: rgb(var(--brand-dark)); color: white; }
+:root[data-theme="dark"] .booking-action { background-color: rgb(var(--brand)); color: rgb(var(--surface)); }
+.booking-action:hover:not(:disabled) { filter: brightness(0.95); }
 /* =============================================================================
    SportHub — Global Styles / Design Tokens (v2 — Soft Blue Dashboard)
    ทุกค่าที่นี่ต้องตรงกับ docs/DESIGN_SYSTEM.md เป๊ะ — แก้ที่นี่ที่เดียว ห้าม hardcode

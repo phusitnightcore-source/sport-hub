@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
 import { dispatchNotification } from "@/lib/notify";
 import { revalidatePath } from "next/cache";
+import { notifyMemberSafely } from "@/lib/membership/notifications";
 
 function todayISO(): string {
   return new Date().toISOString().split("T")[0];
@@ -94,6 +95,15 @@ export async function requestFreeze(reason: string) {
       type: "membership",
       title: "คำขอระงับสมาชิกใหม่",
       body: "มีสมาชิกขอระงับชั่วคราว (Freeze) — รออนุมัติที่หน้าคำขอ Freeze",
+      referenceId: request.id,
+      referenceType: "freeze_request",
+    });
+  } else {
+    await notifyMemberSafely({
+      tenantId: member.tenant_id,
+      memberId: member.id,
+      title: "ระงับสมาชิกชั่วคราวแล้ว",
+      body: "ระบบอนุมัติ Freeze อัตโนมัติ อายุสมาชิกจะหยุดนับจนกว่าคุณจะกลับมาเปิดใช้งาน",
       referenceId: request.id,
       referenceType: "freeze_request",
     });
@@ -237,6 +247,13 @@ export async function unfreezeMember() {
     module: "members",
     referenceId: member.id,
     after: { days_frozen: daysFrozen, new_end_date: newEnd },
+  });
+
+  await notifyMemberSafely({
+    tenantId: member.tenant_id,
+    memberId: member.id,
+    title: "สมาชิกกลับมาใช้งานแล้ว",
+    body: `ยกเลิก Freeze สำเร็จ${newEnd ? ` วันหมดอายุใหม่คือ ${new Date(`${newEnd}T00:00:00`).toLocaleDateString("th-TH")}` : ""}`,
   });
 
   revalidatePath("/me");

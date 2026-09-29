@@ -1,6 +1,6 @@
 # สถานะการเชื่อมต่อระบบ (Integration Status)
 
-อัปเดต: 2026-09-13 — รวมงานตั้งค่าภายนอกและช่องว่างที่พบจากการตรวจโค้ดล่าสุด
+อัปเดต: 2026-09-29 — รวมโฟลว์ผู้เล่น โค้ช เจ้าของสนาม และผู้ดูแลแพลตฟอร์ม
 
 สัญลักษณ์: ✅ เสร็จ/ทำงาน · 🟡 โค้ดพร้อม รอ config/key · 🔴 ยังไม่สร้าง
 
@@ -10,7 +10,7 @@
 
 | ระบบ | สถานะ | ใส่ตรงไหน | เหลืออะไร |
 |---|---|---|---|
-| **Supabase** (DB/Auth/Storage) | 🟡 | `.env.local` / production environment | ผู้ใช้แจ้งว่าเปิดโปรเจกต์แล้ว แต่ยังตรวจสถานะ/migration history จริงไม่ได้เพราะการเข้าถึงถูกปฏิเสธ ต้องตรวจ สำรอง และ push migration ตามลำดับ รวมชุด POS `20260913000000` — ดู `docs/TOURNAMENT_DATABASE_DEPLOYMENT.md` และ `docs/POS_USAGE_AND_READINESS.md` |
+| **Supabase** (DB/Auth/Storage) | 🟡 | `.env.local` / production environment | ยังไม่ได้ยืนยัน migration history/ธุรกรรมจริง ต้องตรวจ สำรอง และ push ตามลำดับ รวม POS `20260913000000`/`20260913000100`, booking operations `20260914000000` และ integrated coach flow `20260929000000` — ดู `docs/CORE_USER_FLOW_INTEGRATION.md` |
 | **LINE OA (per-tenant)** | 🟡 | Dashboard → ตั้งค่า → เชื่อมต่อ LINE OA | สนามวาง Channel Access Token + Secret เอง + ตั้ง Webhook URL ในคอนโซล |
 | ↳ LINE webhook (เก็บ userId) | 🟡 | `/api/line/webhook/{tenantId}` | ลูกค้าแอด OA + พิมพ์เบอร์ → ผูกอัตโนมัติ (โค้ดพร้อม รอสนามตั้ง URL) |
 | ↳ LINE token กลาง (fallback) | 🟡 | `.env` `LINE_CHANNEL_ACCESS_TOKEN` | ไม่บังคับ — ใช้เมื่อสนามไม่ได้ตั้งเอง |
@@ -27,7 +27,7 @@
 
 ## 2. ฟีเจอร์ที่ยังไม่ได้สร้าง (🔴)
 
-ไม่ควรตีความว่าทั้ง SOW ครบแล้ว การตรวจ POS ล่าสุดพบว่ายังไม่รวมค่าจองสนามกับสินค้าในรายการรับชำระเดียวตาม §13.3 และยังไม่มีระบบติดตามยืม–คืนอุปกรณ์เช่า ดูขอบเขตที่ทำแล้วและข้อจำกัดเพิ่มเติมใน `docs/POS_USAGE_AND_READINESS.md` การผ่าน build/unit tests ไม่ทดแทน UAT ฐานข้อมูลจริง
+ไม่ควรตีความว่าทั้ง SOW ครบแล้ว โค้ดบิลรวมค่าจองสนามและสินค้าตาม §13.3 เพิ่มแล้ว (รอ deploy/UAT) แต่ยังไม่มีระบบติดตามยืม–คืนอุปกรณ์เช่า ดูขอบเขตที่ทำแล้วและข้อจำกัดเพิ่มเติมใน `docs/POS_USAGE_AND_READINESS.md` การผ่าน build/unit tests ไม่ทดแทน UAT ฐานข้อมูลจริง
 
 ---
 
@@ -43,7 +43,11 @@
 
 ## 4. จุดที่ระบบ "เชื่อมกันแล้ว" (✅ ทำงานจริง)
 
+หมายเหตุ: รายการที่พึ่ง migration ใหม่หมายถึงโค้ดและ migration เชื่อมแล้ว แต่ยังรอ apply/UAT บน Supabase จริง
+
 - Booking → Payment (PromptPay + สลิป) → Verify → Notification (in-app + LINE/email ถ้าตั้งค่า)
+- Player → confirmed court booking → ขอเวลาโค้ชจากคอร์ทเดียวกัน → โค้ชตอบรับ/เริ่ม/จบ → เจ้าของสนามเห็นป้ายโค้ชใน Booking Desk/ตาราง; การเลื่อน ยกเลิก คืนเงิน และ no-show sync ผ่าน transaction/trigger เดียวกัน
+- Coach profile ใช้ schema จริงและโปรไฟล์ใหม่ต้องรอ Super admin อนุมัติ; แพ็กเกจสอนเพิ่ม/แก้ไข/เปิดปิดได้จริง; Super admin เห็นจำนวนงาน active/completed/linked ต่อโค้ช
 - Plan entitlements (แก้ที่ /super-admin/plans) → gate หน้า members/packages/analytics/guest-passes/reports + court/branch quota
 - Blog (ทีม + user เขียน→อนุมัติ) → เผยแพร่ → SEO (sitemap/robots) → Banner/Affiliate/AdSense slots
 - Visit tracking → /super-admin/traffic
@@ -59,15 +63,15 @@
 - **Motion polish**: `PageTransition` (slide-fade ทุกหน้าใน layout /me,/dashboard,/blog) + loading skeleton (dashboard, me/bookings, me/blog, book) — เคารพ prefers-reduced-motion
 - **Member search** (`/dashboard/members?q=`) + **Waitlist admin** (`/dashboard/waitlist`) + **OCR verify UI** (แสดงยอดที่อ่านได้เทียบยอดจริง) + **Package edit** (updatePackage)
 - **Customer recurring booking**: จองซ้ำรายสัปดาห์ 2–8 ครั้งใน `/book` → `POST /api/bookings/recurring` (reuse `lib/booking/create.ts createBooking`) ข้ามสัปดาห์ที่เต็ม
-- **Tests**: vitest 55 ผ่าน, production build ผ่านแบบไม่ดึง Google Fonts, public E2E 6 flow ผ่าน
+- **Tests ล่าสุดในเครื่อง**: vitest 110 ผ่าน, TypeScript, scoped ESLint และ production build (100 static pages) ผ่านหลังชุด integrated coach flow
 - **แจ้งเตือนเรียลไทม์ + เสียง** (ทุก role): migration `20260716000000` เพิ่ม `notifications` เข้า realtime publication + RLS ให้ staff/member เห็นของตน. `NotificationBell` (กระดิ่ง+badge+toast+เสียง) วางที่ dashboard/`/me`/super-admin. เสียง default = WebAudio synth แยกตามประเภท (`lib/sounds.ts`); สนามอัปโหลดเสียงเองได้ต่อประเภท (Settings → tenant-media). จุด dispatch หา admin: จองใหม่/แนบสลิป/ขอ Freeze/ลงคิว waitlist + super_admin เมื่อสนามออก invoice. หน้า `/me/notifications` ใหม่. **แก้ gap เดิม**: dashboard/notifications เคยว่าง เพราะไม่มีใคร dispatch หา admin
 
 ---
 
 ## 5. Testing gaps
 
-- ✅ Unit tests (vitest): 55 ผ่าน
-- ✅ Production build + lint + tsc ผ่าน
+- ✅ Unit tests (vitest): 110 ผ่าน
+- ✅ TypeScript + scoped lint + production build รอบ integration ผ่าน
 - ✅ Public E2E: landing/login/signup/blog/auth gate/Badminton Group theme toggle ผ่าน
 - 🔴 **Authenticated e2e ยังไม่ได้ทำ** — ต้อง login เป็น venue_admin/super_admin/member คลิกจริง
   (AI กรอกรหัสผ่านไม่ได้ตามกฎ) → ใช้ `docs/PLAN_GATING_CHECKLIST.md`

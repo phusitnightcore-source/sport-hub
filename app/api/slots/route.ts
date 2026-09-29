@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { apiOk, apiError, bangkokToday, bangkokNowTime } from "@/lib/api";
+import { validBookingDate } from "@/lib/booking/dates";
 import { buildSlots } from "@/lib/booking/slots";
 
 const querySchema = z.object({
   courtId: z.string().uuid(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date: z.string().refine(validBookingDate, "วันที่ไม่ถูกต้อง"),
 });
 
 // ตาราง slot สาธารณะ — ใช้ service role อย่างจงใจเพราะ guest อ่านตาราง bookings
@@ -26,14 +27,14 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const { data: court } = await admin
     .from("courts")
-    .select("id, tenant_id, open_time, close_time, price_standard, price_peak, status, advance_booking_days")
+    .select("id, tenant_id, open_time, close_time, price_standard, price_peak, status, advance_booking_days, branches(status), tenants(status)")
     .eq("id", courtId)
     .single();
-  if (!court || court.status !== "open") {
+  if (!court || court.status !== "open" || court.branches?.status !== "active" || !["active","trial","free"].includes(court.tenants?.status ?? "")) {
     return apiError("NOT_FOUND", "ไม่พบสนามหรือสนามปิดให้บริการ", 404);
   }
 
-  const [{ data: peaks }, { data: bookings }, { data: blocks }] =
+  const results =
     await Promise.all([
       admin
         .from("court_peak_windows")
@@ -57,6 +58,8 @@ export async function GET(request: Request) {
         .eq("block_date", date),
     ]);
 
+  if (results.some(result => result.error)) return apiError("INTERNAL_ERROR", "โหลดเวลาว่างไม่สำเร็จ กรุณาลองใหม่", 503);
+  const [{ data: peaks }, { data: bookings }, { data: blocks }] = results;
   const slots = buildSlots({
     court,
     peakWindows: peaks ?? [],

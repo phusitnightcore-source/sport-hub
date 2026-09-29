@@ -23,12 +23,12 @@ export default async function CourtBookingPage({
   const { data: court } = await admin
     .from("courts")
     .select(
-      "id, tenant_id, name, type, status, advance_booking_days, free_cancel_hours, cancel_fee_percent, allow_reschedule, reschedule_hours, refund_note",
+      "id, tenant_id, name, type, status, advance_booking_days, free_cancel_hours, cancel_fee_percent, allow_reschedule, reschedule_hours, refund_note, branches(name,status), tenants(name,status)",
     )
     .eq("id", courtId)
     .eq("tenant_id", tenantId)
     .single();
-  if (!court || court.status !== "open") notFound();
+  if (!court || court.status !== "open" || court.branches?.status !== "active" || !["active","trial","free"].includes(court.tenants?.status ?? "")) notFound();
 
   const today = bangkokToday();
   const max = new Date(`${today}T00:00:00Z`);
@@ -57,7 +57,7 @@ export default async function CourtBookingPage({
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
       <Link
         href={`/book/${tenantId}`}
         className="mb-6 inline-flex items-center gap-1.5 text-body-sm text-ink-soft hover:text-brand"
@@ -65,14 +65,16 @@ export default async function CourtBookingPage({
         <ArrowLeft aria-hidden className="h-4 w-4" />
         กลับไปเลือกสนาม
       </Link>
-      <header className="mb-6">
+      <header className="mb-8">
         <h1 className="font-display text-display-md font-semibold text-ink">
           จอง {court.name}
         </h1>
-        <p className="text-body-sm text-ink-soft">{court.type}</p>
+        <p className="mt-3 text-sm text-ink/70">{court.tenants?.name} · {court.branches?.name} · {court.type}</p><p className="mt-4 text-sm text-ink/70">เลือกวันและเวลาที่สะดวก ตรวจรายละเอียด แล้วดำเนินการชำระเงิน</p>
       </header>
 
       <BookingClient
+        courtName={court.name}
+        branchName={court.branches?.name ?? ""}
         courtId={court.id}
         minDate={today}
         maxDate={maxDate}

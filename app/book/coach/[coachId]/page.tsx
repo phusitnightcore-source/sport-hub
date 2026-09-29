@@ -2,11 +2,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import Link from "next/link";
+import Image from "next/image";
 import {
   GraduationCap,
   Calendar,
   Clock,
-  MapPin,
   FileText,
   CreditCard,
   ChevronLeft,
@@ -14,18 +14,19 @@ import {
 } from "lucide-react";
 import { formatBahtFromDb } from "@/lib/money";
 import { createClient } from "@/lib/supabase/server";
+import { bangkokToday, bangkokNowTime } from "@/lib/api";
 
 export default async function CoachBookingPage({
   params,
   searchParams,
 }: {
   params: Promise<{ coachId: string }>;
-  searchParams: Promise<{ service?: string }>;
+  searchParams: Promise<{ service?: string; error?: string }>;
 }) {
   const { coachId } = await params;
   if (!z.string().uuid().safeParse(coachId).success) notFound();
   
-  const { service: serviceId } = await searchParams;
+  const { service: serviceId, error: errorCode } = await searchParams;
   if (!serviceId || !z.string().uuid().safeParse(serviceId).success) {
     redirect(`/coaches/${coachId}`);
   }
@@ -41,7 +42,7 @@ export default async function CoachBookingPage({
   const [{ data: coach }, { data: service }, { data: schedules }] = await Promise.all([
     admin.from("coach_profiles").select("*").eq("id", coachId).single(),
     admin.from("coach_services").select("*").eq("id", serviceId).single(),
-    (admin as any)
+    admin
       .from("coach_schedules")
       .select("day_of_week, start_time, end_time")
       .eq("coach_profile_id", coachId)
@@ -49,13 +50,26 @@ export default async function CoachBookingPage({
       .order("day_of_week", { ascending: true }),
   ]);
 
-  if (!coach || !service || service.coach_profile_id !== coach.id) {
+  if (!coach || coach.approval_status !== "approved" || !coach.is_visible || !service || !service.is_active || service.coach_profile_id !== coach.id) {
     notFound();
   }
 
+  const { data: member } = await admin.from("members").select("id").eq("profile_id",user.id).maybeSingle();
+  const ownership = member ? `profile_id.eq.${user.id},member_id.eq.${member.id}` : `profile_id.eq.${user.id}`;
+  const { data: rawEligibleBookings } = await admin.from("bookings")
+    .select("id,booking_code,booking_date,start_time,end_time,courts(name),branches(name),tenants(name)")
+    .or(ownership).eq("status","confirmed").eq("attendance_status","not_arrived")
+    .gte("booking_date",bangkokToday())
+    .order("booking_date").order("start_time").limit(50);
+  const {data:linkedAppointments}=await admin.from("coach_bookings").select("court_booking_id").eq("player_profile_id",user.id)
+    .in("status",["requested","accepted","confirmed","in_progress"]);
+  const linkedIds=new Set((linkedAppointments??[]).map(a=>a.court_booking_id));
+  const today=bangkokToday(),now=bangkokNowTime();
+  const eligibleBookings=(rawEligibleBookings??[]).filter(b=>!linkedIds.has(b.id) && (b.booking_date>today || b.start_time.slice(0,5)>now));
+
   const DAY_NAMES = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
   const scheduleText = (schedules ?? []).length > 0
-    ? (schedules ?? []).map((s: any) => `${DAY_NAMES[s.day_of_week]} (${s.start_time.slice(0, 5)}-${s.end_time.slice(0, 5)})`).join(", ")
+    ? (schedules ?? []).map((s) => `${DAY_NAMES[s.day_of_week]} (${s.start_time.slice(0, 5)}-${s.end_time.slice(0, 5)})`).join(", ")
     : "ทุกวัน (ตามนัดหมาย)";
 
   return (
@@ -79,7 +93,7 @@ export default async function CoachBookingPage({
 
       <div className="card-floating mb-8 flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
         {coach.profile_image_url ? (
-          <img src={coach.profile_image_url} alt="" className="h-16 w-16 rounded-full object-cover ring-1 ring-line" />
+          <Image unoptimized width={64} height={64} src={coach.profile_image_url} alt={coach.display_name} className="h-16 w-16 rounded-full object-cover ring-1 ring-line" />
         ) : (
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
             <GraduationCap className="h-8 w-8" />
@@ -113,7 +127,10 @@ export default async function CoachBookingPage({
       <form action="/api/coach-bookings" method="POST" className="space-y-6">
         <input type="hidden" name="coach_profile_id" value={coach.id} />
         <input type="hidden" name="service_id" value={service.id} />
-        <input type="hidden" name="total_price" value={service.price} />
+
+        {errorCode && <div role="alert" className="rounded-xl border border-danger/30 bg-danger/10 p-4 text-body-sm text-danger">
+          {errorCode === "court_not_owned" ? "รายการสนามนี้ไม่ใช่ของบัญชีคุณ" : errorCode === "court_too_short" ? "เวลาที่จองสนามสั้นกว่าระยะเวลาคอร์ส" : errorCode === "outside_schedule" ? "ช่วงสนามนี้อยู่นอกเวลาที่โค้ชเปิดรับ" : errorCode === "slot_conflict" ? "โค้ชหรือผู้เรียนมีนัดซ้อนช่วงนี้แล้ว" : "รายการสนามเปลี่ยนสถานะหรือไม่พร้อมใช้งาน กรุณาเลือกรายการใหม่"}
+        </div>}
 
         <div className="card-floating p-6">
           <h3 className="mb-4 font-display text-body font-semibold text-ink">
@@ -122,70 +139,13 @@ export default async function CoachBookingPage({
           
           <div className="space-y-4">
             <div>
-              <label htmlFor="booking_date" className="mb-1.5 block text-body-sm font-medium text-ink">
-                วันที่ต้องการเรียน
+              <label htmlFor="court_booking_code" className="mb-1.5 block text-body-sm font-medium text-ink">
+                เลือกรายการสนามของคุณ
               </label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-soft" />
-                <input
-                  type="date"
-                  id="booking_date"
-                  name="booking_date"
-                  required
-                  min={new Date().toISOString().split("T")[0]}
-                  className="w-full rounded-radius-sm border border-line bg-surface py-2.5 pl-10 pr-3 text-body text-ink transition-colors focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="start_time" className="mb-1.5 block text-body-sm font-medium text-ink">
-                  เวลาเริ่ม
-                </label>
-                <div className="relative">
-                  <Clock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-soft" />
-                  <input
-                    type="time"
-                    id="start_time"
-                    name="start_time"
-                    required
-                    className="w-full rounded-radius-sm border border-line bg-surface py-2.5 pl-10 pr-3 text-body text-ink transition-colors focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="end_time" className="mb-1.5 block text-body-sm font-medium text-ink">
-                  เวลาสิ้นสุด <span className="text-body-sm font-normal text-ink-soft">(ตามแพ็กเกจ)</span>
-                </label>
-                <div className="relative opacity-60">
-                  <Clock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-soft" />
-                  <input
-                    type="time"
-                    id="end_time"
-                    name="end_time"
-                    required
-                    className="w-full rounded-radius-sm border border-line bg-surface py-2.5 pl-10 pr-3 text-body text-ink transition-colors focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="location_note" className="mb-1.5 block text-body-sm font-medium text-ink">
-                สถานที่เรียน <span className="text-body-sm font-normal text-ink-soft">(ระบุชื่อสนาม)</span>
-              </label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-5 w-5 text-ink-soft" />
-                <textarea
-                  id="location_note"
-                  name="location_note"
-                  rows={2}
-                  required
-                  placeholder="เช่น SportHub Arena สาขาปิ่นเกล้า คอร์ท 3"
-                  className="w-full rounded-radius-sm border border-line bg-surface py-2.5 pl-10 pr-3 text-body text-ink transition-colors focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                />
-              </div>
+              {eligibleBookings?.length ? <select id="court_booking_code" name="court_booking_code" required className="min-h-12 w-full rounded-radius-sm border border-line bg-surface px-3 text-body text-ink focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+                <option value="">เลือกวัน เวลา และคอร์ทที่ชำระแล้ว</option>
+                {eligibleBookings.map(b => <option key={b.booking_code} value={b.booking_code}>#{b.booking_code} · {b.booking_date} {b.start_time.slice(0,5)}–{b.end_time.slice(0,5)} · {b.tenants?.name} / {b.branches?.name} / {b.courts?.name}</option>)}
+              </select> : <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-body-sm"><p className="font-semibold">ยังไม่มีรายการสนามที่ยืนยันแล้ว</p><p className="mt-1 text-ink-soft">จองและชำระคอร์ทก่อน แล้วกลับมาเลือกโค้ช ระบบจึงจะแชร์วัน เวลา และสถานที่เดียวกันทุกฝ่าย</p><Link href="/discover" className="mt-3 inline-flex font-semibold text-brand underline">ไปจองสนาม</Link></div>}
             </div>
 
             <div>
@@ -210,7 +170,7 @@ export default async function CoachBookingPage({
           <Info className="h-5 w-5 shrink-0 text-brand mt-0.5" />
           <div className="text-body-sm text-brand-dark">
             <p className="font-semibold mb-1">การส่งคำขอจอง</p>
-            <p>การจองนี้ยังไม่สมบูรณ์จนกว่าโค้ชจะตอบรับคำขอและคุณทำการชำระเงินเรียบร้อยแล้ว กรุณารอการติดต่อกลับจากโค้ชผ่านระบบ</p>
+            <p>ระบบใช้รายการสนามที่ยืนยันแล้วเป็นข้อมูลกลาง โค้ชและเจ้าของสนามจะเห็นวัน เวลา และคอร์ทตรงกัน ค่าสอนเป็นคนละส่วนกับค่าคอร์ทและยังต้องตกลงชำระกับโค้ช</p>
           </div>
         </div>
 
@@ -223,7 +183,8 @@ export default async function CoachBookingPage({
           </Link>
           <button
             type="submit"
-            className="rounded-radius-sm bg-brand px-6 py-2.5 text-body font-semibold text-white shadow-sm transition-all hover:bg-brand-dark"
+            disabled={!eligibleBookings?.length}
+            className="rounded-radius-sm bg-brand px-6 py-2.5 text-body font-semibold text-white shadow-sm transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             ส่งคำขอจองเวลาเรียน
           </button>

@@ -1,12 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import {
   GraduationCap,
-  ShieldCheck,
-  MapPin,
-  Edit3,
-  Image as ImageIcon,
   Calendar,
   DollarSign,
   Package,
@@ -15,7 +11,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
+import Image from "next/image";
 import { CoachProfileModal } from "./CoachProfileModal";
 
 export const metadata = {
@@ -31,7 +27,7 @@ export default async function ManageCoachProfilePage() {
   const admin = createAdminClient();
 
   // Verify role
-  const { data: role } = await (admin as any)
+  const { data: role } = await admin
     .from("user_roles")
     .select("role")
     .eq("profile_id", user.id)
@@ -44,7 +40,7 @@ export default async function ManageCoachProfilePage() {
   }
 
   // Get coach profile
-  const { data: profile } = await (admin as any)
+  const { data: profile } = await admin
     .from("coach_profiles")
     .select("*")
     .eq("profile_id", user.id)
@@ -117,8 +113,8 @@ export default async function ManageCoachProfilePage() {
               <DollarSign className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="font-display text-base font-bold text-ink">รายได้ & การจ่ายเงิน</h3>
-              <p className="text-body-xs text-ink-soft">สรุปยอดเงินค่าสอนและประวัติการรับเงิน</p>
+              <h3 className="font-display text-base font-bold text-ink">ประมาณการรายได้</h3>
+              <p className="text-body-xs text-ink-soft">สรุปมูลค่างานสอนที่จบแล้ว ไม่ใช่สถานะ payout</p>
             </div>
           </div>
           <ChevronRight className="h-5 w-5 text-ink-soft" />
@@ -165,8 +161,8 @@ export default async function ManageCoachProfilePage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line/60 pb-6">
             <div className="flex items-center gap-4">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-dark font-display text-2xl font-bold text-white shadow-xs">
-                {profile.avatar_url ? (
-                  <img src={profile.avatar_url} alt="" className="h-full w-full rounded-2xl object-cover" />
+                {profile.profile_image_url ? (
+                  <Image unoptimized width={64} height={64} src={profile.profile_image_url} alt={profile.display_name} className="h-full w-full rounded-2xl object-cover" />
                 ) : (
                   profile.display_name?.charAt(0).toUpperCase() || "C"
                 )}
@@ -180,32 +176,24 @@ export default async function ManageCoachProfilePage() {
                   </span>
                 </div>
                 <p className="text-body-xs text-ink-soft mt-0.5">
-                  🏅 ผู้ฝึกสอนกีฬา: <strong>{profile.sport}</strong> · ประสบการณ์ <strong>{profile.years_experience || 1} ปี</strong>
+                  🏅 ผู้ฝึกสอนกีฬา: <strong>{profile.sport}</strong> · ประสบการณ์ <strong>{profile.experience_years || 1} ปี</strong>
                 </p>
               </div>
             </div>
 
             <div className="text-left sm:text-right">
-              <span className="text-body-xs text-ink-soft block">อัตราค่าสอนเริ่มต้น</span>
-              <span className="font-display text-xl font-extrabold text-brand">
-                ฿{profile.hourly_rate ?? 500} <span className="text-xs font-normal text-ink-soft">/ ชั่วโมง</span>
-              </span>
+              <span className="text-body-xs text-ink-soft block">ราคาค่าสอน</span>
+              <span className="text-body-xs font-semibold text-brand">กำหนดแยกในแพ็กเกจ & คอร์สสอน</span>
             </div>
           </div>
 
           <div>
             <h4 className="font-display text-sm font-bold text-ink mb-1">ประวัติและผลงาน (Bio)</h4>
             <p className="text-body-sm text-ink-soft whitespace-pre-line leading-relaxed">
-              {profile.bio || "ยังไม่ได้ระบุประวัติ กดปุ่ม 'แก้ไขข้อมูลโปรไฟล์' เพื่อกรอกข้อมูลผลงานและประสบการณ์"}
+              {profile.biography || "ยังไม่ได้ระบุประวัติ กดปุ่ม 'แก้ไขข้อมูลโปรไฟล์' เพื่อกรอกข้อมูลผลงานและประสบการณ์"}
             </p>
           </div>
 
-          {profile.phone && (
-            <div className="pt-2">
-              <span className="text-body-xs text-ink-soft">เบอร์โทรศัพท์ติดต่อ: </span>
-              <span className="font-mono text-body-sm font-bold text-ink">{profile.phone}</span>
-            </div>
-          )}
         </div>
       ) : (
         <div className="card-floating rounded-3xl border border-line bg-surface p-12 text-center space-y-4">

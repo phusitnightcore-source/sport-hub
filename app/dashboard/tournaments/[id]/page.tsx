@@ -26,6 +26,7 @@ export default async function DashboardTournamentDetailPage({
 
   const ctx = await getStaffContext();
   if (!ctx) redirect("/login");
+  if (ctx.role !== "venue_admin") redirect("/dashboard");
 
   const admin = createAdminClient();
 

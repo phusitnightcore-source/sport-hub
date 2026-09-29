@@ -16,6 +16,8 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { NotificationBell, type BellItem } from "@/components/ui/NotificationBell";
 import { cn } from "@/lib/utils";
+import { OrganizerBadges } from "@/components/ui/OrganizerBadge";
+import type { OrganizerBadge as OrganizerBadgeData } from "@/lib/organizer";
 
 const CORE_PLAYER_LINKS = [
   { href: "/me", label: "หน้าหลัก", icon: LayoutDashboard, exact: true },
@@ -36,12 +38,14 @@ export function MemberNav({
   bellItems,
   bellUnread,
   roles = ["player"],
+  organizerBadges = [],
 }: {
   name: string;
   recipientIds: string[];
   bellItems: BellItem[];
   bellUnread: number;
   roles?: string[];
+  organizerBadges?: OrganizerBadgeData[];
 }) {
   const pathname = usePathname();
   const initial = name.trim().charAt(0).toUpperCase() || "U";
@@ -52,9 +56,13 @@ export function MemberNav({
   };
 
   const isCoach = roles.includes("coach");
-  const desktopLinks = isCoach
-    ? [...CORE_PLAYER_LINKS, ...COACH_LINKS]
+  const canOrganize = organizerBadges.some((badge) => badge.type !== "verified_coach");
+  const roleLinks = canOrganize
+    ? [...CORE_PLAYER_LINKS, { href: "/me/organizer", label: "Organizer", icon: Trophy }]
     : CORE_PLAYER_LINKS;
+  const desktopLinks = isCoach
+    ? [...roleLinks, ...COACH_LINKS]
+    : roleLinks;
 
   // Bottom nav items for mobile (5 key tabs)
   const mobileNavItems = [
@@ -89,7 +97,7 @@ export function MemberNav({
             {/* Desktop Navigation Links */}
             <nav className="hidden items-center gap-1 lg:flex">
               {desktopLinks.map((l) => {
-                const active = isActive(l.href, (l as any).exact);
+                const active = isActive(l.href, "exact" in l && l.exact === true);
                 const Icon = l.icon;
                 return (
                   <Link
@@ -136,6 +144,10 @@ export function MemberNav({
               href="/me/profile"
               className="flex items-center gap-2 rounded-full p-0.5 transition-transform hover:scale-105"
             >
+              <span className="hidden items-center gap-1 text-body-sm font-bold text-ink xl:inline-flex">
+                {name}
+                <OrganizerBadges badges={organizerBadges} />
+              </span>
               <span
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand/20 to-brand-soft font-display text-body-sm font-bold text-brand ring-2 ring-brand/30"
                 title={name}

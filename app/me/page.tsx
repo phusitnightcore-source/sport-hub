@@ -27,6 +27,9 @@ import RankBadge from "@/components/badminton/RankBadge";
 import { UnfreezeButton } from "./UnfreezeButton";
 import { PrivacyPanel } from "./PrivacyPanel";
 import { MemberCard } from "./card/MemberCard";
+import { getOrganizerAccessForUser } from "@/lib/organizer";
+import { OrganizerBadges } from "@/components/ui/OrganizerBadge";
+import { createMemberQrToken } from "@/lib/membership/qr";
 
 export const dynamic = "force-dynamic";
 
@@ -73,13 +76,13 @@ export default async function MemberPage() {
       .gte("booking_date", new Date().toISOString().split("T")[0])
       .order("booking_date", { ascending: true })
       .limit(3),
-    (admin as any)
+    admin
       .from("group_members")
       .select("group_id")
       .eq("profile_id", user.id)
       .order("joined_at", { ascending: false })
       .limit(3),
-    (admin as any)
+    admin
       .from("coach_bookings")
       .select("id, booking_date, start_time, end_time, status, coach_profiles(display_name, sport)")
       .eq("player_profile_id", user.id)
@@ -91,7 +94,7 @@ export default async function MemberPage() {
 
   const roles = (userRoles?.map((r) => r.role) ?? []) as string[];
   const isCoach = roles.includes("coach");
-  const isVenueAdmin = roles.includes("venue_admin") || profile?.role === "venue_admin";
+  const organizerAccess = await getOrganizerAccessForUser(admin, user.id);
 
   const displayName = profile?.display_name || profile?.full_name || user.email?.split("@")[0] || "นักกีฬา";
   const initial = displayName.trim().charAt(0).toUpperCase() || "U";
@@ -111,6 +114,7 @@ export default async function MemberPage() {
 
   const nextBooking = upcomingBookings?.[0];
   const nextCoachSession = coachBookings?.[0];
+  const initialMemberQr = member ? createMemberQrToken(member.id) : null;
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-6 sm:px-6 sm:py-10 pb-24 md:pb-12">
@@ -155,11 +159,7 @@ export default async function MemberPage() {
                     Coach
                   </span>
                 )}
-                {isVenueAdmin && (
-                  <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                    Venue Owner
-                  </span>
-                )}
+                <OrganizerBadges badges={organizerAccess?.badges ?? []} showLabels />
               </div>
 
               <p className="mt-1 text-body-sm text-ink-soft truncate">
@@ -418,7 +418,11 @@ export default async function MemberPage() {
           <h2 className="font-display text-xl font-bold text-ink">
             บัตรสมาชิกฟิตเนส / สนาม
           </h2>
-          <MemberCard member={member} tenantName={member.tenants?.name || "SportHub"} />
+          <MemberCard
+            member={member}
+            tenantName={member.tenants?.name || "SportHub"}
+            initialQr={initialMemberQr!}
+          />
           <div className="grid grid-cols-2 gap-4">
             <Link href="/me/renew">
               <Button variant="primary" className="w-full rounded-2xl font-bold">

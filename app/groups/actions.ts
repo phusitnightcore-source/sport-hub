@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
+import { getOrganizerAccessForUser } from "@/lib/organizer";
 
 const createGroupSchema = z.object({
   title: z.string().trim().min(3, "ชื่อก๊วนต้องมีอย่างน้อย 3 ตัวอักษร").max(100),
@@ -43,6 +44,10 @@ export async function createGroupAction(formData: FormData) {
   }
 
   const admin = createAdminClient();
+  const access = await getOrganizerAccessForUser(admin, user.id);
+  if (!access?.canManageGroups) {
+    return { success: false, error: "การสร้างก๊วนสำหรับเจ้าของสนามหรือสมาชิกแพ็กเกจผู้จัดก๊วนเท่านั้น" };
+  }
   const data = parsed.data;
 
   // Insert group
@@ -71,11 +76,15 @@ export async function createGroupAction(formData: FormData) {
   }
 
   // Add creator to group_members
-  await admin.from("group_members").insert({
+  const { error: creatorMemberError } = await admin.from("group_members").insert({
     group_id: newGroup.id,
     profile_id: user.id,
     is_creator: true,
   });
+  if (creatorMemberError) {
+    await admin.from("groups").delete().eq("id", newGroup.id).eq("creator_id", user.id);
+    return { success: false, error: "เพิ่มผู้สร้างเข้าก๊วนไม่สำเร็จ กรุณาลองใหม่" };
+  }
 
   revalidatePath("/groups");
   revalidatePath("/me");
@@ -90,56 +99,20 @@ export async function joinGroupAction(groupId: string) {
     return { success: false, error: "กรุณาเข้าสู่ระบบก่อนเข้าร่วมก๊วน" };
   }
 
+  const id = z.string().uuid().safeParse(groupId);
+  if (!id.success) return { success: false, error: "รหัสก๊วนไม่ถูกต้อง" };
   const admin = createAdminClient();
-
-  // Check if group exists and has capacity
-  const { data: group, error: groupErr } = await admin
-    .from("groups")
-    .select("id, current_players, max_players, status")
-    .eq("id", groupId)
-    .single();
-
-  if (groupErr || !group) {
-    return { success: false, error: "ไม่พบก๊วนที่ระบุ" };
-  }
-
-  if (group.status !== "open" || group.current_players >= group.max_players) {
-    return { success: false, error: "ก๊วนนี้เต็มแล้ว" };
-  }
-
-  // Check if already joined
-  const { data: existing } = await admin
-    .from("group_members")
-    .select("id")
-    .eq("group_id", groupId)
-    .eq("profile_id", user.id)
-    .maybeSingle();
-
-  if (existing) {
-    return { success: false, error: "คุณเข้าร่วมก๊วนนี้อยู่แล้ว" };
-  }
-
-  // Insert membership
-  const { error: joinErr } = await admin.from("group_members").insert({
-    group_id: groupId,
-    profile_id: user.id,
-    is_creator: false,
+  const { error: joinErr } = await admin.rpc("join_community_group", {
+    p_group_id: id.data,
+    p_profile_id: user.id,
   });
-
   if (joinErr) {
     console.error("Join group error:", joinErr);
+    const message = String(joinErr.message || "");
+    if (message.includes("already joined")) return { success: false, error: "คุณเข้าร่วมก๊วนนี้อยู่แล้ว" };
+    if (message.includes("full") || message.includes("not open")) return { success: false, error: "ก๊วนนี้ปิดรับสมาชิกหรือเต็มแล้ว" };
     return { success: false, error: "เข้าร่วมก๊วนไม่สำเร็จ กรุณาลองใหม่" };
   }
-
-  // Update count and status
-  const nextCount = group.current_players + 1;
-  await admin
-    .from("groups")
-    .update({
-      current_players: nextCount,
-      status: nextCount >= group.max_players ? "full" : "open",
-    })
-    .eq("id", groupId);
 
   revalidatePath("/groups");
   revalidatePath("/me");
@@ -154,41 +127,54 @@ export async function leaveGroupAction(groupId: string) {
     return { success: false, error: "กรุณาเข้าสู่ระบบ" };
   }
 
+  const id = z.string().uuid().safeParse(groupId);
+  if (!id.success) return { success: false, error: "รหัสก๊วนไม่ถูกต้อง" };
   const admin = createAdminClient();
-
-  const { data: member } = await admin
-    .from("group_members")
-    .select("id, is_creator")
-    .eq("group_id", groupId)
-    .eq("profile_id", user.id)
-    .maybeSingle();
-
-  if (!member) {
-    return { success: false, error: "คุณไม่ได้อยู่ในก๊วนนี้" };
+  const { error } = await admin.rpc("leave_community_group", {
+    p_group_id: id.data,
+    p_profile_id: user.id,
+  });
+  if (error) {
+    console.error("Leave group error:", error);
+    const message = String(error.message || "");
+    if (message.includes("not a member")) return { success: false, error: "คุณไม่ได้อยู่ในก๊วนนี้" };
+    if (message.includes("creator cannot leave")) return { success: false, error: "ผู้สร้างก๊วนไม่สามารถออกจากก๊วนได้" };
+    return { success: false, error: "ออกจากก๊วนไม่สำเร็จ กรุณาลองใหม่" };
   }
 
-  if (member.is_creator) {
-    return { success: false, error: "ผู้สร้างก๊วนไม่สามารถออกจากก๊วนได้" };
-  }
+  revalidatePath("/groups");
+  revalidatePath("/me");
+  return { success: true };
+}
 
-  await admin.from("group_members").delete().eq("id", member.id);
+export async function cancelGroupAction(groupId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "กรุณาเข้าสู่ระบบ" };
 
+  const id = z.string().uuid().safeParse(groupId);
+  if (!id.success) return { success: false, error: "รหัสก๊วนไม่ถูกต้อง" };
+
+  const admin = createAdminClient();
   const { data: group } = await admin
     .from("groups")
-    .select("current_players, max_players")
-    .eq("id", groupId)
-    .single();
-
-  if (group) {
-    const nextCount = Math.max(1, group.current_players - 1);
-    await admin
-      .from("groups")
-      .update({
-        current_players: nextCount,
-        status: "open",
-      })
-      .eq("id", groupId);
+    .select("id,creator_id,status")
+    .eq("id", id.data)
+    .maybeSingle();
+  if (!group || group.creator_id !== user.id) {
+    return { success: false, error: "คุณไม่มีสิทธิ์ปิดก๊วนนี้" };
   }
+  if (!["open", "full"].includes(group.status)) {
+    return { success: false, error: "ก๊วนนี้ปิดรับสมาชิกแล้ว" };
+  }
+
+  const { error } = await admin
+    .from("groups")
+    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .eq("id", id.data)
+    .eq("creator_id", user.id)
+    .in("status", ["open", "full"]);
+  if (error) return { success: false, error: "ปิดก๊วนไม่สำเร็จ กรุณาลองใหม่" };
 
   revalidatePath("/groups");
   revalidatePath("/me");

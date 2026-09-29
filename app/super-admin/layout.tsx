@@ -24,6 +24,7 @@ export default async function SuperAdminLayout({
     { href: "/super-admin", label: "ภาพรวมระบบ", iconName: "LayoutDashboard" },
     { href: "/super-admin/tenants", label: "สนามทั้งหมด", iconName: "Building2" },
     { href: "/super-admin/coaches", label: "โค้ช & อนุมัติ", iconName: "GraduationCap", badge: pendingCoachesCount },
+    { href: "/super-admin/organizers", label: "Organizer Membership", iconName: "BadgeCheck" },
     { href: "/super-admin/groups", label: "ก๊วนกีฬา", iconName: "Users" },
     { href: "/super-admin/tournaments", label: "การแข่งขัน", iconName: "Trophy" },
     { href: "/super-admin/plans", label: "แพลน & สิทธิ์", iconName: "SlidersHorizontal" },

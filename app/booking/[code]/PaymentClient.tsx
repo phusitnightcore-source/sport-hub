@@ -65,11 +65,14 @@ export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Pro
   useEffect(() => {
     if (booking.status !== "awaiting_verification") return;
     pollRef.current = setInterval(async () => {
-      const res = await fetch(`/api/bookings/${booking.code}`);
+      if (document.visibilityState !== "visible") return;
+      try {
+      const res = await fetch(`/api/bookings/${booking.code}`, { cache:"no-store" });
       const json = await res.json();
       if (json.success && json.data.status !== "awaiting_verification") {
         router.refresh();
       }
+      } catch { /* Keep the last confirmed state; the next poll retries. */ }
     }, 10_000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -82,6 +85,7 @@ export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Pro
   async function handleCancel() {
     setSubmitting(true);
     setError(null);
+    try {
     const res = await fetch(`/api/bookings/${booking.code}/cancel`, {
       method: "POST",
     });
@@ -94,6 +98,8 @@ export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Pro
     }
     setCancelMsg(json.data.message);
     router.refresh();
+    } catch { setError("การเชื่อมต่อขัดข้อง กรุณาอัปเดตสถานะก่อนลองอีกครั้ง"); }
+    finally { setSubmitting(false); }
   }
 
   async function handleSlipSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -102,6 +108,7 @@ export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Pro
     setSubmitting(true);
     const form = new FormData(e.currentTarget);
     form.set("bookingCode", booking.code);
+    try {
     const res = await fetch("/api/payments", { method: "POST", body: form });
     const json = await res.json();
     if (!json.success) {
@@ -111,12 +118,16 @@ export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Pro
       return;
     }
     router.refresh();
+    } catch { setError("ยังยืนยันผลส่งสลิปไม่ได้ กรุณาอัปเดตสถานะก่อนส่งซ้ำ"); }
+    finally { setSubmitting(false); }
   }
 
   const statusInfo = BOOKING_STATUS_LABEL[booking.status];
 
   return (
     <div className="flex flex-col gap-6">
+      {["pending_payment","awaiting_verification","confirmed"].includes(booking.status) && <ol aria-label="ขั้นตอนการจอง" className="grid grid-cols-3 gap-2 text-center text-xs text-ink">{["จองเวลาแล้ว","แจ้งชำระเงิน","สนามยืนยัน"].map((label,index) => { const done = index === 0 || (index === 1 && booking.status !== "pending_payment") || booking.status === "confirmed"; return <li key={label} className={"rounded-xl border px-2 py-3 " + (done ? "border-brand/30 bg-brand-soft" : "border-line bg-surface")}><span className="mb-1 block font-semibold">{done ? "✓" : index+1}</span>{label}</li>; })}</ol>}
+      <button type="button" className="self-end rounded-xl border border-line bg-surface px-4 py-2 text-sm text-ink hover:bg-brand-soft" disabled={submitting} onClick={() => router.refresh()}>อัปเดตสถานะ</button>
       {/* สรุปการจอง */}
       <div className="card-floating p-6">
         <div className="flex items-start justify-between gap-3">
@@ -124,27 +135,27 @@ export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Pro
             <h1 className="font-display text-display-md font-semibold text-ink">
               {booking.courtName}
             </h1>
-            <p className="text-body-sm text-ink-soft">
+            <p className="text-body-sm text-ink/70">
               {booking.tenantName} · {booking.courtType}
             </p>
           </div>
           <StatusPill tone={statusInfo.tone}>{statusInfo.label}</StatusPill>
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-body-sm">
-          <dt className="text-ink-soft">รหัสการจอง</dt>
+          <dt className="text-ink/70">รหัสการจอง</dt>
           <dd className="text-right font-mono text-mono-sm font-medium text-ink">
             {booking.code}
           </dd>
-          <dt className="text-ink-soft">ผู้จอง</dt>
+          <dt className="text-ink/70">ผู้จอง</dt>
           <dd className="text-right text-ink">{booking.userName}</dd>
-          <dt className="text-ink-soft">วัน-เวลา</dt>
+          <dt className="text-ink/70">วัน-เวลา</dt>
           <dd className="text-right text-ink">
             {booking.date}{" "}
             <span className="font-mono text-mono-sm">
               {booking.startTime}–{booking.endTime}
             </span>
           </dd>
-          <dt className="text-ink-soft">ยอดชำระ</dt>
+          <dt className="text-ink/70">ยอดชำระ</dt>
           <dd className="text-right font-display text-body-lg font-bold text-brand">
             ฿{formatBahtFromDb(booking.totalPrice)}
           </dd>
@@ -165,7 +176,7 @@ export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Pro
                   alt={`QR PromptPay ยอด ${booking.totalPrice} บาท`}
                   width={280}
                   height={280}
-                  className="rounded-sm"
+                  className="rounded-xl bg-white p-2"
                 />
                 {qrIsUploaded && (
                   <p className="rounded-sm bg-warning/10 px-3 py-2 text-center text-body-sm text-warning">
@@ -186,7 +197,7 @@ export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Pro
               className={
                 countdown.expired
                   ? "text-body-sm text-danger"
-                  : "text-body-sm text-ink-soft"
+                  : "text-body-sm text-ink/70"
               }
             >
               <Clock3 aria-hidden className="mr-1 inline h-4 w-4" />
@@ -226,7 +237,7 @@ export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Pro
                 {error}
               </p>
             )}
-            <Button type="submit" disabled={submitting || countdown.expired}>
+            <Button type="submit" className="booking-action min-h-12" disabled={submitting || countdown.expired}>
               {submitting ? "กำลังส่ง..." : "ส่งสลิปให้สนามตรวจสอบ"}
             </Button>
           </form>
@@ -240,7 +251,7 @@ export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Pro
           <h2 className="text-body-lg font-medium text-ink">
             ส่งสลิปแล้ว กำลังรอสนามตรวจสอบ
           </h2>
-          <p className="text-body-sm text-ink-soft">
+          <p className="text-body-sm text-ink/70">
             หน้านี้จะอัปเดตอัตโนมัติเมื่อสนามยืนยัน
           </p>
         </div>
@@ -265,7 +276,7 @@ export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Pro
             />
           </svg>
           <h2 className="text-body-lg font-medium text-ink">การจองยืนยันแล้ว</h2>
-          <p className="text-body-sm text-ink-soft">
+          <p className="text-body-sm text-ink/70">
             แสดงรหัสจองนี้กับเจ้าหน้าที่เมื่อถึงสนาม
           </p>
           <p className="font-mono text-display-md font-medium tracking-widest text-brand">
@@ -293,7 +304,7 @@ export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Pro
             <p className="text-body-sm text-ink">เหตุผล: {payment.rejectReason}</p>
           )}
           {booking.status === "awaiting_refund" && (
-            <p className="text-body-sm text-ink-soft">
+            <p className="text-body-sm text-ink/70">
               สนามจะโอนเงินคืนภายใน 24 ชั่วโมง กรุณาติดต่อสนามหากไม่ได้รับ
             </p>
           )}
@@ -352,7 +363,7 @@ export function PaymentClient({ booking, payment, qrDataUrl, qrIsUploaded }: Pro
         <div className="card-floating flex flex-col items-center gap-3 p-8 text-center">
           <XCircle aria-hidden className="h-10 w-10 text-danger" />
           <h2 className="text-body-lg font-medium text-ink">การจองถูกยกเลิก</h2>
-          <p className="text-body-sm text-ink-soft">
+          <p className="text-body-sm text-ink/70">
             หากต้องการจองใหม่ กรุณากลับไปที่หน้าเลือกสนาม
           </p>
         </div>

@@ -105,9 +105,9 @@ export async function createWalkInBooking(input: z.input<typeof schema>) {
   const totalSatang = chosen.reduce((sum, s) => sum + s.priceSatang, 0);
   const anyPeak = chosen.some((s) => s.isPeak);
 
-  const { data: booking, error } = await admin
-    .from("bookings")
-    .insert({
+  const { data: rows, error } = await admin.rpc("create_pos_walk_in", {
+    p_tenant_id: ctx.tenantId, p_staff_id: ctx.staffId, p_collect_at_pos: d.collectAtPos,
+    p_booking: {
       tenant_id: ctx.tenantId,
       court_id: court.id,
       branch_id: court.branch_id,
@@ -125,33 +125,16 @@ export async function createWalkInBooking(input: z.input<typeof schema>) {
       created_by: ctx.staffId,
       note: d.note ?? null,
       policy_accepted_at: new Date().toISOString(),
-    })
-    .select("id, booking_code, total_price")
-    .single();
+    },
+  });
   if (error) {
     if (error.code === "23P01") return { error: "ช่วงเวลานี้ถูกจองตัดหน้าแล้ว" };
     console.error("walk-in booking failed:", error);
     return { error: "จองไม่สำเร็จ กรุณาลองใหม่" };
   }
 
-  // บันทึกการรับเงิน (verified ทันที → trigger ออกใบเสร็จ §9.8)
-  if (!d.collectAtPos) {
-  const { error: paymentError } = await admin.from("payments").insert({
-    tenant_id: ctx.tenantId,
-    booking_id: booking.id,
-    amount: booking.total_price,
-    method: d.method,
-    status: "verified",
-    verified_by: ctx.staffId,
-    verified_at: new Date().toISOString(),
-    sender_name: d.method === "walk_in_cash" ? "เงินสด (หน้าเคาน์เตอร์)" : "โอน (หน้าเคาน์เตอร์)",
-  });
-
-  if (paymentError) {
-    console.error("walk-in payment failed:", paymentError);
-    return { error: `สร้างการจอง ${booking.booking_code} แล้ว แต่บันทึกรับเงินไม่สำเร็จ กรุณาให้ผู้ดูแลตรวจสอบก่อนรับเงินซ้ำ` };
-  }
-  }
+  const booking = rows?.[0];
+  if (!booking) return { error: "ไม่ได้รับผลการจอง กรุณาตรวจรายการจองก่อนลองซ้ำ" };
 
   await logAudit({
     tenantId: ctx.tenantId,

@@ -26,6 +26,7 @@ import { bangkokToday } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { StatusPill } from "@/components/ui/StatusPill";
 import type { Event, EventPlayer, Match } from "@/types/badminton";
+import { getStaffContext } from "@/lib/auth";
 
 export const metadata = {
   title: "ระบบก๊วนแบดมินตัน | SportHub",
@@ -33,6 +34,9 @@ export const metadata = {
 };
 
 export default async function GroupSessionsHubPage() {
+  const staffContext = await getStaffContext();
+  if (!staffContext) redirect("/login");
+  if (staffContext.role !== "venue_admin") redirect("/dashboard");
   const supabase = await createClient();
   const {
     data: { user },

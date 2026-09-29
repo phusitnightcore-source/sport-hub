@@ -20,7 +20,7 @@ export default async function CoachSchedulePage() {
 
   const admin = createAdminClient();
 
-  const { data: coach } = await (admin as any)
+  const { data: coach } = await admin
     .from("coach_profiles")
     .select("id, display_name")
     .eq("profile_id", user.id)
@@ -28,7 +28,7 @@ export default async function CoachSchedulePage() {
 
   if (!coach) redirect("/me/coach");
 
-  const { data: schedules } = await (admin as any)
+  const { data: schedules } = await admin
     .from("coach_schedules")
     .select("day_of_week, start_time, end_time, is_available")
     .eq("coach_profile_id", coach.id)
@@ -54,7 +54,7 @@ export default async function CoachSchedulePage() {
         </p>
       </header>
 
-      <CoachScheduleClient initialSchedules={(schedules ?? []) as any[]} />
+      <CoachScheduleClient initialSchedules={schedules ?? []} />
     </main>
   );
 }

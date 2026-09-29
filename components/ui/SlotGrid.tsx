@@ -49,23 +49,23 @@ export function SlotGrid({
             onClick={() => onToggle?.(slot.start)}
             aria-pressed={isSelected}
             className={cn(
-              "relative flex flex-col items-start gap-0.5 rounded-sm px-3 py-2.5 text-left",
+              "relative flex min-h-24 flex-col items-start justify-center gap-1 rounded-xl border px-3 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand",
               "transition-all duration-fast",
               // ว่าง
               slot.status === "available" &&
                 !isSelected &&
-                "bg-brand-soft text-brand hover:shadow-sm",
+                "border-line bg-surface text-ink hover:border-brand hover:bg-brand-soft hover:shadow-sm",
               // ว่าง + ถูกเลือก → เน้นด้วย brand ทึบ
-              isSelected && "bg-brand text-white shadow-sm",
+              isSelected && "border-brand bg-brand-soft text-ink ring-1 ring-brand shadow-sm",
               // ถูกจอง
               slot.status === "booked" &&
-                "cursor-not-allowed bg-success text-white",
+                "cursor-not-allowed border-line bg-line/30 text-ink/70",
               // ถูกบล็อก
               slot.status === "blocked" &&
-                "slot-hatch cursor-not-allowed bg-line text-ink-soft",
+                "slot-hatch cursor-not-allowed border-line bg-line/30 text-ink/70",
               // เลยเวลาแล้ว
               slot.status === "past" &&
-                "cursor-not-allowed bg-line/60 text-ink-soft/60",
+                "cursor-not-allowed border-line bg-line/30 text-ink/60",
               pulse && "animate-slot-breathe",
             )}
           >
@@ -81,11 +81,12 @@ export function SlotGrid({
                     ? "ผ่านไปแล้ว"
                     : `฿${formatBaht(slot.priceSatang)}`}
             </span>
+            {isSelected && <span className="text-xs font-semibold text-brand">✓ เลือกแล้ว</span>}
             {slot.isPeak && slot.status === "available" && (
               <span
                 className={cn(
                   "absolute right-1.5 top-1.5 rounded-full px-1.5 text-mono-sm font-semibold",
-                  isSelected ? "bg-white/20 text-white" : "pill-danger",
+                  "bg-surface text-ink ring-1 ring-line",
                 )}
               >
                 Peak

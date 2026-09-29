@@ -4,21 +4,15 @@ import {
   CalendarSearch,
   CalendarDays,
   Clock,
-  MapPin,
   QrCode,
-  CreditCard,
   GraduationCap,
-  Sparkles,
-  ChevronRight,
   Compass,
-  CheckCircle2,
-  AlertCircle,
-  ExternalLink,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Button } from "@/components/ui/Button";
 import { formatBahtFromDb } from "@/lib/money";
+import { CoachBookingCancelButton } from "./CoachBookingCancelButton";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +57,11 @@ const STATUS_CFG: Record<string, { label: string; tone: string; desc: string }> 
     tone: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
     desc: "ส่งคำขอไปยังโค้ชแล้ว",
   },
+  requested: {
+    label: "รอโค้ชตอบรับ",
+    tone: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    desc: "ผูกกับสนามแล้วและส่งคำขอถึงโค้ชแล้ว",
+  },
   completed: {
     label: "เสร็จสิ้น",
     tone: "bg-surface-raised text-ink-soft border-line",
@@ -101,23 +100,23 @@ export default async function MyBookingsPage({
       .or(filter)
       .order("booking_date", { ascending: false })
       .limit(100),
-    (admin as any)
+    admin
       .from("coach_bookings")
-      .select("id, booking_date, start_time, end_time, total_price, status, notes, coach_profiles(display_name, sport, phone), coach_services(name, duration_minutes)")
+      .select("id, court_booking_id, booking_date, start_time, end_time, total_price, status, player_note, coach_profiles(display_name, sport), coach_services(name, duration_minutes), bookings!court_booking_id(booking_code,courts(name),branches(name),tenants(name))")
       .eq("player_profile_id", user.id)
       .order("booking_date", { ascending: false })
       .limit(50),
   ]);
 
   const allCourtBookings = courtBookings ?? [];
-  const allCoachBookings = (coachBookings ?? []) as any[];
+  const allCoachBookings = coachBookings ?? [];
 
   const upcomingCourts = allCourtBookings.filter(
     (b) => b.status === "confirmed" || b.status === "pending_payment" || b.status === "awaiting_verification"
   ).length;
 
   const upcomingCoaches = allCoachBookings.filter(
-    (c) => c.status === "pending" || c.status === "accepted" || c.status === "confirmed"
+    (c) => c.status === "requested" || c.status === "accepted" || c.status === "confirmed" || c.status === "in_progress"
   ).length;
 
   return (
@@ -332,16 +331,9 @@ export default async function MyBookingsPage({
                             ฿{formatBahtFromDb(c.total_price)}
                           </span>
                         </div>
+                        {c.bookings&&<p className="mt-2 text-body-xs text-ink-soft">สนามที่ผูก: #{c.bookings.booking_code} · {c.bookings.tenants?.name} / {c.bookings.branches?.name} / {c.bookings.courts?.name}</p>}
+                        {["requested","accepted","confirmed"].includes(c.status)&&<CoachBookingCancelButton id={c.id}/>}
                       </div>
-
-                      {c.coach_profiles?.phone && (
-                        <div className="text-right">
-                          <span className="text-[11px] text-ink-soft block">ติดต่อโค้ช:</span>
-                          <span className="font-mono text-body-sm font-bold text-ink">
-                            {c.coach_profiles.phone}
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 );

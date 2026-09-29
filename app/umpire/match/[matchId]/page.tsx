@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { UmpireScoringClient } from "./UmpireScoringClient";
 import type { Team } from "@/lib/scoring/types";
+import { getStaffContext } from "@/lib/auth";
+import { getOrganizerAccessForUser } from "@/lib/organizer";
 
 export const dynamic = "force-dynamic";
 
@@ -20,11 +22,20 @@ export default async function UmpireMatchPage({
 
   const { data: match } = await (admin as any)
     .from("matches")
-    .select("id, tournament_id, round, court_no, team_a_id, team_b_id, status, tournaments(name)")
+    .select("id, tournament_id, round, court_no, team_a_id, team_b_id, status, tournaments(name,tenant_id,organizer_id)")
     .eq("id", matchId)
     .single();
 
   if (!match) notFound();
+
+  const [staffContext, organizerAccess] = await Promise.all([
+    getStaffContext(),
+    getOrganizerAccessForUser(admin, user.id),
+  ]);
+  const canScore =
+    (organizerAccess?.canManageTournaments && match.tournaments?.organizer_id === user.id) ||
+    (staffContext && match.tournaments?.tenant_id === staffContext.tenantId);
+  if (!canScore) redirect(`/tournaments/${match.tournament_id}`);
 
   // Fetch teams and team members
   const teamIds = [match.team_a_id, match.team_b_id].filter(Boolean);

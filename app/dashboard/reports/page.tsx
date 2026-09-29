@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getStaffContext, hasPermission } from "@/lib/auth";
 import { getTenantEntitlements } from "@/lib/entitlements.server";
+import { reportPaymentMethod } from "@/lib/pos/reporting";
 import { bangkokToday } from "@/lib/api";
 import {
   ReportsClient,
@@ -61,6 +62,8 @@ export default async function ReportsPage() {
         branch_id,
         total_amount,
         booking_charge,
+        booking_payment_id,
+        booking_id,
         subtotal,
         discount_amount,
         completed_at,
@@ -85,7 +88,8 @@ export default async function ReportsPage() {
       .from("sale_items")
       .select("product_name, quantity, line_total, sales!inner(branch_id, status, tenant_id)")
       .eq("sales.tenant_id", ctx.tenantId)
-      .eq("sales.status", "completed"),
+      .eq("sales.status", "completed")
+      .not("product_id", "is", null),
     admin
       .from("pos_shifts")
       .select("id, branch_id, opened_by, closed_by, opened_at, closed_at, status, starting_cash, actual_closing_cash, expected_closing_cash, notes")
@@ -93,13 +97,20 @@ export default async function ReportsPage() {
       .order("opened_at", { ascending: false }),
   ]);
 
+  if ([branchesResult, courtsResult, paymentsResult, posSalesResult, bookingsResult, membersResult, saleItemsResult, shiftsResult].some(r => r.error)) {
+    return <main className="rounded-2xl border border-line bg-surface p-8 text-ink"><h1 className="text-xl font-bold">โหลดรายงานไม่ครบ</h1><p className="mt-3">กรุณาตรวจการเชื่อมต่อและอัปเดตฐานข้อมูลก่อนดูยอดรายได้ ระบบจะไม่แสดงยอดจากข้อมูลที่ขาดหาย</p></main>;
+  }
   const branches = branchesResult.data ?? [];
   const courts = courtsResult.data ?? [];
 
+  const bookingBranches = new Map((bookingsResult.data ?? []).map(b => [b.id, b.branch_id]));
+  const counterMethods = new Map((posSalesResult.data ?? []).filter(s => s.booking_payment_id).map(s => [s.booking_payment_id, s.pos_payments?.[0]?.method ?? "other"]));
+  const counterBookingMethods = new Map((posSalesResult.data ?? []).filter(s => s.booking_id && s.booking_payment_id).map(s => [s.booking_id, s.pos_payments?.[0]?.method ?? "other"]));
   const payments: ReportPayment[] = (paymentsResult.data ?? []).map((p) => ({
     id: p.id,
     amount: Number(p.amount),
-    method: p.method,
+    method: reportPaymentMethod(counterMethods.get(p.id) ?? p.method),
+    branch_id: p.booking_id ? bookingBranches.get(p.booking_id) ?? null : null,
     booking_id: p.booking_id,
     member_id: p.member_id,
     verified_at: p.verified_at ?? "",
@@ -125,7 +136,7 @@ export default async function ReportsPage() {
     total_price: Number(b.total_price),
     status: b.status,
     created_at: b.created_at,
-    payment_method: b.payment_method,
+    payment_method: reportPaymentMethod(counterBookingMethods.get(b.id) ?? b.payment_method),
   }));
 
   const members: ReportMember[] = (membersResult.data ?? []).map((m) => ({

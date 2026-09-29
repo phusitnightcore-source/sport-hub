@@ -4,6 +4,8 @@ import { apiOk, apiError } from "@/lib/api";
 import { getStaffContext, hasPermission } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { dispatchNotification } from "@/lib/notify";
+import { canUsePosBranch } from "@/lib/pos/access";
+import { notifyMemberSafely } from "@/lib/membership/notifications";
 
 type PaymentRow = {
   id: string;
@@ -96,6 +98,17 @@ export async function POST(
     return apiError("VALIDATION_ERROR", "รายการนี้ถูกตรวจสอบไปแล้ว", 400);
   }
 
+  if (payment.booking_id) {
+    const {data:booking} = await admin.from("bookings").select("branch_id").eq("id",payment.booking_id).eq("tenant_id",ctx.tenantId).maybeSingle();
+    if (!booking || !await canUsePosBranch(ctx,booking.branch_id)) return apiError("AUTH_UNAUTHORIZED","ไม่มีสิทธิ์จัดการสาขานี้",403);
+    const approve = parsed.data.action === "approve";
+    const reason = parsed.data.action === "reject" ? parsed.data.reason : "";
+    const {data,error} = await admin.rpc("verify_booking_payment",{p_tenant_id:ctx.tenantId,p_payment_id:payment.id,p_staff_id:ctx.staffId,p_actor_id:ctx.userId,p_approve:approve,p_reason:reason});
+    if (error) return apiError("VALIDATION_ERROR","บันทึกไม่สำเร็จ กรุณาอัปเดตสถานะการจองและสลิปก่อนลองใหม่",409);
+    await notifyPaymentResult(admin,payment,approve ? "verified" : "rejected",reason);
+    return apiOk(data);
+  }
+
   // verified_by อ้าง staff.id — venue_admin อาจไม่มีแถว staff (เก็บ null, ตัวตนอยู่ใน audit)
   const { data: staffRow } = await admin
     .from("staff")
@@ -158,7 +171,7 @@ export async function POST(
         }
       }
 
-      await admin
+      const { error: memberUpdateError } = await admin
         .from("members")
         .update({ 
           status: "active",
@@ -167,6 +180,27 @@ export async function POST(
           end_date: endDate ? endDate.toISOString().split("T")[0] : null
         })
         .eq("id", payment.member_id);
+      if (memberUpdateError) {
+        await admin
+          .from("payments")
+          .update({ status: "awaiting_verification", verified_by: null, verified_at: null })
+          .eq("id", payment.id);
+        return apiError("INTERNAL_ERROR", "เปิดใช้งานสมาชิกไม่สำเร็จ กรุณาลองใหม่", 500);
+      }
+
+      const { data: activated } = await admin
+        .from("members")
+        .select("member_number, end_date, packages(name)")
+        .eq("id", payment.member_id)
+        .maybeSingle();
+      await notifyMemberSafely({
+        tenantId: payment.tenant_id,
+        memberId: payment.member_id,
+        title: "บัตรสมาชิกพร้อมใช้งานแล้ว",
+        body: `ชำระเงินสำเร็จ สมาชิก ${activated?.member_number ?? ""} แพ็กเกจ ${activated?.packages?.name ?? "ฟิตเนส"}${activated?.end_date ? ` ใช้ได้ถึง ${new Date(`${activated.end_date}T00:00:00`).toLocaleDateString("th-TH")}` : " ใช้งานได้ไม่จำกัดวัน"} เปิดบัตรดิจิทัลเพื่อเช็กอินได้ทันที`,
+        referenceId: payment.id,
+        referenceType: "payment",
+      });
     }
     await logAudit({
       tenantId: ctx.tenantId,

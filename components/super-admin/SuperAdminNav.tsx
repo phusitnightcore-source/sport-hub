@@ -12,6 +12,7 @@ import {
   GraduationCap,
   Users,
   Trophy,
+  BadgeCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,6 +26,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   GraduationCap,
   Users,
   Trophy,
+  BadgeCheck,
 };
 
 export type SuperAdminNavItem = {

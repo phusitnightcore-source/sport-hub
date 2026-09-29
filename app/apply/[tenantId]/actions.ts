@@ -2,6 +2,8 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireOnlinePayment } from "@/lib/subscription";
+import { notifyMemberSafely, notifyTenantAdminsSafely } from "@/lib/membership/notifications";
+import { createMemberNumber } from "@/lib/membership/member-number";
 
 export async function submitApplication(data: {
   tenantId: string;
@@ -80,7 +82,7 @@ export async function submitApplication(data: {
   }
 
   // 3. Create member record
-  const memberNumber = `M-${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`;
+  const memberNumber = await createMemberNumber(admin, data.tenantId);
   
   const { data: newMember, error: memberErr } = await admin
     .from("members")
@@ -102,7 +104,10 @@ export async function submitApplication(data: {
     .select()
     .single();
 
-  if (memberErr) return { success: false, error: memberErr.message };
+  if (memberErr) {
+    if (!foundUser) await admin.auth.admin.deleteUser(userId);
+    return { success: false, error: memberErr.message };
+  }
 
   // 4. Create payment record (B2C PromptPay) — amount เก็บเป็นบาท (numeric) ตาม schema
   //    ผูก member_id + package_id เพื่อให้ verify route เปิดใช้สมาชิกได้ (§34.2)
@@ -119,7 +124,29 @@ export async function submitApplication(data: {
     .select("id")
     .single();
 
-  if (paymentErr) return { success: false, error: paymentErr.message };
+  if (paymentErr) {
+    await admin.from("members").delete().eq("id", newMember.id);
+    if (!foundUser) await admin.auth.admin.deleteUser(userId);
+    return { success: false, error: paymentErr.message };
+  }
+
+  await Promise.all([
+    notifyMemberSafely({
+      tenantId: data.tenantId,
+      memberId: newMember.id,
+      title: "รับใบสมัครสมาชิกแล้ว",
+      body: `หมายเลขสมาชิก ${memberNumber} สมัครแพ็กเกจ ${pkg.name} สำเร็จ กรุณาชำระเงินและแนบสลิปเพื่อเปิดใช้งานบัตรสมาชิก`,
+      referenceId: payment.id,
+      referenceType: "payment",
+    }),
+    notifyTenantAdminsSafely({
+      tenantId: data.tenantId,
+      title: "ใบสมัครสมาชิกใหม่",
+      body: `${data.firstName} ${data.lastName} สมัครแพ็กเกจ ${pkg.name} และกำลังรอชำระเงิน`,
+      referenceId: newMember.id,
+      referenceType: "member",
+    }),
+  ]);
 
   return {
     success: true,

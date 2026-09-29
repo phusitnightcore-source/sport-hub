@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { bangkokToday, bangkokNowTime } from "@/lib/api";
+import { validBookingDate } from "@/lib/booking/dates";
 import { buildSlots, toMinutes } from "@/lib/booking/slots";
 import { satangToBahtString, toSatang } from "@/lib/money";
 import { logAudit } from "@/lib/audit";
@@ -44,15 +45,16 @@ export async function createBooking(
   body: BookingInput,
   opts?: { notifyAdmin?: boolean },
 ): Promise<BookingResult> {
+  if (!validBookingDate(body.date)) return fail("VALIDATION_ERROR", "วันที่ไม่ถูกต้อง", 400);
   const admin = createAdminClient();
   const { data: court } = await admin
     .from("courts")
     .select(
-      "id, tenant_id, branch_id, name, status, open_time, close_time, price_standard, price_peak, advance_booking_days",
+      "id, tenant_id, branch_id, name, status, open_time, close_time, price_standard, price_peak, advance_booking_days, branches(status)",
     )
     .eq("id", body.courtId)
     .single();
-  if (!court || court.status !== "open") {
+  if (!court || court.status !== "open" || court.branches?.status !== "active") {
     return fail("NOT_FOUND", "ไม่พบสนามหรือสนามปิดให้บริการ", 404);
   }
 
@@ -107,7 +109,7 @@ export async function createBooking(
     return fail("VALIDATION_ERROR", "ช่วงเวลานี้ผ่านไปแล้ว", 400);
   }
 
-  const [{ data: peaks }, { data: activeBookings }, { data: blocks }, { data: tenant }] =
+  const availabilityResults =
     await Promise.all([
       admin
         .from("court_peak_windows")
@@ -127,6 +129,8 @@ export async function createBooking(
       admin.from("tenants").select("id, status, settings").eq("id", court.tenant_id).single(),
     ]);
 
+  if (availabilityResults.some(result => result.error)) return fail("INTERNAL_ERROR", "ตรวจสอบเวลาว่างไม่สำเร็จ กรุณาลองใหม่", 503);
+  const [{ data: peaks }, { data: activeBookings }, { data: blocks }, { data: tenant }] = availabilityResults;
   if (!tenant || !["active", "trial", "free"].includes(tenant.status)) {
     return fail("TENANT_SUSPENDED", "สนามนี้ปิดรับการจองชั่วคราว", 403);
   }

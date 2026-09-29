@@ -16,9 +16,11 @@ interface Branch {
 export function NewTournamentForm({
   branches,
   today,
+  basePath = "/dashboard/tournaments",
 }: {
   branches: Branch[];
   today: string;
+  basePath?: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -45,7 +47,7 @@ export function NewTournamentForm({
       const res = await createTournamentAction(formData);
       if (res.success && res.id) {
         toast.success("สร้างรายการแข่งขัน BWF สำเร็จ!");
-        router.push(`/dashboard/tournaments/${res.id}`);
+        router.push(`${basePath}/${res.id}`);
       } else {
         setError(res.error || "เกิดข้อผิดพลาดในการสร้างรายการแข่งขัน");
         toast.error(res.error || "สร้างการแข่งขันไม่สำเร็จ");
@@ -439,7 +441,7 @@ export function NewTournamentForm({
 
       <div className="flex items-center justify-end gap-3 pt-4 border-t border-line">
         <Link
-          href="/dashboard/tournaments"
+          href={basePath}
           className="rounded-xl border border-line bg-surface-raised px-4 py-2.5 text-body-sm font-bold text-ink hover:bg-surface-raised/80 transition-all"
         >
           ยกเลิก

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, Check, Loader2, Calendar, AlertCircle } from "lucide-react";
+import { Check, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { saveCoachScheduleAction } from "../actions";
 

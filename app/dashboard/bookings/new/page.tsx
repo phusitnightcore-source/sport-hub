@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getStaffContext } from "@/lib/auth";
+import { getStaffContext, hasPermission } from "@/lib/auth";
 import { WalkInForm } from "./WalkInForm";
 
 // Staff จองให้ลูกค้า (§7.2) — โทรจอง/เดินมาหน้าร้าน
@@ -32,6 +32,7 @@ export default async function NewBookingPage({
         </div>
       ) : (
         <WalkInForm
+          canUsePos={hasPermission(ctx, "use_pos")}
           courts={(courts ?? []).map((c) => ({
             id: c.id,
             label: `${c.name} (${c.branches?.name ?? ""}) ${c.open_time.slice(0, 5)}–${c.close_time.slice(0, 5)}`,

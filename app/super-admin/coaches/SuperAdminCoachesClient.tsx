@@ -2,15 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   GraduationCap,
   CheckCircle2,
   XCircle,
-  Clock,
-  ShieldCheck,
   Search,
-  MapPin,
-  Award,
   ExternalLink,
   Ban,
   RotateCcw,
@@ -34,6 +31,9 @@ export type CoachRow = {
   rating_avg: number;
   review_count: number;
   created_at: string;
+  active_bookings:number;
+  completed_bookings:number;
+  linked_bookings:number;
 };
 
 export function SuperAdminCoachesClient({ coaches }: { coaches: CoachRow[] }) {
@@ -167,7 +167,7 @@ export function SuperAdminCoachesClient({ coaches }: { coaches: CoachRow[] }) {
                 <div className="flex items-start gap-4 min-w-0">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand shadow-xs overflow-hidden">
                     {coach.profile_image_url ? (
-                      <img src={coach.profile_image_url} alt="" className="h-full w-full object-cover" />
+                      <Image unoptimized width={48} height={48} src={coach.profile_image_url} alt={coach.display_name} className="h-full w-full object-cover" />
                     ) : (
                       <User className="h-6 w-6" />
                     )}
@@ -188,6 +188,7 @@ export function SuperAdminCoachesClient({ coaches }: { coaches: CoachRow[] }) {
                       {coach.location_province && <span>• {coach.location_province}</span>}
                       <span>• สมัครเมื่อ {new Date(coach.created_at).toLocaleDateString("th-TH")}</span>
                     </p>
+                    <p className="mt-1 text-[11px] font-semibold text-ink-soft">งานกำลังดำเนินการ {coach.active_bookings} · จบแล้ว {coach.completed_bookings} · ผูกสนาม {coach.linked_bookings}</p>
 
                     {coach.biography && (
                       <p className="text-[12px] text-ink-soft/90 mt-1 line-clamp-1 max-w-xl">

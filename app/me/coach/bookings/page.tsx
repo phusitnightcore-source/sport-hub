@@ -1,8 +1,9 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { notFound, redirect } from "next/navigation";
-import { Check, X, Clock, CalendarDays, MapPin, ReceiptText } from "lucide-react";
+import { redirect } from "next/navigation";
+import { Clock, CalendarDays, MapPin, ReceiptText } from "lucide-react";
 import { formatBahtFromDb } from "@/lib/money";
+import { CoachBookingActions } from "./CoachBookingActions";
 
 export const metadata = {
   title: "คำขอจอง & ตารางสอน | SportHub",
@@ -27,6 +28,8 @@ export default async function ManageCoachBookingsPage() {
     .from("coach_bookings")
     .select(`
       id,
+      tenant_id,
+      court_booking_id,
       booking_date,
       start_time,
       end_time,
@@ -48,7 +51,7 @@ export default async function ManageCoachBookingsPage() {
 
   const allBookings = bookings ?? [];
   const pending = allBookings.filter(b => b.status === "requested");
-  const confirmed = allBookings.filter(b => b.status === "accepted" || b.status === "confirmed");
+  const confirmed = allBookings.filter(b => b.status === "accepted" || b.status === "confirmed" || b.status === "in_progress");
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -118,16 +121,7 @@ export default async function ManageCoachBookingsPage() {
                     )}
                   </div>
                   
-                  <div className="flex flex-col gap-2 shrink-0 sm:w-32">
-                    <button className="flex w-full items-center justify-center gap-2 rounded bg-success px-4 py-2 text-body-sm font-semibold text-white hover:bg-success-dark">
-                      <Check className="h-4 w-4" />
-                      ตอบรับ
-                    </button>
-                    <button className="flex w-full items-center justify-center gap-2 rounded bg-surface px-4 py-2 text-body-sm font-medium text-danger ring-1 ring-inset ring-line hover:bg-danger/10">
-                      <X className="h-4 w-4" />
-                      ปฏิเสธ
-                    </button>
-                  </div>
+                  <CoachBookingActions id={booking.id} status={booking.status}/>
                 </div>
               ))}
             </div>
@@ -164,10 +158,11 @@ export default async function ManageCoachBookingsPage() {
                         </p>
                      </div>
                    </div>
-                   <div className="shrink-0 text-right">
+                   <div className="shrink-0 space-y-2 text-right">
                      <span className="inline-block rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success">
                        ยืนยันแล้ว
                      </span>
+                     <CoachBookingActions id={booking.id} status={booking.status}/>
                    </div>
                  </div>
                ))}

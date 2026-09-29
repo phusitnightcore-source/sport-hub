@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getStaffContext } from "@/lib/auth";
+import { requireTournamentOrganizer } from "@/lib/organizer";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
 import type { GeneratedMatch } from "@/lib/bracket/generator";
@@ -27,12 +27,12 @@ const createTournamentSchema = z.object({
   categories: z.string().optional(), // Comma separated e.g. "ชายเดี่ยว, ชายคู่, ผสม"
 });
 
-async function canManageTournament(admin: ReturnType<typeof createAdminClient>, tournamentId: string, tenantId: string) {
+async function canManageTournament(admin: ReturnType<typeof createAdminClient>, tournamentId: string, userId: string) {
   const { data } = await (admin as any)
     .from("tournaments")
     .select("id")
     .eq("id", tournamentId)
-    .eq("tenant_id", tenantId)
+    .eq("organizer_id", userId)
     .maybeSingle();
   return Boolean(data);
 }
@@ -47,7 +47,7 @@ function inferBadmintonEventType(name: string): "MS" | "WS" | "MD" | "WD" | "XD"
 }
 
 export async function createTournamentAction(formData: FormData) {
-  const ctx = await getStaffContext();
+  const ctx = await requireTournamentOrganizer();
   if (!ctx) return { success: false, error: "ไม่มีสิทธิ์ดำเนินการ กรุณาเข้าสู่ระบบ" };
 
   const raw = {
@@ -142,38 +142,43 @@ export async function createTournamentAction(formData: FormData) {
   }
 
   revalidatePath("/dashboard/tournaments");
+  revalidatePath("/me/organizer/tournaments");
   revalidatePath("/tournaments");
   return { success: true, id: tournament.id };
 }
 
 export async function updateTournamentStatusAction(tournamentId: string, status: string) {
-  const ctx = await getStaffContext();
+  const ctx = await requireTournamentOrganizer();
   if (!ctx) return { success: false, error: "Unauthorized" };
 
   const allowedStatuses = ["registration_open", "registration_closed", "in_progress", "completed"];
   if (!allowedStatuses.includes(status)) return { success: false, error: "สถานะการแข่งขันไม่ถูกต้อง" };
 
   const admin = createAdminClient();
-  const { error } = await (admin as any)
+  const { data: updatedTournament, error } = await (admin as any)
     .from("tournaments")
     .update({ status, updated_at: new Date().toISOString() })
     .eq("id", tournamentId)
-    .eq("tenant_id", ctx.tenantId);
+    .eq("organizer_id", ctx.userId)
+    .select("id")
+    .maybeSingle();
 
-  if (error) {
+  if (error || !updatedTournament) {
     console.error("Update status error:", error);
-    return { success: false, error: "อัปเดตสถานะไม่สำเร็จ" };
+    return { success: false, error: "ไม่มีสิทธิ์หรืออัปเดตสถานะไม่สำเร็จ" };
   }
 
   revalidatePath(`/dashboard/tournaments/${tournamentId}`);
   revalidatePath("/dashboard/tournaments");
+  revalidatePath(`/me/organizer/tournaments/${tournamentId}`);
+  revalidatePath("/me/organizer/tournaments");
   revalidatePath(`/tournaments/${tournamentId}`);
   revalidatePath("/tournaments");
   return { success: true };
 }
 
 export async function addTeamAction(tournamentId: string, teamName: string, categoryId?: string) {
-  const ctx = await getStaffContext();
+  const ctx = await requireTournamentOrganizer();
   if (!ctx) return { success: false, error: "Unauthorized" };
 
   if (!teamName || teamName.trim().length < 2) {
@@ -181,7 +186,7 @@ export async function addTeamAction(tournamentId: string, teamName: string, cate
   }
 
   const admin = createAdminClient();
-  if (!await canManageTournament(admin, tournamentId, ctx.tenantId)) {
+  if (!await canManageTournament(admin, tournamentId, ctx.userId)) {
     return { success: false, error: "ไม่มีสิทธิ์เพิ่มทีมในรายการนี้" };
   }
   const { error } = await (admin as any).from("teams").insert({
@@ -196,19 +201,20 @@ export async function addTeamAction(tournamentId: string, teamName: string, cate
   }
 
   revalidatePath(`/dashboard/tournaments/${tournamentId}`);
+  revalidatePath(`/me/organizer/tournaments/${tournamentId}`);
   revalidatePath(`/tournaments/${tournamentId}`);
   return { success: true };
 }
 
 export async function generateBracketAction(tournamentId: string) {
-  const ctx = await getStaffContext();
+  const ctx = await requireTournamentOrganizer();
   if (!ctx) return { success: false, error: "Unauthorized" };
 
   const admin = createAdminClient();
 
   // 1. Fetch tournament & teams
   const [{ data: tournament }, { data: teams }] = await Promise.all([
-    (admin as any).from("tournaments").select("id, status").eq("id", tournamentId).eq("tenant_id", ctx.tenantId).single(),
+    (admin as any).from("tournaments").select("id, status").eq("id", tournamentId).eq("organizer_id", ctx.userId).single(),
     (admin as any).from("teams").select("id, name, seed").eq("tournament_id", tournamentId),
   ]);
 
@@ -315,6 +321,8 @@ export async function generateBracketAction(tournamentId: string) {
 
   revalidatePath(`/dashboard/tournaments/${tournamentId}`);
   revalidatePath("/dashboard/tournaments");
+  revalidatePath(`/me/organizer/tournaments/${tournamentId}`);
+  revalidatePath("/me/organizer/tournaments");
   revalidatePath(`/tournaments/${tournamentId}`);
   revalidatePath("/tournaments");
 
@@ -328,7 +336,7 @@ export async function updateMatchScoreAction(
   winnerId: string,
   courtId?: string
 ) {
-  const ctx = await getStaffContext();
+  const ctx = await requireTournamentOrganizer();
   if (!ctx) return { success: false, error: "Unauthorized" };
 
   const admin = createAdminClient();
@@ -348,7 +356,7 @@ export async function updateMatchScoreAction(
     .from("tournaments")
     .select("id")
     .eq("id", match.tournament_id)
-    .eq("tenant_id", ctx.tenantId)
+    .eq("organizer_id", ctx.userId)
     .maybeSingle();
 
   if (!tournament) return { success: false, error: "ไม่มีสิทธิ์บันทึกผลแมตช์นี้" };
@@ -429,6 +437,7 @@ export async function updateMatchScoreAction(
   }
 
   revalidatePath(`/dashboard/tournaments/${match.tournament_id}`);
+  revalidatePath(`/me/organizer/tournaments/${match.tournament_id}`);
   revalidatePath(`/tournaments/${match.tournament_id}`);
   revalidatePath("/leaderboard");
   return { success: true };
@@ -439,7 +448,7 @@ export async function verifyRegistrationAction(
   status: "approved" | "rejected",
   notes?: string
 ) {
-  const ctx = await getStaffContext();
+  const ctx = await requireTournamentOrganizer();
   if (!ctx) return { success: false, error: "Unauthorized" };
 
   const admin = createAdminClient();
@@ -448,7 +457,7 @@ export async function verifyRegistrationAction(
     .select("tournament_id")
     .eq("id", registrationId)
     .maybeSingle();
-  if (!existing || !await canManageTournament(admin, existing.tournament_id, ctx.tenantId)) {
+  if (!existing || !await canManageTournament(admin, existing.tournament_id, ctx.userId)) {
     return { success: false, error: "ไม่มีสิทธิ์ตรวจสอบผู้สมัครรายนี้" };
   }
 
@@ -469,6 +478,7 @@ export async function verifyRegistrationAction(
   }
 
   revalidatePath(`/dashboard/tournaments/${reg.tournament_id}`);
+  revalidatePath(`/me/organizer/tournaments/${reg.tournament_id}`);
   revalidatePath(`/tournaments/${reg.tournament_id}`);
   return { success: true };
 }
@@ -478,7 +488,7 @@ export async function verifyTournamentPaymentAction(
   approved: boolean,
   notes?: string
 ) {
-  const ctx = await getStaffContext();
+  const ctx = await requireTournamentOrganizer();
   if (!ctx) return { success: false, error: "Unauthorized" };
 
   const admin = createAdminClient();
@@ -487,7 +497,7 @@ export async function verifyTournamentPaymentAction(
     .select("tournament_id, slip_image_url")
     .eq("id", registrationId)
     .maybeSingle();
-  if (!registration || !await canManageTournament(admin, registration.tournament_id, ctx.tenantId)) {
+  if (!registration || !await canManageTournament(admin, registration.tournament_id, ctx.userId)) {
     return { success: false, error: "ไม่มีสิทธิ์ตรวจสอบการชำระเงินนี้" };
   }
   if (approved && !registration.slip_image_url) {
@@ -506,12 +516,13 @@ export async function verifyTournamentPaymentAction(
   if (error) return { success: false, error: "อัปเดตสถานะชำระเงินไม่สำเร็จ" };
 
   revalidatePath(`/dashboard/tournaments/${registration.tournament_id}`);
+  revalidatePath(`/me/organizer/tournaments/${registration.tournament_id}`);
   revalidatePath(`/tournaments/${registration.tournament_id}`);
   return { success: true };
 }
 
 export async function checkInAthleteAction(registrationId: string) {
-  const ctx = await getStaffContext();
+  const ctx = await requireTournamentOrganizer();
   if (!ctx) return { success: false, error: "Unauthorized" };
 
   const admin = createAdminClient();
@@ -522,7 +533,7 @@ export async function checkInAthleteAction(registrationId: string) {
     .single();
 
   if (!current) return { success: false, error: "ไม่พบข้อมูลการลงทะเบียน" };
-  if (!await canManageTournament(admin, current.tournament_id, ctx.tenantId)) {
+  if (!await canManageTournament(admin, current.tournament_id, ctx.userId)) {
     return { success: false, error: "ไม่มีสิทธิ์เช็กอินผู้สมัครรายนี้" };
   }
 
@@ -536,6 +547,7 @@ export async function checkInAthleteAction(registrationId: string) {
     .eq("id", registrationId);
 
   revalidatePath(`/dashboard/tournaments/${current.tournament_id}`);
+  revalidatePath(`/me/organizer/tournaments/${current.tournament_id}`);
   return { success: true, checkin_status: nextStatus };
 }
 
@@ -543,7 +555,7 @@ export async function generateTournamentDrawAction(
   tournamentId: string,
   mode: "seeded" | "random" | "group"
 ) {
-  const ctx = await getStaffContext();
+  const ctx = await requireTournamentOrganizer();
   if (!ctx) return { success: false, error: "Unauthorized" };
 
   const admin = createAdminClient();
@@ -553,7 +565,7 @@ export async function generateTournamentDrawAction(
       .from("tournaments")
       .select("id, has_third_place_match, format, status")
       .eq("id", tournamentId)
-      .eq("tenant_id", ctx.tenantId)
+      .eq("organizer_id", ctx.userId)
       .single(),
     (admin as any).from("teams").select("id, name, seed, category_id").eq("tournament_id", tournamentId),
     (admin as any).from("tournament_categories").select("id, name").eq("tournament_id", tournamentId),
@@ -702,22 +714,23 @@ export async function generateTournamentDrawAction(
     .from("tournaments")
     .update({ status: "in_progress", updated_at: new Date().toISOString() })
     .eq("id", tournamentId)
-    .eq("tenant_id", ctx.tenantId);
+    .eq("organizer_id", ctx.userId);
 
   revalidatePath(`/dashboard/tournaments/${tournamentId}`);
+  revalidatePath(`/me/organizer/tournaments/${tournamentId}`);
   revalidatePath(`/tournaments/${tournamentId}`);
   return { success: true, count: drawSets.reduce((total, drawSet) => total + drawSet.matches.length, 0) };
 }
 
 export async function generateGroupKnockoutStageAction(tournamentId: string) {
-  const ctx = await getStaffContext();
+  const ctx = await requireTournamentOrganizer();
   if (!ctx) return { success: false, error: "Unauthorized" };
   const admin = createAdminClient();
   const { data: tournament } = await (admin as any)
     .from("tournaments")
     .select("id, has_third_place_match, format")
     .eq("id", tournamentId)
-    .eq("tenant_id", ctx.tenantId)
+    .eq("organizer_id", ctx.userId)
     .maybeSingle();
   if (!tournament || tournament.format !== "group_knockout") {
     return { success: false, error: "รายการนี้ไม่ได้ใช้รูปแบบรอบกลุ่ม + น็อกเอาต์" };
@@ -785,6 +798,7 @@ export async function generateGroupKnockoutStageAction(tournamentId: string) {
   }
   if (!createdCount) return { success: false, error: "ไม่สามารถหาทีมผ่านเข้ารอบจากคะแนนกลุ่มได้" };
   revalidatePath(`/dashboard/tournaments/${tournamentId}`);
+  revalidatePath(`/me/organizer/tournaments/${tournamentId}`);
   revalidatePath(`/tournaments/${tournamentId}`);
   return { success: true, count: createdCount };
 }

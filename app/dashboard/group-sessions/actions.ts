@@ -7,10 +7,16 @@ import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
 import { calculateMMRChange, SKILL_LEVEL_MAP } from "@/lib/badminton/rank";
 
+type AdminClient = ReturnType<typeof createAdminClient>;
+async function ownerCanManageSession(admin: AdminClient, sessionId: string, tenantId: string) {
+  const { data } = await admin.from("group_sessions").select("id").eq("id", sessionId).eq("tenant_id", tenantId).maybeSingle();
+  return Boolean(data);
+}
+
 // 1. Create a new group session
 export async function createGroupSession(formData: FormData) {
   const ctx = await getStaffContext();
-  if (!ctx) return { success: false, error: "ไม่มีสิทธิ์เข้าถึง" };
+  if (!ctx || ctx.role !== "venue_admin") return { success: false, error: "เฉพาะเจ้าของสนามเท่านั้นที่สร้างก๊วนสนามได้" };
 
   const title = formData.get("title")?.toString().trim();
   const sessionDate = formData.get("sessionDate")?.toString();
@@ -71,9 +77,10 @@ export async function addPlayerToSession(
   skillLevel: string = "N"
 ) {
   const ctx = await getStaffContext();
-  if (!ctx) return { success: false, error: "ไม่มีสิทธิ์เข้าถึง" };
+  if (!ctx || ctx.role !== "venue_admin") return { success: false, error: "เฉพาะเจ้าของสนามเท่านั้น" };
 
   const admin = createAdminClient();
+  if (!await ownerCanManageSession(admin, sessionId, ctx.tenantId)) return { success: false, error: "ไม่พบก๊วนของสนามนี้" };
   const initialMMR = SKILL_LEVEL_MAP[skillLevel] ?? 1000;
 
   const { error } = await admin.from("group_session_players").insert({
@@ -100,9 +107,10 @@ export async function createSessionMatch(
   teamBPlayerIds: string[]
 ) {
   const ctx = await getStaffContext();
-  if (!ctx) return { success: false, error: "ไม่มีสิทธิ์เข้าถึง" };
+  if (!ctx || ctx.role !== "venue_admin") return { success: false, error: "เฉพาะเจ้าของสนามเท่านั้น" };
 
   const admin = createAdminClient();
+  if (!await ownerCanManageSession(admin, sessionId, ctx.tenantId)) return { success: false, error: "ไม่พบก๊วนของสนามนี้" };
 
   // Get current match count
   const { count } = await admin
@@ -155,7 +163,7 @@ export async function createSessionMatch(
 // 4. Update shuttlecock count for a match
 export async function updateMatchShuttlecock(matchId: string, delta: number) {
   const ctx = await getStaffContext();
-  if (!ctx) return { success: false, error: "ไม่มีสิทธิ์เข้าถึง" };
+  if (!ctx || ctx.role !== "venue_admin") return { success: false, error: "เฉพาะเจ้าของสนามเท่านั้น" };
 
   const admin = createAdminClient();
   const { data: match } = await admin
@@ -165,6 +173,7 @@ export async function updateMatchShuttlecock(matchId: string, delta: number) {
     .single();
 
   if (!match) return { success: false, error: "ไม่พบแมตช์" };
+  if (!await ownerCanManageSession(admin, match.session_id, ctx.tenantId)) return { success: false, error: "ไม่พบแมตช์ของสนามนี้" };
 
   const newCount = Math.max(1, match.shuttlecock_count + delta);
   await admin
@@ -183,7 +192,7 @@ export async function finishSessionMatch(
   teamBScore: number
 ) {
   const ctx = await getStaffContext();
-  if (!ctx) return { success: false, error: "ไม่มีสิทธิ์เข้าถึง" };
+  if (!ctx || ctx.role !== "venue_admin") return { success: false, error: "เฉพาะเจ้าของสนามเท่านั้น" };
 
   const admin = createAdminClient();
   const { data: match } = await admin
@@ -193,6 +202,7 @@ export async function finishSessionMatch(
     .single();
 
   if (!match) return { success: false, error: "ไม่พบแมตช์" };
+  if (!await ownerCanManageSession(admin, match.session_id, ctx.tenantId)) return { success: false, error: "ไม่พบแมตช์ของสนามนี้" };
 
   // Fetch match players
   const { data: matchPlayers } = await admin
@@ -236,9 +246,10 @@ export async function updatePlayerPayment(
   paymentMethod?: "cash" | "transfer"
 ) {
   const ctx = await getStaffContext();
-  if (!ctx) return { success: false, error: "ไม่มีสิทธิ์เข้าถึง" };
+  if (!ctx || ctx.role !== "venue_admin") return { success: false, error: "เฉพาะเจ้าของสนามเท่านั้น" };
 
   const admin = createAdminClient();
+  if (!await ownerCanManageSession(admin, sessionId, ctx.tenantId)) return { success: false, error: "ไม่พบก๊วนของสนามนี้" };
   await admin
     .from("group_session_players")
     .update({
@@ -346,7 +357,7 @@ export async function leaveGroupSession(sessionId: string) {
 // 9. Search existing system profiles (for Staff)
 export async function searchSystemProfiles(query: string) {
   const ctx = await getStaffContext();
-  if (!ctx) return [];
+  if (!ctx || ctx.role !== "venue_admin") return [];
 
   const admin = createAdminClient();
   const cleanQ = query.trim();
@@ -368,9 +379,10 @@ export async function addExistingProfileToSession(
   skillLevel: string = "N"
 ) {
   const ctx = await getStaffContext();
-  if (!ctx) return { success: false, error: "ไม่มีสิทธิ์เข้าถึง" };
+  if (!ctx || ctx.role !== "venue_admin") return { success: false, error: "เฉพาะเจ้าของสนามเท่านั้น" };
 
   const admin = createAdminClient();
+  if (!await ownerCanManageSession(admin, sessionId, ctx.tenantId)) return { success: false, error: "ไม่พบก๊วนของสนามนี้" };
 
   // Check if already in session
   const { data: existing } = await admin
@@ -418,9 +430,10 @@ export async function togglePlayerCheckin(
   isCheckedIn: boolean
 ) {
   const ctx = await getStaffContext();
-  if (!ctx) return { success: false, error: "ไม่มีสิทธิ์เข้าถึง" };
+  if (!ctx || ctx.role !== "venue_admin") return { success: false, error: "เฉพาะเจ้าของสนามเท่านั้น" };
 
   const admin = createAdminClient();
+  if (!await ownerCanManageSession(admin, sessionId, ctx.tenantId)) return { success: false, error: "ไม่พบก๊วนของสนามนี้" };
   await admin
     .from("group_session_players")
     .update({ is_checked_in: isCheckedIn })
@@ -434,9 +447,10 @@ export async function togglePlayerCheckin(
 // 12. Remove player from session (for Staff)
 export async function removePlayerFromSession(playerId: string, sessionId: string) {
   const ctx = await getStaffContext();
-  if (!ctx) return { success: false, error: "ไม่มีสิทธิ์เข้าถึง" };
+  if (!ctx || ctx.role !== "venue_admin") return { success: false, error: "เฉพาะเจ้าของสนามเท่านั้น" };
 
   const admin = createAdminClient();
+  if (!await ownerCanManageSession(admin, sessionId, ctx.tenantId)) return { success: false, error: "ไม่พบก๊วนของสนามนี้" };
   await admin.from("group_session_players").delete().eq("id", playerId);
 
   revalidatePath(`/dashboard/group-sessions/${sessionId}`);

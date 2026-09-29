@@ -12,6 +12,8 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import { OrganizerBadges } from "@/components/ui/OrganizerBadge";
+import type { OrganizerBadge as OrganizerBadgeData } from "@/lib/organizer";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +52,7 @@ export default async function TournamentsPage({
   let tournamentsQuery = admin
     .from("tournaments")
     .select(`
-      id, name, sport, description, start_date, end_date, entry_fee, max_teams,
+      id, organizer_id, name, sport, description, start_date, end_date, entry_fee, max_teams,
       bracket_type, status, banner_image_url, prize_info, tenants(name)
     `)
     .in("status", ["registration_open", "registration_closed", "in_progress", "completed"])
@@ -63,6 +65,20 @@ export default async function TournamentsPage({
 
   const { data } = await tournamentsQuery;
   const tournaments = data ?? [];
+  const organizerIds = [...new Set(tournaments.map((t) => t.organizer_id))];
+  const [{ data: organizers }, { data: badgeRows }] = organizerIds.length
+    ? await Promise.all([
+        admin.from("profiles").select("id,display_name,full_name").in("id", organizerIds),
+        (admin as any).from("organizer_badges").select("profile_id,badge_type,label").in("profile_id", organizerIds),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const organizerMap = new Map((organizers ?? []).map((profile) => [profile.id, profile.display_name || profile.full_name || "ผู้จัดการแข่งขัน"]));
+  const organizerBadgeMap = new Map<string, OrganizerBadgeData[]>();
+  for (const badge of (badgeRows ?? []) as any[]) {
+    const current = organizerBadgeMap.get(badge.profile_id) ?? [];
+    current.push({ type: badge.badge_type, label: badge.label, validUntil: null });
+    organizerBadgeMap.set(badge.profile_id, current);
+  }
 
   const upcoming = tournaments.filter(
     (t) => t.status === "registration_open" || t.status === "registration_closed"
@@ -96,6 +112,13 @@ export default async function TournamentsPage({
             </div>
 
             <div className="shrink-0 flex items-center gap-3">
+              <Link
+                href="/me/organizer"
+                className="inline-flex items-center gap-2 rounded-2xl bg-brand px-4 py-2.5 text-body-sm font-bold text-white shadow-xs transition-all hover:bg-brand-dark"
+              >
+                <Trophy className="h-4 w-4" />
+                <span>จัดการแข่งขัน</span>
+              </Link>
               <Link
                 href="/leaderboard"
                 className="inline-flex items-center gap-2 rounded-2xl bg-surface-raised border border-line px-4 py-2.5 text-body-sm font-bold text-ink hover:border-brand hover:text-brand transition-all shadow-xs"
@@ -215,6 +238,10 @@ export default async function TournamentsPage({
                             <h3 className="font-display text-lg font-bold text-ink group-hover:text-brand transition-colors line-clamp-1">
                               {t.name}
                             </h3>
+                            <div className="flex items-center gap-1.5 text-body-xs font-semibold text-ink-soft">
+                              <span>จัดโดย {organizerMap.get(t.organizer_id) ?? t.tenants?.name ?? "ผู้จัดการแข่งขัน"}</span>
+                              <OrganizerBadges badges={organizerBadgeMap.get(t.organizer_id) ?? []} />
+                            </div>
 
                             {t.description && (
                               <p className="text-body-xs text-ink-soft line-clamp-2">

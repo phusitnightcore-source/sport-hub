@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getStaffContext } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
+import { notifyMemberSafely } from "@/lib/membership/notifications";
+import { createMemberNumber } from "@/lib/membership/member-number";
 
 export async function manualCreateMember(data: {
   packageId: string;
@@ -78,7 +80,7 @@ export async function manualCreateMember(data: {
   }
 
   // 3. Create member record
-  const memberNumber = `M-${Math.floor(Math.random() * 1000000).toString().padStart(6, "0")}`;
+  const memberNumber = await createMemberNumber(admin, ctx.tenantId);
   
   const { data: newMember, error: memberErr } = await admin
     .from("members")
@@ -99,7 +101,10 @@ export async function manualCreateMember(data: {
     .select()
     .single();
 
-  if (memberErr) return { success: false, error: memberErr.message };
+  if (memberErr) {
+    if (isNewUser) await admin.auth.admin.deleteUser(userId);
+    return { success: false, error: memberErr.message };
+  }
 
   // 4. Create payment record (verified ทันทีสำหรับรับเงินหน้าเคาน์เตอร์ §8.2)
   //    ช่องทาง (เงินสด/โอน) บันทึกใน sender_name เพราะ payments ไม่มีคอลัมน์ method
@@ -116,7 +121,11 @@ export async function manualCreateMember(data: {
       sender_name: data.paymentMethod === "cash" ? "เงินสด (หน้าเคาน์เตอร์)" : "โอน (หน้าเคาน์เตอร์)",
     });
 
-  if (paymentErr) return { success: false, error: paymentErr.message };
+  if (paymentErr) {
+    await admin.from("members").delete().eq("id", newMember.id);
+    if (isNewUser) await admin.auth.admin.deleteUser(userId);
+    return { success: false, error: paymentErr.message };
+  }
 
   await logAudit({
     tenantId: ctx.tenantId,
@@ -126,6 +135,13 @@ export async function manualCreateMember(data: {
     module: "members",
     referenceId: newMember.id,
     after: newMember,
+  });
+
+  await notifyMemberSafely({
+    tenantId: ctx.tenantId,
+    memberId: newMember.id,
+    title: "เปิดใช้งานสมาชิกแล้ว",
+    body: `ยินดีต้อนรับ ${data.firstName} หมายเลขสมาชิก ${memberNumber} แพ็กเกจ ${pkg.name}${endDate ? ` ใช้ได้ถึง ${endDate.toLocaleDateString("th-TH")}` : " ใช้งานได้ไม่จำกัดวัน"}`,
   });
 
   revalidatePath("/dashboard/members");

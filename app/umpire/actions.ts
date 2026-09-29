@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStaffContext } from "@/lib/auth";
+import { getCurrentOrganizerAccess } from "@/lib/organizer";
 import { calculateEloChange } from "@/lib/tournament/elo";
 import type { MatchState } from "@/lib/scoring/types";
 
@@ -65,22 +66,24 @@ async function updateTournamentElo(
 }
 
 export async function saveLiveTournamentScoreAction(matchId: string, state: MatchState) {
-  const ctx = await getStaffContext();
-  if (!ctx) return { success: false, error: "เฉพาะเจ้าหน้าที่สนามเท่านั้นที่บันทึกคะแนนได้" };
+  const [staffContext, organizerAccess] = await Promise.all([
+    getStaffContext(),
+    getCurrentOrganizerAccess(),
+  ]);
+  const actorId = organizerAccess?.userId ?? staffContext?.userId;
+  if (!actorId) return { success: false, error: "ไม่มีสิทธิ์บันทึกคะแนน" };
   const admin = createAdminClient();
   const { data: match } = await (admin as any)
     .from("matches")
-    .select("id, tournament_id")
+    .select("id, tournament_id, tournaments(tenant_id,organizer_id)")
     .eq("id", matchId)
     .maybeSingle();
   if (!match) return { success: false, error: "ไม่พบข้อมูลแมตช์" };
-  const { data: tournament } = await (admin as any)
-    .from("tournaments")
-    .select("id")
-    .eq("id", match.tournament_id)
-    .eq("tenant_id", ctx.tenantId)
-    .maybeSingle();
-  if (!tournament) return { success: false, error: "ไม่มีสิทธิ์บันทึกคะแนนแมตช์นี้" };
+  const tournament = match.tournaments;
+  const canScore =
+    (organizerAccess?.canManageTournaments && tournament?.organizer_id === organizerAccess.userId) ||
+    (staffContext && tournament?.tenant_id === staffContext.tenantId);
+  if (!canScore) return { success: false, error: "ไม่มีสิทธิ์บันทึกคะแนนแมตช์นี้" };
 
   const now = new Date().toISOString();
   await (admin as any).from("matches").update({
@@ -122,27 +125,29 @@ export async function syncMatchResultAction(
   winnerTeamId: string,
   finalScores: string
 ) {
-  const ctx = await getStaffContext();
-  if (!ctx) return { success: false, error: "เฉพาะเจ้าหน้าที่สนามเท่านั้นที่บันทึกผลได้" };
+  const [staffContext, organizerAccess] = await Promise.all([
+    getStaffContext(),
+    getCurrentOrganizerAccess(),
+  ]);
+  const actorId = organizerAccess?.userId ?? staffContext?.userId;
+  if (!actorId) return { success: false, error: "ไม่มีสิทธิ์บันทึกผล" };
 
   const admin = createAdminClient();
 
   // 1. Fetch match
   const { data: match } = await (admin as any)
     .from("matches")
-    .select("id, tournament_id, team_a_id, team_b_id")
+    .select("id, tournament_id, team_a_id, team_b_id, tournaments(tenant_id,organizer_id)")
     .eq("id", matchId)
     .single();
 
   if (!match) return { success: false, error: "ไม่พบข้อมูลแมตช์" };
 
-  const { data: tournament } = await (admin as any)
-    .from("tournaments")
-    .select("id")
-    .eq("id", match.tournament_id)
-    .eq("tenant_id", ctx.tenantId)
-    .maybeSingle();
-  if (!tournament) return { success: false, error: "ไม่มีสิทธิ์บันทึกผลแมตช์นี้" };
+  const tournament = match.tournaments;
+  const canScore =
+    (organizerAccess?.canManageTournaments && tournament?.organizer_id === organizerAccess.userId) ||
+    (staffContext && tournament?.tenant_id === staffContext.tenantId);
+  if (!canScore) return { success: false, error: "ไม่มีสิทธิ์บันทึกผลแมตช์นี้" };
   if (![match.team_a_id, match.team_b_id].includes(winnerTeamId)) {
     return { success: false, error: "ผู้ชนะต้องเป็นหนึ่งในสองทีมของแมตช์นี้" };
   }
@@ -164,7 +169,7 @@ export async function syncMatchResultAction(
       score_details: { games: completedGames, final_summary: finalScores },
       status: "completed",
       completed_at: new Date().toISOString(),
-      result_recorded_by: ctx.userId,
+      result_recorded_by: actorId,
       result_recorded_at: new Date().toISOString(),
     })
     .eq("id", matchId);
@@ -180,6 +185,7 @@ export async function syncMatchResultAction(
   revalidatePath(`/umpire/match/${matchId}`);
   revalidatePath(`/display/${matchId}`);
   revalidatePath(`/dashboard/tournaments/${match.tournament_id}`);
+  revalidatePath(`/me/organizer/tournaments/${match.tournament_id}`);
   revalidatePath(`/tournaments/${match.tournament_id}`);
   revalidatePath("/leaderboard");
 
@@ -187,24 +193,27 @@ export async function syncMatchResultAction(
 }
 
 export async function assignUmpireAction(matchId: string, umpireProfileId: string) {
-  const ctx = await getStaffContext();
-  if (!ctx) return { success: false, error: "เฉพาะเจ้าหน้าที่สนามเท่านั้นที่มอบหมายกรรมการได้" };
+  const [staffContext, organizerAccess] = await Promise.all([
+    getStaffContext(),
+    getCurrentOrganizerAccess(),
+  ]);
+  if (!staffContext && !organizerAccess?.canManageTournaments) {
+    return { success: false, error: "ไม่มีสิทธิ์มอบหมายกรรมการ" };
+  }
 
   const admin = createAdminClient();
   const { data: match } = await (admin as any)
     .from("matches")
-    .select("tournament_id")
+    .select("tournament_id, tournaments(tenant_id,organizer_id)")
     .eq("id", matchId)
     .maybeSingle();
   if (!match) return { success: false, error: "ไม่พบข้อมูลแมตช์" };
 
-  const { data: tournament } = await (admin as any)
-    .from("tournaments")
-    .select("id")
-    .eq("id", match.tournament_id)
-    .eq("tenant_id", ctx.tenantId)
-    .maybeSingle();
-  if (!tournament) return { success: false, error: "ไม่มีสิทธิ์มอบหมายแมตช์นี้" };
+  const tournament = match.tournaments;
+  const canAssign =
+    (organizerAccess?.canManageTournaments && tournament?.organizer_id === organizerAccess.userId) ||
+    (staffContext && tournament?.tenant_id === staffContext.tenantId);
+  if (!canAssign) return { success: false, error: "ไม่มีสิทธิ์มอบหมายแมตช์นี้" };
 
   const { error } = await (admin as any)
     .from("matches")

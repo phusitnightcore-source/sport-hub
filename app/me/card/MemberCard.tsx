@@ -2,14 +2,9 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import QRCode from "react-qr-code";
-import { daysUntil } from "@/lib/plans";
-
-// Format: sport-hub:checkin:MEMBER_NUMBER:TIMESTAMP — กัน screenshot ซ้ำ
-function makeQrValue(memberNumber: string): string {
-  return `sport-hub:checkin:${memberNumber}:${Math.floor(Date.now() / 1000)}`;
-}
+import { Dumbbell, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
 
 type MemberCardProps = {
   member: {
@@ -29,228 +24,167 @@ type MemberCardProps = {
     } | null;
   };
   tenantName: string;
+  initialQr: { token: string; expiresAt: number };
 };
 
-/**
- * บัตรสมาชิกดิจิทัล — Dynamic QR รีเฟรชทุก 30 วินาที
- * QR ประกอบด้วย member_number + timestamp เพื่อป้องกัน screenshot ซ้ำ
- */
-export function MemberCard({ member, tenantName }: MemberCardProps) {
-  // สร้าง QR ตั้งแต่ render แรก (lazy initializer) — ไม่ setState ใน effect body
-  const [qrValue, setQrValue] = useState(() => makeQrValue(member.member_number));
-  const [countdown, setCountdown] = useState(30);
+const STATUS = {
+  active: { label: "ACTIVE", className: "border-emerald-300/30 bg-emerald-400/15 text-emerald-200" },
+  frozen: { label: "FROZEN", className: "border-amber-300/30 bg-amber-400/15 text-amber-100" },
+  expired: { label: "EXPIRED", className: "border-rose-300/30 bg-rose-400/15 text-rose-100" },
+} as const;
 
-  const generateQr = useCallback(() => {
-    setQrValue(makeQrValue(member.member_number));
-    setCountdown(30);
-  }, [member.member_number]);
+function secondsRemaining(expiresAt: number) {
+  return Math.max(0, expiresAt - Math.floor(Date.now() / 1000));
+}
 
-  // Refresh QR ทุก 30 วินาที (Dynamic QR — Pro §5)
+function todayInBangkok() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function daysRemainingUntil(date: string) {
+  const from = new Date(`${todayInBangkok()}T00:00:00+07:00`).getTime();
+  const to = new Date(`${date}T00:00:00+07:00`).getTime();
+  return Math.max(0, Math.ceil((to - from) / 86_400_000));
+}
+
+export function MemberCard({ member, tenantName, initialQr }: MemberCardProps) {
+  const [qr, setQr] = useState(initialQr);
+  const [countdown, setCountdown] = useState(() => secondsRemaining(initialQr.expiresAt));
+  const [refreshing, setRefreshing] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
+
+  const refreshQr = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const response = await fetch(`/api/me/member-card-token?memberId=${member.id}`, { cache: "no-store" });
+      if (!response.ok) throw new Error("refresh failed");
+      const next = await response.json() as { token: string; expiresAt: number };
+      setQr(next);
+      setCountdown(secondsRemaining(next.expiresAt));
+      setQrError(null);
+    } catch {
+      setQrError("รีเฟรช QR ไม่สำเร็จ");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [member.id]);
+
   useEffect(() => {
-    const interval = setInterval(generateQr, 30_000);
-    return () => clearInterval(interval);
-  }, [generateQr]);
+    const refreshTimer = window.setInterval(refreshQr, 30_000);
+    return () => window.clearInterval(refreshTimer);
+  }, [refreshQr]);
 
-  // Countdown timer
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => (prev > 0 ? prev - 1 : 30));
+    const countdownTimer = window.setInterval(() => {
+      setCountdown(secondsRemaining(qr.expiresAt));
     }, 1_000);
-    return () => clearInterval(timer);
-  }, []);
+    return () => window.clearInterval(countdownTimer);
+  }, [qr.expiresAt]);
 
-  const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-    active: {
-      label: "ACTIVE",
-      color: "rgb(var(--success))",
-      bg: "rgba(31, 174, 110, 0.12)",
-    },
-    frozen: {
-      label: "FROZEN",
-      color: "rgb(var(--warning))",
-      bg: "rgba(245, 165, 36, 0.12)",
-    },
-    expired: {
-      label: "EXPIRED",
-      color: "rgb(var(--danger))",
-      bg: "rgba(255, 107, 87, 0.12)",
-    },
-  };
-
-  const st = statusConfig[member.status] || statusConfig.expired;
-  const isActive = member.status === "active";
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "-";
-    return new Date(dateStr).toLocaleDateString("th-TH", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  // Calculate days remaining (helper กลางจาก lib/plans — เลี่ยง Date.now ใน render)
-  const daysRemaining = member.end_date ? daysUntil(member.end_date) : null;
+  const status = STATUS[member.status as keyof typeof STATUS] ?? STATUS.expired;
+  const isActive = member.status === "active" && (!member.end_date || member.end_date >= todayInBangkok());
+  const daysRemaining = member.end_date ? daysRemainingUntil(member.end_date) : null;
+  const fullName = `${member.first_name} ${member.last_name ?? ""}`.trim();
+  const initials = useMemo(
+    () => `${member.first_name.charAt(0)}${member.last_name?.charAt(0) ?? ""}`.toUpperCase(),
+    [member.first_name, member.last_name],
+  );
+  const formatDate = (value: string | null) => value
+    ? new Date(`${value}T00:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })
+    : "ไม่จำกัด";
 
   return (
-    <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] border border-zinc-800 bg-zinc-950">
-      {/* Card premium gradient background */}
-      <div className="relative bg-gradient-to-br from-zinc-800 via-zinc-900 to-black p-6 pb-8 overflow-hidden">
-        {/* Decorative glossy/metallic effects */}
-        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-gradient-to-br from-amber-200/10 to-amber-600/5 blur-3xl" />
-        <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-gradient-to-tr from-blue-500/10 to-purple-500/10 blur-2xl" />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,rgba(255,255,255,0.03)_0%,rgba(255,255,255,0)_40%,rgba(255,255,255,0.03)_60%,rgba(255,255,255,0)_100%)]" />
-
-        {/* Header */}
-        <div className="relative flex items-start justify-between">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-white/60">
-              Member Card
-            </p>
-            <h2 className="mt-0.5 font-display text-lg font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 bg-clip-text text-transparent drop-shadow-sm">
-              {tenantName}
-            </h2>
-          </div>
-          <div
-            className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider"
-            style={{ color: st.color, backgroundColor: st.bg }}
-          >
-            {st.label}
-          </div>
-        </div>
-
-        {/* Member info */}
-        <div className="relative mt-6 flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-zinc-800 ring-2 ring-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-            {member.profile_image_url ? (
-              <img
-                src={member.profile_image_url}
-                alt={member.first_name}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <span className="text-xl font-bold text-amber-500">
-                {member.first_name.charAt(0).toUpperCase()}
+    <div className="mx-auto w-full max-w-2xl space-y-3">
+      <article
+        className="relative isolate min-h-[330px] overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950 shadow-[0_28px_70px_-25px_rgba(0,0,0,0.75)] sm:min-h-[390px]"
+        style={{
+          backgroundImage: "linear-gradient(90deg,rgba(3,7,18,.2),rgba(3,7,18,.02)),url('/images/membership/fitness-card-premium.png')",
+          backgroundPosition: "center",
+          backgroundSize: "cover",
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/5" />
+        <div className="relative flex min-h-[330px] flex-col justify-between p-5 text-white sm:min-h-[390px] sm:p-8">
+          <header className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/25 bg-black/35 shadow-lg backdrop-blur-md">
+                <Dumbbell className="h-5 w-5 text-cyan-300" />
               </span>
-            )}
-          </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-zinc-100 drop-shadow-sm">
-              {member.first_name} {member.last_name || ""}
-            </h3>
-            <p className="font-mono text-xs text-amber-500/80 tracking-wider">
-              ID: {member.member_number}
-            </p>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="relative mt-5 grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-zinc-800/50 border border-zinc-700/50 px-3 py-2 backdrop-blur-md">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-              แพ็กเกจ
-            </p>
-            <p className="mt-0.5 text-sm font-semibold text-zinc-100 truncate">
-              {member.packages?.name || "-"}
-            </p>
-          </div>
-          <div className="rounded-lg bg-zinc-800/50 border border-zinc-700/50 px-3 py-2 backdrop-blur-md">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-              {daysRemaining !== null ? "เหลืออีก" : "หมดอายุ"}
-            </p>
-            <p className="mt-0.5 text-sm font-semibold text-zinc-100">
-              {daysRemaining !== null ? <span className="text-amber-400">{daysRemaining} วัน</span> : "-"}
-            </p>
-          </div>
-          <div className="rounded-lg bg-zinc-800/50 border border-zinc-700/50 px-3 py-2 backdrop-blur-md">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-              วันหมดอายุ
-            </p>
-            <p className="mt-0.5 text-sm font-semibold text-zinc-100">
-              {formatDate(member.end_date)}
-            </p>
-          </div>
-          {member.packages?.type === "session_based" && (
-            <div className="rounded-lg bg-zinc-800/50 border border-zinc-700/50 px-3 py-2 backdrop-blur-md">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-                ครั้งที่ใช้
-              </p>
-              <p className="mt-0.5 text-sm font-semibold text-zinc-100">
-                {member.sessions_used} <span className="text-zinc-500">/</span> {member.packages.sessions_limit ?? "∞"}
-              </p>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-cyan-200/75">SportHub Fitness</p>
+                <h2 className="truncate font-display text-lg font-black text-white sm:text-xl">{tenantName}</h2>
+              </div>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* QR Section */}
-      <div className="relative flex flex-col items-center bg-white px-6 py-6">
-        {/* Notch decoration */}
-        <div className="absolute -top-3 left-6 h-6 w-6 rounded-full bg-[rgb(var(--bg-top))]" />
-        <div className="absolute -top-3 right-6 h-6 w-6 rounded-full bg-[rgb(var(--bg-top))]" />
-        <div className="absolute top-0 left-9 right-9 border-t border-dashed border-gray-200" />
-
-        <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-[rgb(var(--ink-soft))]">
-          สแกนเพื่อเช็คอิน
-        </p>
-
-        <div
-          className={`rounded-xl p-3 transition-opacity duration-300 ${
-            !isActive ? "opacity-40 grayscale" : ""
-          }`}
-        >
-          {qrValue && (
-            <QRCode
-              value={qrValue}
-              size={180}
-              level="M"
-              style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-            />
-          )}
-        </div>
-
-        {!isActive && (
-          <p className="mt-2 text-center text-xs font-medium text-[rgb(var(--danger))]">
-            บัตรใช้งานไม่ได้ — สถานะ: {st.label}
-          </p>
-        )}
-
-        {/* Countdown ring */}
-        {isActive && (
-          <div className="mt-3 flex items-center gap-2">
-            <div className="relative flex h-7 w-7 items-center justify-center">
-              <svg className="h-7 w-7 -rotate-90" viewBox="0 0 28 28">
-                <circle
-                  cx="14"
-                  cy="14"
-                  r="12"
-                  fill="none"
-                  stroke="rgb(var(--line))"
-                  strokeWidth="2"
-                />
-                <circle
-                  cx="14"
-                  cy="14"
-                  r="12"
-                  fill="none"
-                  stroke="rgb(var(--brand))"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 12}`}
-                  strokeDashoffset={`${2 * Math.PI * 12 * (1 - countdown / 30)}`}
-                  className="transition-[stroke-dashoffset] duration-1000 ease-linear"
-                />
-              </svg>
-              <span className="absolute text-[9px] font-bold text-[rgb(var(--brand))]">
-                {countdown}
-              </span>
-            </div>
-            <span className="text-[10px] text-[rgb(var(--ink-soft))]">
-              QR รีเฟรชอัตโนมัติ
+            <span className={`rounded-full border px-3 py-1 text-[10px] font-black tracking-[0.18em] backdrop-blur-md ${status.className}`}>
+              {status.label}
             </span>
+          </header>
+
+          <div className="grid items-end gap-5 sm:grid-cols-[1fr_auto]">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 text-xl font-black text-cyan-100 shadow-xl backdrop-blur-md">
+                  {member.profile_image_url ? <img src={member.profile_image_url} alt={fullName} className="h-full w-full object-cover" /> : initials}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/55">Member</p>
+                  <h3 className="truncate font-display text-2xl font-black tracking-tight text-white sm:text-3xl">{fullName}</h3>
+                  <p className="mt-1 font-mono text-xs font-bold tracking-[0.16em] text-amber-300 sm:text-sm">{member.member_number}</p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 backdrop-blur-md">
+                  <p className="text-[9px] uppercase tracking-wider text-white/45">แพ็กเกจ</p>
+                  <p className="truncate text-xs font-bold text-white sm:text-sm">{member.packages?.name ?? "สมาชิกทั่วไป"}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 backdrop-blur-md">
+                  <p className="text-[9px] uppercase tracking-wider text-white/45">ใช้ได้ถึง</p>
+                  <p className="text-xs font-bold text-white sm:text-sm">{formatDate(member.end_date)}</p>
+                </div>
+                <div className="col-span-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 backdrop-blur-md sm:col-span-1">
+                  <p className="text-[9px] uppercase tracking-wider text-white/45">สิทธิ์คงเหลือ</p>
+                  <p className="text-xs font-bold text-cyan-200 sm:text-sm">
+                    {member.packages?.type === "session_based"
+                      ? member.packages.sessions_limit === null
+                        ? "ไม่จำกัด"
+                        : `${Math.max(0, member.packages.sessions_limit - member.sessions_used)} ครั้ง`
+                      : daysRemaining === null ? "ไม่จำกัด" : `${daysRemaining} วัน`}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 sm:block">
+              <div className={`rounded-2xl bg-white p-2.5 shadow-2xl ${!isActive ? "opacity-45 grayscale" : ""}`}>
+                <QRCode value={qr.token} size={116} level="M" className="h-[104px] w-[104px] sm:h-[116px] sm:w-[116px]" />
+              </div>
+              <div className="mt-2 text-right">
+                <p className="inline-flex items-center gap-1 text-[10px] font-semibold text-white/65"><ShieldCheck className="h-3 w-3 text-emerald-300" /> QR ปลอดภัย</p>
+                <button type="button" onClick={refreshQr} disabled={refreshing} className="mt-1 flex items-center gap-1 text-[10px] font-bold text-cyan-200 hover:text-white disabled:opacity-50 sm:ml-auto">
+                  <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} /> {countdown > 0 ? `เปลี่ยนใน ${countdown} วิ` : "แตะเพื่อรีเฟรช"}
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+
+          <footer className="mt-4 flex items-center justify-between border-t border-white/10 pt-3 text-[10px] text-white/45">
+            <span className="inline-flex items-center gap-1"><Sparkles className="h-3 w-3 text-amber-300" /> Digital membership</span>
+            <span>แสดงบัตรนี้เพื่อเช็กอิน</span>
+          </footer>
+        </div>
+      </article>
+
+      {(!isActive || qrError) && (
+        <p className={`rounded-xl border px-4 py-3 text-center text-body-sm font-semibold ${!isActive ? "border-danger/20 bg-danger/10 text-danger" : "border-warning/20 bg-warning/10 text-warning"}`}>
+          {!isActive ? "บัตรนี้ยังใช้เช็กอินไม่ได้ กรุณาตรวจสถานะหรือต่ออายุสมาชิก" : qrError}
+        </p>
+      )}
     </div>
   );
 }
