@@ -1,0 +1,6 @@
+import {redirect} from "next/navigation";
+import {createClient} from "@/lib/supabase/server";
+import {createAdminClient} from "@/lib/supabase/admin";
+import {CoachServicesClient} from "./CoachServicesClient";
+export const metadata={title:"แพ็กเกจการสอน | SportHub"};
+export default async function ManageCoachServicesPage(){const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect("/login");const admin=createAdminClient();const{data:profile}=await admin.from("coach_profiles").select("id").eq("profile_id",user.id).maybeSingle();if(!profile)redirect("/me/coach/apply");const{data:services,error}=await admin.from("coach_services").select("id,name,description,duration_minutes,price,max_participants,is_active").eq("coach_profile_id",profile.id).order("price");return <main className="mx-auto max-w-4xl space-y-7 px-4 py-8"><header><h1 className="font-display text-display-sm font-bold text-ink">แพ็กเกจการสอน</h1><p className="mt-1 text-body-sm text-ink-soft">ราคาและระยะเวลาจากหน้านี้จะเป็นข้อมูลกลางตอนผู้เล่นส่งคำขอ</p></header>{error?<div role="alert" className="card-floating p-8">โหลดแพ็กเกจไม่สำเร็จ กรุณาลองใหม่</div>:<CoachServicesClient services={services??[]}/>}</main>}

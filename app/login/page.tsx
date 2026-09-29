@@ -1,4 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { AuthShell } from "@/components/ui/AuthShell";
+import { LineLoginButton } from "@/components/ui/LineLoginButton";
+import { lineLoginConfigured } from "@/lib/line-login";
 import { LoginForm } from "./LoginForm";
 
 export const metadata: Metadata = {
@@ -13,18 +17,20 @@ export default async function LoginPage({
   const { redirect } = await searchParams;
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6">
-      <div className="card-floating w-full max-w-sm p-10">
-        <h1 className="text-center font-display text-display-md font-semibold text-brand">
-          SportHub
-        </h1>
-        <p className="mt-1 text-center text-body-sm text-ink-soft">
-          เข้าสู่ระบบเพื่อจัดการสนามของคุณ
-        </p>
-        <div className="mt-8">
-          <LoginForm redirect={redirect} />
-        </div>
-      </div>
-    </main>
+    <AuthShell
+      title="ยินดีต้อนรับกลับ"
+      subtitle="เข้าสู่ระบบเพื่อจัดการสนามของคุณ"
+      footer={
+        <>
+          ยังไม่มีบัญชี?{" "}
+          <Link href="/signup" className="font-medium text-brand hover:text-brand-dark">
+            สมัครใช้งานฟรี
+          </Link>
+        </>
+      }
+    >
+      {lineLoginConfigured() && <LineLoginButton />}
+      <LoginForm redirect={redirect} />
+    </AuthShell>
   );
 }

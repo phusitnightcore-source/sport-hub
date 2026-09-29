@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Mail, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -49,6 +50,7 @@ export function LoginForm({ redirect }: { redirect?: string }) {
         type="email"
         autoComplete="email"
         placeholder="you@example.com"
+        icon={<Mail />}
         required
       />
       <Input
@@ -57,6 +59,7 @@ export function LoginForm({ redirect }: { redirect?: string }) {
         type="password"
         autoComplete="current-password"
         placeholder="••••••••"
+        icon={<Lock />}
         required
       />
       {error && (
@@ -64,7 +67,7 @@ export function LoginForm({ redirect }: { redirect?: string }) {
           {error}
         </p>
       )}
-      <Button type="submit" disabled={loading} className="mt-2">
+      <Button type="submit" disabled={loading} size="lg" className="mt-2 w-full">
         {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
       </Button>
     </form>

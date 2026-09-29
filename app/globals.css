@@ -1,5 +1,10 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
+
+/* Booking calls to action retain readable foregrounds in both saved themes. */
+.booking-action { background-color: rgb(var(--brand-dark)); color: white; }
+:root[data-theme="dark"] .booking-action { background-color: rgb(var(--brand)); color: rgb(var(--surface)); }
+.booking-action:hover:not(:disabled) { filter: brightness(0.95); }
 /* =============================================================================
    SportHub — Global Styles / Design Tokens (v2 — Soft Blue Dashboard)
    ทุกค่าที่นี่ต้องตรงกับ docs/DESIGN_SYSTEM.md เป๊ะ — แก้ที่นี่ที่เดียว ห้าม hardcode
@@ -9,6 +14,12 @@
 
 
 :root {
+  /* Local system stacks keep production builds independent from Google Fonts.
+     Thai-capable fallbacks are resolved by the visitor's operating system. */
+  --font-prompt: "Noto Sans Thai", "Leelawadee UI", Tahoma, Arial, sans-serif;
+  --font-outfit: "Segoe UI", Inter, Arial, sans-serif;
+  --font-plex-mono: "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+
   /* ---- Color tokens (ดู DESIGN_SYSTEM.md ข้อ 1) ---- */
   --brand: 46 119 245;         /* #2E77F5 */
   --brand-dark: 27 95 224;     /* #1B5FE0 */
@@ -40,6 +51,24 @@
   --motion-slow: 400ms;
 }
 
+/* ---- Dark mode (v2.1) — override token เท่านั้น component ที่ใช้ token ปรับตามอัตโนมัติ ----
+   ตั้งค่าโดย script no-FOUC ใน layout (อ่าน localStorage/prefers-color-scheme) ----------- */
+:root[data-theme="dark"] {
+  --brand: 96 165 250;         /* #60A5FA — สว่างขึ้นเล็กน้อยให้ตัดกับพื้นเข้ม */
+  --brand-dark: 59 130 246;    /* #3B82F6 */
+  --brand-soft: 30 42 74;      /* พื้นไอคอน/hover โทนเข้ม */
+  --bg-top: 15 23 42;          /* #0F172A */
+  --bg-bottom: 12 18 34;       /* #0C1222 */
+  --surface: 27 37 64;         /* #1B2540 การ์ดลอยเหนือพื้นเข้ม */
+  --ink: 232 237 247;          /* ตัวอักษรหลัก near-white */
+  --ink-soft: 148 163 184;     /* #94A3B8 */
+  --line: 42 53 82;            /* เส้น/ring โทนเข้ม */
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.40);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.50);
+  color-scheme: dark;
+}
+
 @layer base {
   html {
     color-scheme: light;
@@ -68,17 +97,126 @@
 }
 
 @layer utilities {
+  /* Counter primary actions follow the explicit theme toggle, not OS preference. */
+  .pos-primary {
+    background-color: rgb(var(--brand-dark));
+    color: rgb(255 255 255);
+  }
+  :root[data-theme="dark"] .pos-primary {
+    background-color: rgb(var(--brand));
+    color: rgb(var(--surface));
+  }
+  .pos-primary:hover:not(:disabled) { filter: brightness(0.95); }
   /* ---- Status pill พื้นฐาน (ใช้ผ่าน components/ui/StatusPill.tsx เท่านั้น) ---- */
   .pill-success  { background: rgb(var(--success) / 0.1);  color: rgb(var(--success)); }
   .pill-danger   { background: rgb(var(--danger) / 0.1);   color: rgb(var(--danger)); }
   .pill-warning  { background: rgb(var(--warning) / 0.12); color: rgb(var(--warning)); }
   .pill-brand    { background: rgb(var(--brand) / 0.1);    color: rgb(var(--brand-dark)); }
 
+  /* ---- Hide scrollbar utility ---- */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* ---- Prose (เนื้อหาบทความ Blog) — typography จาก token, รองรับ dark mode ---- */
+  .prose-content {
+    color: rgb(var(--ink));
+    line-height: 1.75;
+  }
+  .prose-content > * + * { margin-top: 1.1em; }
+  .prose-content h2 {
+    font-family: var(--font-prompt), sans-serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-top: 1.6em;
+    color: rgb(var(--ink));
+  }
+  .prose-content h3 {
+    font-family: var(--font-prompt), sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 1.4em;
+    color: rgb(var(--ink));
+  }
+  .prose-content p { color: rgb(var(--ink)); }
+  .prose-content a { color: rgb(var(--brand)); text-decoration: underline; }
+  .prose-content ul, .prose-content ol { padding-left: 1.5rem; }
+  .prose-content ul { list-style: disc; }
+  .prose-content ol { list-style: decimal; }
+  .prose-content li { margin-top: 0.4em; }
+  .prose-content img {
+    max-width: 100%;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+  }
+  .prose-content blockquote {
+    border-left: 3px solid rgb(var(--brand));
+    padding-left: 1rem;
+    color: rgb(var(--ink-soft));
+  }
+  .prose-content strong { font-weight: 600; }
+
+  /* ---- Affiliate product card (ใช้ในบทความ + component AffiliateCard) ---- */
+  .affiliate-card {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    background: rgb(var(--surface));
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    padding: 0.9rem;
+    text-decoration: none;
+    transition: box-shadow var(--motion-fast), transform var(--motion-fast);
+  }
+  .affiliate-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+  .affiliate-card__img {
+    width: 84px; height: 84px; object-fit: cover; border-radius: var(--radius-sm);
+    box-shadow: none; flex-shrink: 0;
+  }
+  .affiliate-card__body { display: flex; flex-direction: column; gap: 0.15rem; }
+  .affiliate-card__body strong { color: rgb(var(--ink)); font-weight: 600; }
+  .affiliate-card__store { font-size: 0.8125rem; color: rgb(var(--ink-soft)); }
+  .affiliate-card__price {
+    font-family: var(--font-prompt), sans-serif; font-weight: 700; color: rgb(var(--brand));
+  }
+  .affiliate-card__buy {
+    margin-top: 0.35rem; align-self: flex-start;
+    background: rgb(var(--brand)); color: #fff;
+    border-radius: var(--radius-full); padding: 0.35rem 1rem;
+    font-size: 0.875rem; font-weight: 500;
+  }
+
   /* ---- Card ฐาน — ใช้เป็น base class ของ List Row Card / Stat Card ---- */
   .card-floating {
     background: rgb(var(--surface));
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-md);
+  }
+
+  /* ---- Skeleton loading (ใช้ผ่าน components/ui/Skeleton.tsx) — shimmer ตาม Motion Guide ---- */
+  .skeleton {
+    background-image: linear-gradient(
+      90deg,
+      rgb(var(--line)) 25%,
+      rgb(var(--surface)) 50%,
+      rgb(var(--line)) 75%
+    );
+    background-size: 200% 100%;
+    border-radius: var(--radius-sm);
+    animation: shimmer 1.5s linear infinite;
+  }
+
+  /* ---- ลาย hatch เฉียงสำหรับ slot "ถูกบล็อก" (DESIGN_SYSTEM ข้อ 6) ---- */
+  .slot-hatch {
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgb(var(--ink-soft) / 0.2) 0 2px,
+      transparent 2px 8px
+    );
   }
 }
 
@@ -132,3 +270,87 @@
 .animate-slide-fade-in  { animation: slide-fade-in 200ms ease-out; }
 .animate-toast-in       { animation: toast-in 200ms ease-out; }
 .animate-press           { animation: press-scale 100ms ease-out; }
+
+/* =============================================================================
+   Landing page motion (หน้า marketing) — โทนสปอร์ต การ์ดลอย + รูปทรงเคลื่อนไหว
+   ทุกตัวถูกปิดอัตโนมัติเมื่อ prefers-reduced-motion (media query กลางด้านบน)
+   ============================================================================= */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-14px); }
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-26px); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes gradient-pan {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes blob {
+  0%, 100% { border-radius: 42% 58% 55% 45% / 45% 45% 55% 55%; transform: translate(0, 0) rotate(0deg); }
+  50%      { border-radius: 58% 42% 45% 55% / 55% 55% 45% 45%; transform: translate(12px, -12px) rotate(8deg); }
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(0.85); opacity: 0.7; }
+  70%  { transform: scale(1.4);  opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes dropdown-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-dropdown-in  { transform-origin: top; animation: dropdown-in 140ms ease-out; }
+
+.animate-float        { animation: float 6s ease-in-out infinite; }
+.animate-float-slow   { animation: float-slow 9s ease-in-out infinite; }
+.animate-fade-up      { animation: fade-up 700ms ease-out both; }
+.animate-gradient-pan { background-size: 200% 200%; animation: gradient-pan 9s ease-in-out infinite; }
+.animate-blob         { animation: blob 14s ease-in-out infinite; }
+.animate-pulse-ring   { animation: pulse-ring 2.4s ease-out infinite; }
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .receipt-print,
+  .receipt-print * {
+    visibility: visible;
+  }
+
+  .receipt-print {
+    /* Printed receipts must remain legible when the screen uses dark mode. */
+    --surface: 255 255 255;
+    --ink: 22 33 62;
+    --ink-soft: 22 33 62;
+    --line: 231 238 252;
+    color-scheme: light;
+    background: rgb(var(--surface));
+    color: rgb(var(--ink));
+    position: absolute;
+    inset: 0;
+    width: 80mm;
+    max-width: 80mm;
+    margin: 0;
+    padding: 0;
+  }
+
+  .receipt-print .receipt-actions {
+    display: none !important;
+  }
+
+  .receipt-print .receipt-paper {
+    width: 80mm;
+    max-width: 80mm;
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+  }
+}

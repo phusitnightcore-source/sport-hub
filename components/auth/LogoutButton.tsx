@@ -10,8 +10,11 @@ export function LogoutButton() {
 
   async function handleLogout() {
     setLoading(true);
+    // signOut (scope global) revoke refresh token ฝั่งเซิร์ฟเวอร์ด้วย
     await createClient().auth.signOut();
-    window.location.assign("/login");
+    // replace ไม่ทิ้งหน้าที่ auth ไว้ใน history + reload ล้างสถานะที่ค้างในหน่วยความจำ
+    // เด้งไปหน้า landing (หน้าแรก) หลังออกจากระบบ
+    window.location.replace("/");
   }
 
   return (
