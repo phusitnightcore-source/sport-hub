@@ -483,7 +483,7 @@ export function TournamentAdminClient({
           {/* Matches Grid */}
           {visibleMatches.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-line p-12 text-center text-body-sm text-ink-soft">
-              ยังไม่มีสายการแข่งขัน กรุณากดปุ่ม <strong>"จัดสายตามมือวาง"</strong> หรือ <strong>"สุ่มจับสลาก"</strong> ด้านบน
+              ยังไม่มีสายการแข่งขัน กรุณากดปุ่ม <strong>&quot;จัดสายตามมือวาง&quot;</strong> หรือ <strong>&quot;สุ่มจับสลาก&quot;</strong> ด้านบน
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -806,7 +806,7 @@ export function TournamentAdminClient({
 
           {teams.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-line p-12 text-center text-body-sm text-ink-soft">
-              ยังไม่มีทีมในระบบ กดปุ่ม "เพิ่มทีม" เพื่อเพิ่มข้อมูล
+              ยังไม่มีทีมในระบบ กดปุ่ม &quot;เพิ่มทีม&quot; เพื่อเพิ่มข้อมูล
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3">

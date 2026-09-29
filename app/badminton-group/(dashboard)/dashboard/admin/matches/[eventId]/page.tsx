@@ -1433,7 +1433,7 @@ export default function MatchMakerPage({ params }: { params: Promise<{ eventId: 
                                     <Icon icon="solar:sort-horizontal-linear" width={28} className="text-[var(--muted)]" />
                                 </div>
                                 <h2 className="text-xl font-bold mb-2 tracking-tight text-[var(--foreground)]">ยังไม่มีแมตช์</h2>
-                                <p className="text-sm font-medium mb-8 text-[var(--muted)]">กดปุ่ม "สร้างแมตช์ใหม่" เพื่อเริ่มต้นความสนุก</p>
+                                <p className="text-sm font-medium mb-8 text-[var(--muted)]">กดปุ่ม &quot;สร้างแมตช์ใหม่&quot; เพื่อเริ่มต้นความสนุก</p>
                             </div>
                         ) : sortedMatches.length === 0 ? (
                             <div className="card text-center shadow-xs" style={{ padding: '48px 32px' }}>

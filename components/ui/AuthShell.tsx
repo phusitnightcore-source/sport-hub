@@ -43,7 +43,7 @@ export function AuthShell({
         </Link>
 
         <div className="relative flex flex-col gap-7">
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3">  
             {SPORTS.map((s, i) => (
               <span
                 key={i}
